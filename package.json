@@ -7,15 +7,21 @@
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.3.2",
     "@testing-library/user-event": "^7.1.2",
+    "@types/draft-js": "^0.11.5",
     "@types/jest": "^24.0.0",
     "@types/node": "^12.0.0",
     "@types/react": "^16.9.0",
     "@types/react-dom": "^16.9.0",
     "@types/react-redux": "^7.1.7",
+    "@types/styled-components": "^5.1.14",
+    "draft-js": "^0.11.7",
+    "fp-ts": "^2.11.4",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
+    "react-editor-js": "^1.10.0",
     "react-redux": "^7.2.0",
     "react-scripts": "4.0.3",
+    "styled-components": "^5.3.1",
     "typescript": "~4.1.5"
   },
   "scripts": {
@@ -37,6 +43,14 @@
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "babel-plugin-styled-components": "^1.13.2"
+  },
+  "babel": {
+    "plugins": [
+      "babel-plugin-styled-components"
     ]
   }
 }
