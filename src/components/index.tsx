@@ -1,12 +1,10 @@
+import { Editor, EditorState, getDefaultKeyBinding, RichUtils } from 'draft-js';
 import 'draft-js/dist/Draft.css';
-
-import { BlockItem, selectPath, setSystem } from '../reducers/system';
-import {Editor, EditorState, RichUtils, SelectionState, getDefaultKeyBinding} from 'draft-js';
-import React, { useEffect } from 'react'
+import { option } from 'fp-ts';
+import { pipe } from 'fp-ts/lib/function';
+import React, { useCallback, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-
-import styled from 'styled-components'
-import { useCallback } from 'react';
+import { BlockItem, selectNode, selectPath, selectRules, setSystem } from '../reducers/system';
 
 // import { useAppDispatch } from '../app/hooks';
 
@@ -31,6 +29,10 @@ const App = () => {
   const path = useAppSelector(state => {
     return selected ? selectPath(state.system, selected) : null
   })
+
+  const node = useAppSelector(state => selected ? selectNode(state.system, selected) : null)
+
+  const rules = useAppSelector(state => selectRules(state.system))
   
   useEffect(() => {
     setEditorState(() => RichUtils.toggleBlockType(editorState, 'unordered-list-item'))
@@ -56,7 +58,14 @@ const App = () => {
       />
       ---
       <div>
-        Path: {path?.map(x => x.text).join(" > ")}
+        <h3>Selected Path</h3>
+        {path?.map(x => x.text).join(" > ")}
+        <h3>Selected Rule</h3>
+        {pipe(node?.rule?.ast, option.fromNullable, option.map(JSON.stringify), option.toNullable)}
+        <h3>Errors</h3>
+        <ul>
+          {rules.flatMap(r => r.errs).map(e => <li>Char {e.pos.offset}: One of {e.expmatches.map(x => x.kind === "EOF" ? " EOF" : ` ${x.negated ? 'not ': ''}'${x.literal}'`)}</li>)}
+        </ul>
       </div>
       {/* <JSONTree data={editorState} /> */}
     </div>
