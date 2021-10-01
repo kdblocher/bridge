@@ -1,23 +1,21 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit"
-import { option, readonlyArray, tree } from 'fp-ts'
-import { identity, pipe } from "fp-ts/lib/function"
-import { parse, ParseResult } from '../model/bid'
+import { PayloadAction, createSlice } from "@reduxjs/toolkit"
+import { flow, identity, pipe } from "fp-ts/lib/function"
+import { option, readonlyArray, separated, tree } from 'fp-ts'
+
+import { castDraft } from "immer"
+import { decodeBid } from "../parse"
+import { failure } from "io-ts/Decoder"
 
 interface Node {
   blockKey?: string
   text: string
-  rule?: ParseResult
-}
-export interface BlockItem {
-  key: string
-  text: string
-  depth: number
+  bid: ReturnType<typeof decodeBid>
 }
 
 type State = {
   system: tree.Tree<Node>
 }
-const getRoot = () => tree.make<Node>({ text: "root" })
+const getRoot = () => tree.make<Node>({ text: "root", bid: failure("", "") })
 const initialState: State = {
   system: getRoot()
 }
@@ -37,11 +35,17 @@ const flatten =
   tree.reduce<Node, readonly Node[]>([], (items, a) =>
     pipe(items, readonlyArray.append(a)))
 
+export interface BlockItem {
+  key: string
+  text: string
+  depth: number
+}
+
 const buildTree = (items: BlockItem[]) => {
   const root = getRoot()
   var parents = [root]
   items.forEach(item => {
-    const curr = parents[item.depth + 1] = { value: { blockKey: item.key, text: item.text, rule: parse(item.text) }, forest: [] }
+    const curr = parents[item.depth + 1] = { value: { blockKey: item.key, text: item.text, bid: decodeBid(item.text) }, forest: [] }
     parents[item.depth].forest.push(curr)
   })
   return root
@@ -53,7 +57,7 @@ const slice = createSlice({
   initialState,
   reducers: {
     setSystem: (state, action: PayloadAction<BlockItem[]>) => {
-      state.system = buildTree(action.payload)
+      state.system = pipe(buildTree(action.payload), castDraft)
     }
   }
 })
@@ -75,8 +79,14 @@ export const selectRules = (state: State) =>
   pipe(
     state.system,
     flatten,
-    readonlyArray.map(n => option.fromNullable(n.rule)),
+    readonlyArray.map(n => option.fromNullable(n.bid)),
     readonlyArray.compact,
   )
+
+export const selectErrors =
+  flow(
+    selectRules,
+    readonlyArray.separate,
+    separated.left)
 
 export default slice.reducer

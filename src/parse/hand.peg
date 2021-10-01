@@ -1,0 +1,9 @@
+Start := hand=Hand $
+Hand := S=Suit '\.' H=Suit '\.' D=Suit '\.' C=Suit
+Suit := cards=Card*
+Card := c='[AKQJT2-9]'
+  .rank = number {
+    const rankStrings = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
+    return rankStrings.indexOf(c) + 2
+  }
+// ValidChar := '[AKQJT2-9.]{16}' // 13 + 3 dots

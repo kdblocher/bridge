@@ -1,6 +1,8 @@
+import selection from './selection'
 import system from './system'
 
 const reducers = {
-  system
+  system,
+  selection
 }
 export default reducers
