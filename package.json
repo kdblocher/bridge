@@ -23,7 +23,7 @@
     "react-redux": "^7.2.0",
     "react-scripts": "4.0.3",
     "styled-components": "^5.3.1",
-    "typescript": "~4.1.5"
+    "typescript": "*"
   },
   "scripts": {
     "tspeg": "tspeg src/parse/bid.peg src/parse/bid.peg.g.ts && tspeg src/parse/hand.peg src/parse/hand.peg.g.ts",
@@ -52,6 +52,13 @@
     "tspeg": "^3.2.0"
   },
   "babel": {
+    "presets": [
+      ["minify", {
+        "builtIns": false,
+        "evaluate": false,
+        "mangle": false
+      }]
+    ],
     "plugins": [
       "babel-plugin-styled-components"
     ]

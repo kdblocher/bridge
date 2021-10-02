@@ -1,7 +1,6 @@
 import { apply, eq, number, option, ord, readonlyArray as RA, readonlyArray, readonlyNonEmptyArray, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlySet as RS, readonlyTuple, readonlyTuple as RT } from "fp-ts"
 import { flow, pipe } from "fp-ts/lib/function"
 import { first } from 'fp-ts/lib/Semigroup'
-import { Tuple } from "../lib/tuple"
 import { Deck, eqCard, Hand, ordCard, Suit, suits } from "./deck"
 
 export const directions = ['N', 'E', 'S', 'W'] as const
@@ -110,5 +109,5 @@ export const getHandShape = (hand: Hand) : Shape =>
     getHandSpecificShape,
     readonlyRecord.toReadonlyArray,
     readonlyArray.map(readonlyTuple.snd),
-    suitCounts => Tuple.map((_, idx) =>
-      pipe(suitCounts, readonlyArray.lookup(idx), option.getOrElse(() => 0)), ...zeroShape))
+    suitCounts => readonlyArray.mapWithIndex((idx, _) =>
+      pipe(suitCounts, readonlyArray.lookup(idx), option.getOrElse(() => 0)))(zeroShape)) as Shape
