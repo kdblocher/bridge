@@ -1,9 +1,11 @@
-import { Deck, Hand, Suit, eqCard, suits } from "./deck"
-import { readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlySet as RS, readonlyTuple as RT, apply, readonlyArray } from "fp-ts"
+import { apply, eq, number, option, ord, readonlyArray as RA, readonlyArray, readonlyNonEmptyArray, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlySet as RS, readonlyTuple, readonlyTuple as RT } from "fp-ts"
 import { flow, pipe } from "fp-ts/lib/function"
+import { first } from 'fp-ts/lib/Semigroup'
+import { Tuple } from "../lib/tuple"
+import { Deck, eqCard, Hand, ordCard, Suit, suits } from "./deck"
 
-export type Direction = 'N' | 'E' | 'S' | 'W'
 export const directions = ['N', 'E', 'S', 'W'] as const
+export type Direction = typeof directions[number]
 
 export type Deal = ReadonlyMap<Direction, Hand>
 export type Player = {
@@ -20,12 +22,12 @@ export const deal = (deck: Deck) : Deal =>
       RT.swap)),
     x => new Map(x))
 
-export type Vulnerability = "Neither" | "NorthSouth" | "EastWest" | "Both"
-export const vulnerabilities: ReadonlyArray<Vulnerability> = ["Neither", "NorthSouth", "EastWest", "Both"]
+export const vulnerabilities = ["Neither", "NorthSouth", "EastWest", "Both"] as const
+export type Vulnerability = typeof vulnerabilities[number]
 
-export type Strain = Suit | 'N'
-export const strains : ReadonlyArray<Strain> = [...suits, 'N']
 
+export const strains = [...suits, 'N'] as const
+export type Strain = typeof strains[number]
 export interface Board {
   number: number
   dealer: Direction
@@ -75,3 +77,38 @@ export interface BoardWithAuction extends Board {
 export interface BoardWithCompletedAuction extends BoardWithAuction {
   auction: CompletedAuction
 }
+
+export type Shape = readonly [number, number, number, number]
+export const zeroShape: Shape = [0, 0, 0, 0]
+export const sortShape = (s: Shape) => pipe(s, readonlyArray.sort(ord.reverse(number.Ord))) as Shape
+export const makeShape = (...counts: Shape) =>
+  pipe(counts, sortShape)
+export const eqShape : eq.Eq<Shape> =
+  eq.contramap(sortShape)(readonlyArray.getEq(number.Eq))
+
+export type SpecificShape = Record<Suit, number>
+export const makeSpecificShape = (s: number, h: number, d: number, c: number) : SpecificShape => ({
+  S: s,
+  H: h,
+  D: d,
+  C: c
+})
+export const zeroSpecificShape = makeSpecificShape(0, 0, 0, 0)
+
+export const getHandSpecificShape = (hand: Hand) : SpecificShape =>
+  pipe(hand,
+    readonlySet.toReadonlyArray(ordCard),
+    readonlyNonEmptyArray.fromReadonlyArray,
+    option.fold(() => zeroSpecificShape, flow(
+      readonlyNonEmptyArray.groupBy(c => c.suit),
+      readonlyRecord.map(x => x.length),
+      readonlyRecord.union(first<number>())(zeroSpecificShape),
+      (suits: readonlyRecord.ReadonlyRecord<Suit, number>) => suits)))
+
+export const getHandShape = (hand: Hand) : Shape =>
+  pipe(hand,
+    getHandSpecificShape,
+    readonlyRecord.toReadonlyArray,
+    readonlyArray.map(readonlyTuple.snd),
+    suitCounts => Tuple.map((_, idx) =>
+      pipe(suitCounts, readonlyArray.lookup(idx), option.getOrElse(() => 0)), ...zeroShape))

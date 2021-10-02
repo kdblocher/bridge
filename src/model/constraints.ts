@@ -1,18 +1,9 @@
-import { Bid, ContractBid } from './bridge'
-import { Card, Hand, Suit, ordCard } from './deck'
-import { eq, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlySet, readonlyTuple, record } from 'fp-ts'
-import { flow, pipe } from 'fp-ts/lib/function'
-
+import { number, ord, readonlyArray, readonlySet, record } from 'fp-ts'
 import { eqStrict } from 'fp-ts/lib/Eq'
-import { first } from 'fp-ts/lib/Semigroup'
+import { pipe } from 'fp-ts/lib/function'
+import { Bid, ContractBid, eqShape, getHandShape, getHandSpecificShape, makeShape, Shape, SpecificShape } from './bridge'
+import { Card, Hand, ordCard, Suit } from './deck'
 
-module Tuple {
-  type MapTuple<T, U> = {
-    [K in keyof T]: U
-  }
-  export const map = <A, B, Arr extends A[]>(f: (a: A, i: number) => B, ...a: Arr) : MapTuple<Arr, B> =>
-    [...a.map(f)] as MapTuple<Arr, B>
-}
 
 export interface ConstraintPointRange {
   type: "PointRange"
@@ -20,8 +11,7 @@ export interface ConstraintPointRange {
   max: number
 }
 
-export type SuitRangeSpecifier = "Major" | "OtherMajor" | "Minor" | "OtherMinor" | Suit
-
+export type SuitRangeSpecifier = "Major" | "Minor" | Suit // | "OtherMajor" | "OtherMinor"
 export interface ConstraintSuitRange {
   type: "SuitRange"
   suit: SuitRangeSpecifier
@@ -39,31 +29,16 @@ export interface ConstraintDisjunction {
   constraints: ReadonlyArray<Constraint>
 }
 
-type Shape = readonly [number, number, number, number]
 interface ConstraintShape {
   type: "Shape"
   counts: Shape
 }
-const zeroShape: Shape = [0, 0, 0, 0]
-const sortShape = (s: Shape) => pipe(s, readonlyArray.sort(ord.reverse(number.Ord))) as Shape
-const makeShape = (...counts: Shape) =>
-  pipe(counts, sortShape)
-const eqShape : eq.Eq<Shape> =
-  eq.contramap(sortShape)(readonlyArray.getEq(number.Eq))
 
-type SpecificShape = Record<Suit, number>
 export interface ConstraintSpecificShape {
   type: "SpecificShape",
   suits: SpecificShape
 }
 
-const makeSpecificShape = (s: number, h: number, d: number, c: number) : SpecificShape => ({
-  S: s,
-  H: h,
-  D: d,
-  C: c
-})
-export const zeroSpecificShape = makeSpecificShape(0, 0, 0, 0)
 
 export interface ConstraintDistribution {
   type: "Balanced" | "SemiBalanced" | "Unbalanced"
@@ -102,36 +77,18 @@ export const getHcp = (hand: Hand) =>
     readonlySet.toReadonlyArray(ordCard),
     readonlyArray.foldMap(number.MonoidSum)(getCardHcp))
 
-export const getHandSpecificShape = (hand: Hand) : SpecificShape =>
-  pipe(hand,
-    readonlySet.toReadonlyArray(ordCard),
-    readonlyNonEmptyArray.fromReadonlyArray,
-    option.fold(() => zeroSpecificShape, flow(
-      readonlyNonEmptyArray.groupBy(c => c.suit),
-      readonlyRecord.map(x => x.length),
-      readonlyRecord.union(first<number>())(zeroSpecificShape),
-      (suits: readonlyRecord.ReadonlyRecord<Suit, number>) => suits)))
-
-export const getHandShape = (hand: Hand) : Shape =>
-  pipe(hand,
-    getHandSpecificShape,
-    readonlyRecord.toReadonlyArray,
-    readonlyArray.map(readonlyTuple.snd),
-    suitCounts => {
-      const result = Tuple.map((_, idx) => pipe(suitCounts, readonlyArray.lookup(idx), option.getOrElse(() => 0)), ...zeroShape)
-      return result
-    })
-
 export const isSpecificShape = (hand: Hand) => (shape: SpecificShape) =>
   pipe(hand, getHandSpecificShape, suits => record.getEq(eqStrict).equals(suits, shape))
 
 export const isSuitRange = (hand: Hand) => (range: ConstraintSuitRange) => {
   const getSuitsToCheck: readonly Suit[] =
-    range.suit === "Major" || range.suit === "OtherMajor" ? ["S", "H"] :
-    range.suit === "Minor" || range.suit === "OtherMinor" ? ["D", "C"] :
+    range.suit === "Major" ? ["S", "H"] :
+    range.suit === "Minor" ? ["D", "C"] :
     [range.suit]
   return pipe(hand, getHandSpecificShape, shape =>
-    pipe(getSuitsToCheck, readonlyArray.exists(s => ord.between(number.Ord)(range.min, range.max)(shape[s]))))
+    pipe(getSuitsToCheck, readonlyArray.exists(s => {
+      return ord.between(number.Ord)(range.min, range.max)(shape[s])
+    })))
 }
 
 export const isShape = (hand: Hand) => (shape: Shape) =>

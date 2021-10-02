@@ -2,18 +2,18 @@ Start := bid=Bid $
 Bid := level=Digit bid=BidSpecifier ': ' constraints=ConstraintList
 BidSpecifier := Wildcard | SuitSpecifier
 
-Wildcard := 'x'
+Wildcard := v='x'
 SuitSpecifier := Major | Minor | Strain
-Major := 'M'
-Minor := 'm'
+Major := v='M'
+Minor := v='m'
 
 Strain := Suit | Notrump
 Suit := Club | Diamond | Heart | Spade
-Club := '[Cc♣♧]'
-Diamond := '[Dd♦♢]'
-Heart := '[Hh♥♡]'
-Spade := '[Ss♠♤]'
-Notrump := '[Nn]' '[Tt]'?
+Club := v='[Cc♣♧]'
+Diamond := v='[Dd♦♢]'
+Heart := v='[Hh♥♡]'
+Spade := v='[Ss♠♤]'
+Notrump := v='[Nn]' '[Tt]'?
 
 ConstraintList := ConstraintListItem+
 ConstraintListItem := constraint=Constraint ' '?
@@ -26,7 +26,7 @@ PointBound := value=Number qualifier=BoundQualifier
 
 SuitRange := lower=Digit '-' upper=Digit suit=SuitRangeSpecifier
 SuitBound := value=Number qualifier=BoundQualifier suit=SuitRangeSpecifier
-SuitRangeSpecifier := Major | Minor | OtherMajor | OtherMinor | Suit
+SuitRangeSpecifier := Major | Minor | Suit //| OtherMajor | OtherMinor
 OtherMajor := v='oM'
 OtherMinor := v='om'
 

@@ -3,17 +3,17 @@
 * Start := bid=Bid $
 * Bid := level=Digit bid=BidSpecifier ': ' constraints=ConstraintList
 * BidSpecifier := Wildcard | SuitSpecifier
-* Wildcard := 'x'
+* Wildcard := v='x'
 * SuitSpecifier := Major | Minor | Strain
-* Major := 'M'
-* Minor := 'm'
+* Major := v='M'
+* Minor := v='m'
 * Strain := Suit | Notrump
 * Suit := Club | Diamond | Heart | Spade
-* Club := '[Cc♣♧]'
-* Diamond := '[Dd♦♢]'
-* Heart := '[Hh♥♡]'
-* Spade := '[Ss♠♤]'
-* Notrump := '[Nn]' '[Tt]'?
+* Club := v='[Cc♣♧]'
+* Diamond := v='[Dd♦♢]'
+* Heart := v='[Hh♥♡]'
+* Spade := v='[Ss♠♤]'
+* Notrump := v='[Nn]' '[Tt]'?
 * ConstraintList := ConstraintListItem+
 * ConstraintListItem := constraint=Constraint ' '?
 * Constraint := ConstraintAnd | ConstraintOr | Distribution | Response | SuitRange | SuitBound | PointRange | PointBound 
@@ -23,7 +23,7 @@
 * PointBound := value=Number qualifier=BoundQualifier
 * SuitRange := lower=Digit '-' upper=Digit suit=SuitRangeSpecifier
 * SuitBound := value=Number qualifier=BoundQualifier suit=SuitRangeSpecifier
-* SuitRangeSpecifier := Major | Minor | OtherMajor | OtherMinor | Suit
+* SuitRangeSpecifier := Major | Minor | Suit //| OtherMajor | OtherMinor
 * OtherMajor := v='oM'
 * OtherMinor := v='om'
 * BoundQualifier := Plus | Minus | Equals
@@ -93,8 +93,6 @@ export enum ASTKinds {
     SuitRangeSpecifier_1 = "SuitRangeSpecifier_1",
     SuitRangeSpecifier_2 = "SuitRangeSpecifier_2",
     SuitRangeSpecifier_3 = "SuitRangeSpecifier_3",
-    SuitRangeSpecifier_4 = "SuitRangeSpecifier_4",
-    SuitRangeSpecifier_5 = "SuitRangeSpecifier_5",
     OtherMajor = "OtherMajor",
     OtherMinor = "OtherMinor",
     BoundQualifier_1 = "BoundQualifier_1",
@@ -137,13 +135,22 @@ export interface Bid {
 export type BidSpecifier = BidSpecifier_1 | BidSpecifier_2;
 export type BidSpecifier_1 = Wildcard;
 export type BidSpecifier_2 = SuitSpecifier;
-export type Wildcard = string;
+export interface Wildcard {
+    kind: ASTKinds.Wildcard;
+    v: string;
+}
 export type SuitSpecifier = SuitSpecifier_1 | SuitSpecifier_2 | SuitSpecifier_3;
 export type SuitSpecifier_1 = Major;
 export type SuitSpecifier_2 = Minor;
 export type SuitSpecifier_3 = Strain;
-export type Major = string;
-export type Minor = string;
+export interface Major {
+    kind: ASTKinds.Major;
+    v: string;
+}
+export interface Minor {
+    kind: ASTKinds.Minor;
+    v: string;
+}
 export type Strain = Strain_1 | Strain_2;
 export type Strain_1 = Suit;
 export type Strain_2 = Notrump;
@@ -152,12 +159,25 @@ export type Suit_1 = Club;
 export type Suit_2 = Diamond;
 export type Suit_3 = Heart;
 export type Suit_4 = Spade;
-export type Club = string;
-export type Diamond = string;
-export type Heart = string;
-export type Spade = string;
+export interface Club {
+    kind: ASTKinds.Club;
+    v: string;
+}
+export interface Diamond {
+    kind: ASTKinds.Diamond;
+    v: string;
+}
+export interface Heart {
+    kind: ASTKinds.Heart;
+    v: string;
+}
+export interface Spade {
+    kind: ASTKinds.Spade;
+    v: string;
+}
 export interface Notrump {
     kind: ASTKinds.Notrump;
+    v: string;
 }
 export type ConstraintList = ConstraintListItem[];
 export interface ConstraintListItem {
@@ -207,12 +227,10 @@ export interface SuitBound {
     qualifier: BoundQualifier;
     suit: SuitRangeSpecifier;
 }
-export type SuitRangeSpecifier = SuitRangeSpecifier_1 | SuitRangeSpecifier_2 | SuitRangeSpecifier_3 | SuitRangeSpecifier_4 | SuitRangeSpecifier_5;
+export type SuitRangeSpecifier = SuitRangeSpecifier_1 | SuitRangeSpecifier_2 | SuitRangeSpecifier_3;
 export type SuitRangeSpecifier_1 = Major;
 export type SuitRangeSpecifier_2 = Minor;
-export type SuitRangeSpecifier_3 = OtherMajor;
-export type SuitRangeSpecifier_4 = OtherMinor;
-export type SuitRangeSpecifier_5 = Suit;
+export type SuitRangeSpecifier_3 = Suit;
 export interface OtherMajor {
     kind: ASTKinds.OtherMajor;
     v: string;
@@ -374,7 +392,17 @@ export class Parser {
         return this.matchSuitSpecifier($$dpth + 1, $$cr);
     }
     public matchWildcard($$dpth: number, $$cr?: ErrorTracker): Nullable<Wildcard> {
-        return this.regexAccept(String.raw`(?:x)`, $$dpth + 1, $$cr);
+        return this.run<Wildcard>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<Wildcard> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:x)`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.Wildcard, v: $scope$v};
+                }
+                return $$res;
+            });
     }
     public matchSuitSpecifier($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier> {
         return this.choice<SuitSpecifier>([
@@ -393,10 +421,30 @@ export class Parser {
         return this.matchStrain($$dpth + 1, $$cr);
     }
     public matchMajor($$dpth: number, $$cr?: ErrorTracker): Nullable<Major> {
-        return this.regexAccept(String.raw`(?:M)`, $$dpth + 1, $$cr);
+        return this.run<Major>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<Major> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:M)`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.Major, v: $scope$v};
+                }
+                return $$res;
+            });
     }
     public matchMinor($$dpth: number, $$cr?: ErrorTracker): Nullable<Minor> {
-        return this.regexAccept(String.raw`(?:m)`, $$dpth + 1, $$cr);
+        return this.run<Minor>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<Minor> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:m)`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.Minor, v: $scope$v};
+                }
+                return $$res;
+            });
     }
     public matchStrain($$dpth: number, $$cr?: ErrorTracker): Nullable<Strain> {
         return this.choice<Strain>([
@@ -431,26 +479,67 @@ export class Parser {
         return this.matchSpade($$dpth + 1, $$cr);
     }
     public matchClub($$dpth: number, $$cr?: ErrorTracker): Nullable<Club> {
-        return this.regexAccept(String.raw`(?:[Cc♣♧])`, $$dpth + 1, $$cr);
+        return this.run<Club>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<Club> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:[Cc♣♧])`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.Club, v: $scope$v};
+                }
+                return $$res;
+            });
     }
     public matchDiamond($$dpth: number, $$cr?: ErrorTracker): Nullable<Diamond> {
-        return this.regexAccept(String.raw`(?:[Dd♦♢])`, $$dpth + 1, $$cr);
+        return this.run<Diamond>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<Diamond> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:[Dd♦♢])`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.Diamond, v: $scope$v};
+                }
+                return $$res;
+            });
     }
     public matchHeart($$dpth: number, $$cr?: ErrorTracker): Nullable<Heart> {
-        return this.regexAccept(String.raw`(?:[Hh♥♡])`, $$dpth + 1, $$cr);
+        return this.run<Heart>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<Heart> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:[Hh♥♡])`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.Heart, v: $scope$v};
+                }
+                return $$res;
+            });
     }
     public matchSpade($$dpth: number, $$cr?: ErrorTracker): Nullable<Spade> {
-        return this.regexAccept(String.raw`(?:[Ss♠♤])`, $$dpth + 1, $$cr);
+        return this.run<Spade>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<Spade> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:[Ss♠♤])`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.Spade, v: $scope$v};
+                }
+                return $$res;
+            });
     }
     public matchNotrump($$dpth: number, $$cr?: ErrorTracker): Nullable<Notrump> {
         return this.run<Notrump>($$dpth,
             () => {
+                let $scope$v: Nullable<string>;
                 let $$res: Nullable<Notrump> = null;
                 if (true
-                    && this.regexAccept(String.raw`(?:[Nn])`, $$dpth + 1, $$cr) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:[Nn])`, $$dpth + 1, $$cr)) !== null
                     && ((this.regexAccept(String.raw`(?:[Tt])`, $$dpth + 1, $$cr)) || true)
                 ) {
-                    $$res = {kind: ASTKinds.Notrump, };
+                    $$res = {kind: ASTKinds.Notrump, v: $scope$v};
                 }
                 return $$res;
             });
@@ -648,8 +737,6 @@ export class Parser {
             () => this.matchSuitRangeSpecifier_1($$dpth + 1, $$cr),
             () => this.matchSuitRangeSpecifier_2($$dpth + 1, $$cr),
             () => this.matchSuitRangeSpecifier_3($$dpth + 1, $$cr),
-            () => this.matchSuitRangeSpecifier_4($$dpth + 1, $$cr),
-            () => this.matchSuitRangeSpecifier_5($$dpth + 1, $$cr),
         ]);
     }
     public matchSuitRangeSpecifier_1($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitRangeSpecifier_1> {
@@ -659,12 +746,6 @@ export class Parser {
         return this.matchMinor($$dpth + 1, $$cr);
     }
     public matchSuitRangeSpecifier_3($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitRangeSpecifier_3> {
-        return this.matchOtherMajor($$dpth + 1, $$cr);
-    }
-    public matchSuitRangeSpecifier_4($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitRangeSpecifier_4> {
-        return this.matchOtherMinor($$dpth + 1, $$cr);
-    }
-    public matchSuitRangeSpecifier_5($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitRangeSpecifier_5> {
         return this.matchSuit($$dpth + 1, $$cr);
     }
     public matchOtherMajor($$dpth: number, $$cr?: ErrorTracker): Nullable<OtherMajor> {

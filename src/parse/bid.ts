@@ -1,17 +1,27 @@
-import * as AST from '../parse/bid.peg.g'
-
-import { ConstrainedBid, Constraint, SuitRangeSpecifier, zeroSpecificShape } from '../model/constraints'
 import { readonlyArray, readonlyRecord } from 'fp-ts'
-
-import { Strain } from '../model/bridge'
 import { pipe } from 'fp-ts/lib/function'
+import { Strain, zeroSpecificShape } from '../model/bridge'
+import { ConstrainedBid, Constraint, SuitRangeSpecifier } from '../model/constraints'
+import { Suit } from '../model/deck'
+import * as AST from '../parse/bid.peg.g'
 
 export const map = (c: AST.ConstraintList) =>
   pipe(c, readonlyArray.map(c => constraintFromAST(c.constraint)))
 
+export const suitFromAST = (s: AST.Suit) : Suit =>
+  s.kind === AST.ASTKinds.Club    ? 'C' :
+  s.kind === AST.ASTKinds.Diamond ? 'D' :
+  s.kind === AST.ASTKinds.Heart   ? 'H' :
+                                    'S'
+
+export const strainFromAST = (s: AST.Strain) : Strain =>
+  s.kind === AST.ASTKinds.Notrump ? 'N' :
+  suitFromAST(s)
+
 export const suitSpecifierFromAST = (s: AST.SuitRangeSpecifier) : SuitRangeSpecifier =>
-  //TODO
-  s as SuitRangeSpecifier
+  s.kind === AST.ASTKinds.Major ? "Major" :
+  s.kind === AST.ASTKinds.Minor ? "Minor" :
+  suitFromAST(s)
 
 export const constraintFromAST = (c: AST.Constraint) : Constraint => {
   if (c.kind === AST.ASTKinds.ConstraintAnd) {
@@ -67,7 +77,7 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
       type: "Relay",
       bid: {
         level: c.level.value,
-        strain: c.strain as Strain
+        strain: strainFromAST(c.strain)
       }
     }
   } else {
@@ -78,7 +88,7 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
 export const bidFromAST = (bid: AST.Bid) : ConstrainedBid => ({
   bid: {
     level: bid.level.value,
-    strain: bid.bid as Strain,
+    strain: strainFromAST(bid.bid as AST.Strain),
   },
   constraint: pipe(bid.constraints,
     readonlyArray.map(c => constraintFromAST(c.constraint)),
