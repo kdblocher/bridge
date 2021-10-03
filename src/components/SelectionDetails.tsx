@@ -1,15 +1,17 @@
-import { either, option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
-import { Either } from "fp-ts/lib/Either"
-import { pipe } from "fp-ts/lib/function"
-import { DecodeError } from "io-ts/Decoder"
-import { draw } from "io-ts/lib/Decoder"
-import { useCallback, useState } from "react"
-import styled from "styled-components"
-import { useAppDispatch, useAppSelector } from "../app/hooks"
 import * as Deck from "../model/deck"
+
+import { either, option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
+import { selectErrors, selectNode, selectPath } from "../reducers/system"
+import { useAppDispatch, useAppSelector } from "../app/hooks"
+import { useCallback, useEffect, useState } from "react"
+
+import { DecodeError } from "io-ts/Decoder"
+import { Either } from "fp-ts/lib/Either"
+import { draw } from "io-ts/lib/Decoder"
+import { pipe } from "fp-ts/lib/function"
 import { selectHandsSatisfySelectedPath } from "../reducers"
 import { setHand } from "../reducers/selection"
-import { selectErrors, selectNode, selectPath } from "../reducers/system"
+import styled from "styled-components"
 
 interface DecodeProps<T> {
   value: Either<DecodeError, T>
@@ -27,11 +29,21 @@ interface HandProps {
 const HandInput = ({ type }: HandProps) => {
   const dispatch = useAppDispatch()
   const [value, setValue] = useState<string>("")
+  const storageKey = `hand.${type}`
+
   const onSetHand = useCallback((hand: string) => {
     setValue(hand)
     dispatch(setHand(hand, type))
   }, [dispatch, type])
-  return <input type="text" placeholder="AKQJ.T987.654.32" value={value} onChange={e => onSetHand(e.target.value)} />
+
+  useEffect(() => {
+    const savedHand = localStorage.getItem(storageKey)
+    if (savedHand) {
+      onSetHand(savedHand)
+    }
+  }, [onSetHand, storageKey, type])
+
+  return <input type="text" placeholder="AKQJ.T987.654.32" value={value} onChange={e => onSetHand(e.target.value)} onBlur={() => localStorage.setItem(storageKey, value)} />
 }
 
 const RankList = styled.ol `

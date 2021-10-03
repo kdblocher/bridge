@@ -1,8 +1,8 @@
 import 'draft-js/dist/Draft.css';
 
 import { BlockItem, setSystem } from '../reducers/system';
-import { Editor as DraftJsEditor, EditorState, RichUtils, getDefaultKeyBinding } from 'draft-js';
-import React, { useCallback, useEffect } from 'react';
+import { Editor as DraftJsEditor, EditorState, RichUtils, convertFromRaw, convertToRaw, getDefaultKeyBinding } from 'draft-js';
+import { useCallback, useEffect, useState } from 'react';
 
 import { option } from 'fp-ts';
 import { setSelectedBlockKey } from '../reducers/selection';
@@ -16,17 +16,23 @@ const getItemsFromBlocks = (editorState: EditorState) =>
   }))
 
 const Editor = () => {
-  const [editorState, setEditorState] = React.useState(() => EditorState.createEmpty());
+  const [editorState, setEditorState] = useState(() => EditorState.createEmpty());
   const dispatch = useAppDispatch()
 
   const onChange = useCallback((editorState: EditorState) => {
     setEditorState(editorState)
+    localStorage.setItem("editor", JSON.stringify(convertToRaw(editorState.getCurrentContent())))
     dispatch(setSystem(getItemsFromBlocks(editorState)))
     dispatch(setSelectedBlockKey(option.some(editorState.getSelection().getFocusKey())))
   }, [dispatch])
 
   useEffect(() => {
-    setEditorState(() => RichUtils.toggleBlockType(editorState, 'unordered-list-item'))
+    const savedEditorState = localStorage.getItem("editor")
+    if (savedEditorState) {
+      setEditorState(() => EditorState.createWithContent(convertFromRaw(JSON.parse(savedEditorState))))
+    } else {
+      setEditorState(() => RichUtils.toggleBlockType(editorState, 'unordered-list-item'))
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   
