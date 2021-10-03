@@ -94,6 +94,7 @@ const SuitSpan = styled.span `
   &.H::after { content: "♥"; color: #FF0000; }
   &.D::after { content: "♦"; color: #FFA500; }
   &.C::after { content: "♣"; color: #32CD32; }
+  &.N::after { content: "NT" }
 `
 
 const Suit = ({ suit, ranks }: SuitProps) => {

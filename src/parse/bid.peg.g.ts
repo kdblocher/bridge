@@ -16,7 +16,7 @@
 * Notrump := v='[Nn]' '[Tt]'?
 * ConstraintList := ConstraintListItem+
 * ConstraintListItem := constraint=Constraint ' '?
-* Constraint := ConstraintAnd | ConstraintOr | Distribution | Response | SuitRange | SuitBound | PointRange | PointBound 
+* Constraint := ConstraintAnd | ConstraintOr | Distribution | Response | SuitRange | SuitComparison | SuitBound | PointRange | PointBound 
 * ConstraintOr := left=Constraint {' or ' | ' / '} right=Constraint
 * ConstraintAnd := '\(' constraints=ConstraintList '\)'
 * PointRange := lower=Number '-' upper=Number
@@ -26,6 +26,8 @@
 * SuitRangeSpecifier := Major | Minor | Suit //| OtherMajor | OtherMinor
 * OtherMajor := v='oM'
 * OtherMinor := v='om'
+* SuitComparison := left=Suit op=SuitComparisonOperator right=Suit
+* SuitComparisonOperator := v='<' | v='<=' | v='=' | v='>=' | v='>'
 * BoundQualifier := Plus | Minus | Equals
 * Plus := v='\+'
 * Minus := v='\-'
@@ -82,6 +84,7 @@ export enum ASTKinds {
     Constraint_6 = "Constraint_6",
     Constraint_7 = "Constraint_7",
     Constraint_8 = "Constraint_8",
+    Constraint_9 = "Constraint_9",
     ConstraintOr = "ConstraintOr",
     ConstraintOr_$0_1 = "ConstraintOr_$0_1",
     ConstraintOr_$0_2 = "ConstraintOr_$0_2",
@@ -95,6 +98,12 @@ export enum ASTKinds {
     SuitRangeSpecifier_3 = "SuitRangeSpecifier_3",
     OtherMajor = "OtherMajor",
     OtherMinor = "OtherMinor",
+    SuitComparison = "SuitComparison",
+    SuitComparisonOperator_1 = "SuitComparisonOperator_1",
+    SuitComparisonOperator_2 = "SuitComparisonOperator_2",
+    SuitComparisonOperator_3 = "SuitComparisonOperator_3",
+    SuitComparisonOperator_4 = "SuitComparisonOperator_4",
+    SuitComparisonOperator_5 = "SuitComparisonOperator_5",
     BoundQualifier_1 = "BoundQualifier_1",
     BoundQualifier_2 = "BoundQualifier_2",
     BoundQualifier_3 = "BoundQualifier_3",
@@ -184,15 +193,16 @@ export interface ConstraintListItem {
     kind: ASTKinds.ConstraintListItem;
     constraint: Constraint;
 }
-export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8;
+export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8 | Constraint_9;
 export type Constraint_1 = ConstraintAnd;
 export type Constraint_2 = ConstraintOr;
 export type Constraint_3 = Distribution;
 export type Constraint_4 = Response;
 export type Constraint_5 = SuitRange;
-export type Constraint_6 = SuitBound;
-export type Constraint_7 = PointRange;
-export type Constraint_8 = PointBound;
+export type Constraint_6 = SuitComparison;
+export type Constraint_7 = SuitBound;
+export type Constraint_8 = PointRange;
+export type Constraint_9 = PointBound;
 export interface ConstraintOr {
     kind: ASTKinds.ConstraintOr;
     left: Constraint;
@@ -237,6 +247,33 @@ export interface OtherMajor {
 }
 export interface OtherMinor {
     kind: ASTKinds.OtherMinor;
+    v: string;
+}
+export interface SuitComparison {
+    kind: ASTKinds.SuitComparison;
+    left: Suit;
+    op: SuitComparisonOperator;
+    right: Suit;
+}
+export type SuitComparisonOperator = SuitComparisonOperator_1 | SuitComparisonOperator_2 | SuitComparisonOperator_3 | SuitComparisonOperator_4 | SuitComparisonOperator_5;
+export interface SuitComparisonOperator_1 {
+    kind: ASTKinds.SuitComparisonOperator_1;
+    v: string;
+}
+export interface SuitComparisonOperator_2 {
+    kind: ASTKinds.SuitComparisonOperator_2;
+    v: string;
+}
+export interface SuitComparisonOperator_3 {
+    kind: ASTKinds.SuitComparisonOperator_3;
+    v: string;
+}
+export interface SuitComparisonOperator_4 {
+    kind: ASTKinds.SuitComparisonOperator_4;
+    v: string;
+}
+export interface SuitComparisonOperator_5 {
+    kind: ASTKinds.SuitComparisonOperator_5;
     v: string;
 }
 export type BoundQualifier = BoundQualifier_1 | BoundQualifier_2 | BoundQualifier_3;
@@ -572,6 +609,7 @@ export class Parser {
                 () => this.matchConstraint_6($$dpth + 1, $$cr),
                 () => this.matchConstraint_7($$dpth + 1, $$cr),
                 () => this.matchConstraint_8($$dpth + 1, $$cr),
+                () => this.matchConstraint_9($$dpth + 1, $$cr),
             ]);
         };
         const $scope$pos = this.mark();
@@ -615,12 +653,15 @@ export class Parser {
         return this.matchSuitRange($$dpth + 1, $$cr);
     }
     public matchConstraint_6($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_6> {
-        return this.matchSuitBound($$dpth + 1, $$cr);
+        return this.matchSuitComparison($$dpth + 1, $$cr);
     }
     public matchConstraint_7($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_7> {
-        return this.matchPointRange($$dpth + 1, $$cr);
+        return this.matchSuitBound($$dpth + 1, $$cr);
     }
     public matchConstraint_8($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_8> {
+        return this.matchPointRange($$dpth + 1, $$cr);
+    }
+    public matchConstraint_9($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_9> {
         return this.matchPointBound($$dpth + 1, $$cr);
     }
     public matchConstraintOr($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintOr> {
@@ -770,6 +811,97 @@ export class Parser {
                     && ($scope$v = this.regexAccept(String.raw`(?:om)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.OtherMinor, v: $scope$v};
+                }
+                return $$res;
+            });
+    }
+    public matchSuitComparison($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitComparison> {
+        return this.run<SuitComparison>($$dpth,
+            () => {
+                let $scope$left: Nullable<Suit>;
+                let $scope$op: Nullable<SuitComparisonOperator>;
+                let $scope$right: Nullable<Suit>;
+                let $$res: Nullable<SuitComparison> = null;
+                if (true
+                    && ($scope$left = this.matchSuit($$dpth + 1, $$cr)) !== null
+                    && ($scope$op = this.matchSuitComparisonOperator($$dpth + 1, $$cr)) !== null
+                    && ($scope$right = this.matchSuit($$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.SuitComparison, left: $scope$left, op: $scope$op, right: $scope$right};
+                }
+                return $$res;
+            });
+    }
+    public matchSuitComparisonOperator($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitComparisonOperator> {
+        return this.choice<SuitComparisonOperator>([
+            () => this.matchSuitComparisonOperator_1($$dpth + 1, $$cr),
+            () => this.matchSuitComparisonOperator_2($$dpth + 1, $$cr),
+            () => this.matchSuitComparisonOperator_3($$dpth + 1, $$cr),
+            () => this.matchSuitComparisonOperator_4($$dpth + 1, $$cr),
+            () => this.matchSuitComparisonOperator_5($$dpth + 1, $$cr),
+        ]);
+    }
+    public matchSuitComparisonOperator_1($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitComparisonOperator_1> {
+        return this.run<SuitComparisonOperator_1>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<SuitComparisonOperator_1> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:<)`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.SuitComparisonOperator_1, v: $scope$v};
+                }
+                return $$res;
+            });
+    }
+    public matchSuitComparisonOperator_2($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitComparisonOperator_2> {
+        return this.run<SuitComparisonOperator_2>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<SuitComparisonOperator_2> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:<=)`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.SuitComparisonOperator_2, v: $scope$v};
+                }
+                return $$res;
+            });
+    }
+    public matchSuitComparisonOperator_3($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitComparisonOperator_3> {
+        return this.run<SuitComparisonOperator_3>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<SuitComparisonOperator_3> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:=)`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.SuitComparisonOperator_3, v: $scope$v};
+                }
+                return $$res;
+            });
+    }
+    public matchSuitComparisonOperator_4($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitComparisonOperator_4> {
+        return this.run<SuitComparisonOperator_4>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<SuitComparisonOperator_4> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:>=)`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.SuitComparisonOperator_4, v: $scope$v};
+                }
+                return $$res;
+            });
+    }
+    public matchSuitComparisonOperator_5($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitComparisonOperator_5> {
+        return this.run<SuitComparisonOperator_5>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<SuitComparisonOperator_5> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:>)`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.SuitComparisonOperator_5, v: $scope$v};
                 }
                 return $$res;
             });

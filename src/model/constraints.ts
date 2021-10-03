@@ -1,6 +1,6 @@
 import { number, ord, readonlyArray, readonlySet, record } from 'fp-ts'
 import { eqStrict } from 'fp-ts/lib/Eq'
-import { pipe } from 'fp-ts/lib/function'
+import { constFalse, pipe } from 'fp-ts/lib/function'
 import { Bid, ContractBid, eqShape, getHandShape, getHandSpecificShape, makeShape, Shape, SpecificShape } from './bridge'
 import { Card, Hand, ordCard, Suit } from './deck'
 
@@ -17,6 +17,14 @@ export interface ConstraintSuitRange {
   suit: SuitRangeSpecifier
   min: number
   max: number
+}
+
+export type SuitComparisonOperator = "<" | "<=" | "=" | ">=" | ">"
+export interface ConstraintSuitComparison {
+  type: "SuitComparison",
+  left: Suit,
+  right: Suit,
+  op: SuitComparisonOperator
 }
 
 export interface ConstraintConjunction {
@@ -58,12 +66,12 @@ export type Constraint =
   | ConstraintDisjunction
   | ConstraintPointRange
   | ConstraintSuitRange
+  | ConstraintSuitComparison
   | ConstraintDistribution
   | ConstraintShape
   | ConstraintSpecificShape
   | ConstraintResponse
   | ConstraintRelayResponse
-
 export interface ConstrainedBid {
   bid: Bid
   constraint: Constraint
@@ -89,6 +97,25 @@ export const isSuitRange = (hand: Hand) => (range: ConstraintSuitRange) => {
     pipe(getSuitsToCheck, readonlyArray.exists(s => {
       return ord.between(number.Ord)(range.min, range.max)(shape[s])
     })))
+}
+
+const getComparator = (op: SuitComparisonOperator) => {
+  if (op === "<") {
+    return ord.lt(number.Ord)
+  } else if (op === "<=") {
+    return ord.leq(number.Ord)
+  } else if (op === "=") {
+    return number.Eq.equals
+  } else if (op === ">=") {
+    return ord.geq(number.Ord)
+  } else if (op === ">") {
+    return ord.gt(number.Ord)
+  } else return constFalse
+}
+
+export const suitCompare = (hand: Hand) => (op: SuitComparisonOperator) => (left: Suit, right: Suit) => {
+  const shape = getHandSpecificShape(hand)
+  return getComparator(op)(shape[left], shape[right])
 }
 
 export const isShape = (hand: Hand) => (shape: Shape) =>
@@ -127,8 +154,10 @@ export const satisfies = (hand: Hand) => (c: Constraint) : boolean => {
     return isShape(hand)(c.counts)
   } else if (c.type === "SpecificShape") {
     return isSpecificShape(hand)(c.suits)
-  } else {
-    // todo
-    return false
+  } else if (c.type === "SuitComparison") {
+    return suitCompare(hand)(c.op)(c.left, c.right)
   }
+  // these aren't supported yet, they need contextual info
+  //if (c.type === "ForceOneRound" || c.type === "ForceGame" || c.type === "ForceSlam" || c.type === "Relay") {
+  return false
 }

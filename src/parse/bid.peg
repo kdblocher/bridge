@@ -17,7 +17,7 @@ Notrump := v='[Nn]' '[Tt]'?
 
 ConstraintList := ConstraintListItem+
 ConstraintListItem := constraint=Constraint ' '?
-Constraint := ConstraintAnd | ConstraintOr | Distribution | Response | SuitRange | SuitBound | PointRange | PointBound 
+Constraint := ConstraintAnd | ConstraintOr | Distribution | Response | SuitRange | SuitComparison | SuitBound | PointRange | PointBound 
 ConstraintOr := left=Constraint {' or ' | ' / '} right=Constraint
 ConstraintAnd := '\(' constraints=ConstraintList '\)'
 
@@ -29,6 +29,9 @@ SuitBound := value=Number qualifier=BoundQualifier suit=SuitRangeSpecifier
 SuitRangeSpecifier := Major | Minor | Suit //| OtherMajor | OtherMinor
 OtherMajor := v='oM'
 OtherMinor := v='om'
+
+SuitComparison := left=Suit op=SuitComparisonOperator right=Suit
+SuitComparisonOperator := v='<' | v='<=' | v='=' | v='>=' | v='>'
 
 BoundQualifier := Plus | Minus | Equals
 Plus := v='\+'

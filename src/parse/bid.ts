@@ -1,7 +1,7 @@
 import { readonlyArray, readonlyRecord } from 'fp-ts'
 import { pipe } from 'fp-ts/lib/function'
 import { Strain, zeroSpecificShape } from '../model/bridge'
-import { ConstrainedBid, Constraint, SuitRangeSpecifier } from '../model/constraints'
+import { ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints'
 import { Suit } from '../model/deck'
 import * as AST from '../parse/bid.peg.g'
 
@@ -79,6 +79,13 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
         level: c.level.value,
         strain: strainFromAST(c.strain)
       }
+    }
+  } else if (c.kind === AST.ASTKinds.SuitComparison) {
+    return {
+      type: "SuitComparison",
+      op: c.op.v as SuitComparisonOperator,
+      left: suitFromAST(c.left),
+      right: suitFromAST(c.right)
     }
   } else {
     return { type: c.kind }
