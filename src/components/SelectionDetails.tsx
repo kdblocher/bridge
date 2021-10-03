@@ -1,17 +1,16 @@
-import * as Deck from "../model/deck"
-
 import { either, option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
-import { selectErrors, selectNode, selectPath } from "../reducers/system"
-import { useAppDispatch, useAppSelector } from "../app/hooks"
-import { useCallback, useEffect, useState } from "react"
-
-import { DecodeError } from "io-ts/Decoder"
 import { Either } from "fp-ts/lib/Either"
-import { draw } from "io-ts/lib/Decoder"
 import { pipe } from "fp-ts/lib/function"
-import { selectHandsSatisfySelectedPath } from "../reducers"
-import { setHand } from "../reducers/selection"
+import { DecodeError } from "io-ts/Decoder"
+import { draw } from "io-ts/lib/Decoder"
+import { useCallback, useEffect, useState } from "react"
 import styled from "styled-components"
+import { useAppDispatch, useAppSelector } from "../app/hooks"
+import { ContractBid } from "../model/bridge"
+import * as Deck from "../model/deck"
+import { selectHandsSatisfySelectedPath, selectPathsSatisfyHands } from "../reducers"
+import { AuctionPositionType, setHand } from "../reducers/selection"
+import { selectErrors, selectNodeByKey, selectPathByKey } from "../reducers/system"
 
 interface DecodeProps<T> {
   value: Either<DecodeError, T>
@@ -24,7 +23,7 @@ const Decode = <T extends {}>({value, children: onSuccess, onError }: DecodeProp
     onSuccess))
 
 interface HandProps {
-  type: "opener" | "responder"
+  type: AuctionPositionType
 }
 const HandInput = ({ type }: HandProps) => {
   const dispatch = useAppDispatch()
@@ -90,6 +89,13 @@ const SuitListItem = styled.li `
   &.C::before { content: "♣"; color: #32CD32; }
 `
 
+const SuitSpan = styled.span `
+  &.S::after { content: "♠"; color: #0000FF; }
+  &.H::after { content: "♥"; color: #FF0000; }
+  &.D::after { content: "♦"; color: #FFA500; }
+  &.C::after { content: "♣"; color: #32CD32; }
+`
+
 const Suit = ({ suit, ranks }: SuitProps) => {
   return <SuitListItem className={suit}>
     <RankList>
@@ -121,14 +127,15 @@ const Hand = ({ type }: HandProps) => {
 const SelectionDetails = () => {
   const selected = useAppSelector(state => state.selection.selectedBlockKey)
 
-  const path = useAppSelector(state => pipe(selected, option.map(s => selectPath(state.system, s)), option.toNullable))
+  const path = useAppSelector(state => pipe(selected, option.map(s => selectPathByKey(state.system, s)), option.toNullable))
   const bid = useAppSelector(state => pipe(selected,
-    option.chain(s => pipe(selectNode(state.system, s), option.fromNullable)),
-    option.chain(n => pipe(n.bid, option.fromNullable)),
+    option.chain(s => pipe(selectNodeByKey(state.system, s), option.fromNullable)),
+    option.chain(n => n.bid),
     option.chain(option.fromEither),
     option.toNullable))
   const errors = useAppSelector(state => selectErrors(state.system))
   const satisfies = useAppSelector(selectHandsSatisfySelectedPath)
+  const results = useAppSelector(selectPathsSatisfyHands)
 
   return (
     <div>
@@ -145,6 +152,10 @@ const SelectionDetails = () => {
       {bid && <section>
         <h3>Selected Bid</h3>
         {pipe(bid, option.fromNullable, option.map(JSON.stringify), option.toNullable)}
+        {satisfies !== null && <section>
+        <h4>Satisfies</h4>
+        {satisfies.toString()}
+      </section>}
       </section>}
 
       <section>
@@ -167,11 +178,22 @@ const SelectionDetails = () => {
             </tr>
           </tbody>
         </table>
+        
       </section>
 
-      {satisfies !== null && <section>
-        <h3>Satisfies</h3>
-        {satisfies.toString()}
+      {results !== null && <section>
+        <h3>Results</h3>
+        <ul>
+          {results.map((r, i) => <li key={i}>
+            {r.path.map(b => b.bid as ContractBid).map(bid => <>
+              &nbsp;
+              <span>{bid.level}</span>
+              <SuitSpan className={bid.strain}></SuitSpan>
+            </>)}
+            : &nbsp;
+            <span>{r.result.toString()}</span>
+          </li>)}
+        </ul>
       </section>}
     </div>
   )

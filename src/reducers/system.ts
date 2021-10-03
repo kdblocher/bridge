@@ -1,41 +1,55 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit"
-import { either, option, readonlyArray, separated, tree } from 'fp-ts'
-import { flow, identity, pipe } from "fp-ts/lib/function"
+import { either, hkt, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, separated, tree } from 'fp-ts'
+import { flow, pipe } from "fp-ts/lib/function"
+import { Functor1 } from "fp-ts/lib/Functor"
 import { castDraft } from "immer"
 import { decodeBid } from "../parse"
 
 
+export type DecodedBid = ReturnType<typeof decodeBid>
 interface Node {
-  blockKey?: string
+  blockKey: string
   text: string
-  bid?: ReturnType<typeof decodeBid>
+  bid: O.Option<DecodedBid>
 }
 
 type State = {
   system: tree.Tree<Node>
 }
-const getRoot = () => tree.make<Node>({ text: "root" })
+const getRoot = () => tree.make<Node>({ blockKey: "root", text: "root", bid: O.none })
 const initialState: State = {
   system: getRoot()
 }
 
+const pathsWithoutRoot = <F extends hkt.URIS>(K: Functor1<F>) => <A, B>(f: (a: A, bs: ReadonlyArray<hkt.Kind<F, RNEA.ReadonlyNonEmptyArray<B>>>) => hkt.Kind<F, RNEA.ReadonlyNonEmptyArray<B>>) =>
+  flow(tree.fold(f),
+    x => K.map(x, RNEA.tail))
+
+type Path = RNEA.ReadonlyNonEmptyArray<Node>
+type Paths = RNEA.ReadonlyNonEmptyArray<Path>
+
+const getAllLeafPaths =
+  pathsWithoutRoot(RNEA.Functor)((node: Node, paths: ReadonlyArray<Paths>) =>
+    pipe(paths,
+      RNEA.fromReadonlyArray,
+      O.fold(() => [[node]] as Paths,
+        RNEA.foldMap(RNEA.getSemigroup<Path>())(RNEA.map(RA.prepend(node))))))
+
 const getPath = (blockKey: string) =>
-  flow(
-    tree.fold<Node, option.Option<ReadonlyArray<Node>>>((node, path) => {
-      if (node.blockKey === blockKey) {
-        return option.some([node])
-      } else {
-        return pipe(path,
-          readonlyArray.findFirstMap(identity),
-          option.map(readonlyArray.prepend(node)))
-      }
-    }),
-    option.chain(readonlyArray.tail))
+  pathsWithoutRoot(O.Functor)((node: Node, paths: ReadonlyArray<O.Option<RNEA.ReadonlyNonEmptyArray<Node>>>) => {
+    if (node.blockKey === blockKey) {
+      return O.some([node])
+    } else {
+      return pipe(paths,
+        RA.findFirstMap(x => x),
+        O.map(RA.prepend(node)))
+    }
+  })
 
 
 const flatten =
   tree.reduce<Node, readonly Node[]>([], (items, a) =>
-    pipe(items, readonlyArray.append(a)))
+    pipe(items, RA.append(a)))
 
 export interface BlockItem {
   key: string
@@ -43,11 +57,18 @@ export interface BlockItem {
   depth: number
 }
 
-const buildTree = (items: BlockItem[]) => {
+const buildTree = (items: ReadonlyArray<BlockItem>) => {
   const root = getRoot()
   var parents = [root]
   items.forEach(item => {
-    const curr = parents[item.depth + 1] = { value: { blockKey: item.key, text: item.text, bid: decodeBid(item.text) }, forest: [] }
+    const curr = parents[item.depth + 1] = {
+      forest: [],
+      value: {
+        blockKey: item.key,
+        text: item.text,
+        bid: O.some(decodeBid(item.text))
+      }
+    }
     parents[item.depth].forest.push(curr)
   })
   return root
@@ -58,7 +79,7 @@ const slice = createSlice({
   name,
   initialState,
   reducers: {
-    setSystem: (state, action: PayloadAction<BlockItem[]>) => {
+    setSystem: (state, action: PayloadAction<ReadonlyArray<BlockItem>>) => {
       state.system = pipe(buildTree(action.payload), castDraft)
     }
   }
@@ -66,36 +87,53 @@ const slice = createSlice({
 
 export const { setSystem } = slice.actions
 
-export const selectNode = (state: State, blockKey: string) =>
-  pipe(getPath(blockKey)(state.system),
-    option.chain(readonlyArray.last),
-    option.toNullable)
+const getBidsFromNodes =
+  flow(
+    RA.map((n: Node) => n.bid),
+    RA.compact)
 
-export const selectPath = (state: State, blockKey: string) =>
+export const selectNodeByKey = (state: State, blockKey: string) =>
+  pipe(
+    state.system,
+    getPath(blockKey),
+    O.chain(RA.last),
+    O.toNullable)
+
+export const selectPathByKey = (state: State, blockKey: string) =>
+  pipe(
+    state.system,
+    getPath(blockKey),
+    O.toNullable)
+
+export const selectAllCompleteBidPaths = (state: State) =>
+  pipe(
+    state.system,
+    getAllLeafPaths,
+    RNEA.map(flow(
+      RA.traverse(O.Applicative)((n: Node) => n.bid),
+      O.chain(O.fromEitherK(RA.sequence(either.Applicative))),
+      O.chain(RNEA.fromReadonlyArray))),
+    RA.compact)
+
+export const selectBidsByKey = (state: State, blockKey: string) =>
   pipe(
     getPath(blockKey)(state.system),
-    option.toNullable)
-
-export const selectBids = (state: State, blockKey: string) =>
-  pipe(
-    getPath(blockKey)(state.system),
-    option.getOrElse(() => [] as readonly Node[]),
-    readonlyArray.map(n => option.fromNullable(n.bid)),
-    readonlyArray.compact,
-    readonlyArray.sequence(either.Applicative))
+    O.getOrElse(() => [] as readonly Node[]),
+    getBidsFromNodes,
+    RA.sequence(either.Applicative))
 
 export const selectRules = (state: State) =>
   pipe(
     state.system,
     flatten,
-    readonlyArray.map(n => option.fromNullable(n.bid)),
-    readonlyArray.compact,
+    RA.map(n => n.bid),
+    RA.compact,
   )
 
 export const selectErrors =
   flow(
     selectRules,
-    readonlyArray.separate,
+    RA.separate,
     separated.left)
 
 export default slice.reducer

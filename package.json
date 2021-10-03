@@ -24,6 +24,7 @@
     "react-redux": "^7.2.0",
     "react-scripts": "4.0.3",
     "styled-components": "^5.3.1",
+    "ts-toolbelt": "^9.6.0",
     "typescript": "*"
   },
   "scripts": {
@@ -54,11 +55,14 @@
   },
   "babel": {
     "presets": [
-      ["minify", {
-        "builtIns": false,
-        "evaluate": false,
-        "mangle": false
-      }]
+      [
+        "minify",
+        {
+          "builtIns": false,
+          "evaluate": false,
+          "mangle": false
+        }
+      ]
     ],
     "plugins": [
       "babel-plugin-styled-components"
