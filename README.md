@@ -1,44 +1,72 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app), using the [Redux](https://redux.js.org/) and [Redux Toolkit](https://redux-toolkit.js.org/) template.
+# Contract Bridge System Analysis Tool
 
-## Available Scripts
+System analysis tool for the game of [Contract Bridge](https://en.wikipedia.org/wiki/Contract_bridge). Build a system book using human-readable syntax, and let the app get to work.
 
-In the project directory, you can run:
+Created with [Create React App](https://github.com/facebook/create-react-app), using the [Redux](https://redux.js.org/) and [Redux Toolkit](https://redux-toolkit.js.org/) template.
+Huge shout-out to [Giulio Canti](https://github.com/gcanti) for his amazing [fp-ts](https://github.com/gcanti/fp-ts) library, without which this app's code would be much more verbose.
 
-### `yarn start`
+## Demo
+[Try it out](https://kdblocher.github.io/bridge/).
 
-Runs the app in the development mode.<br />
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## License / Contributing
+The project is still in its nascent stages, and code is highly subject to change. Furthermore, the author makes heavy use of higher-order functional programming techniques and will not accept pull requests that do not follow this paradigm.
 
-The page will reload if you make edits.<br />
-You will also see any lint errors in the console.
+If you still want to contribute, please read the [license](LICENSE.md) and [contributing guidelines](CONTRIBUTING.md) before submitting a PR. Happy hacking!
 
-### `yarn test`
+# Documentation
 
-Launches the test runner in the interactive watch mode.<br />
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Bidding Syntax
+The system is comprised of a bidding tree, written in outline form. The top-level bullets are openings bids, and each level of nesting below represents a responding bid by partner (2nd level is opening responses, 3rd is opener rebids, etc.)
 
-### `yarn build`
+Each line should be of the following form:
 
-Builds the app for production to the `build` folder.<br />
-It correctly bundles React in production mode and optimizes the build for the best performance.
+``{Bid}: {Constraint}+``
 
-The build is minified and the filenames include the hashes.<br />
-Your app is ready to be deployed!
+The tool will attempt to parse each line 
+#### Sample Bidding System
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Here is a sample stub for a 2 over 1-based system. You can copy/paste this tree into the tool and extend it.
 
-### `yarn eject`
+- ``1C: 11-21 3+C 4-M``
+  - ``1H: 6+ 4+H``
+    - ``1N: 12-14 BAL 3-S``
+  - ``1S: 6+ 4+S``
+    - ``1N: 12-14 BAL``
+- ``1D: 11-21 3+D 4-M``
+  - ``1H: 6+ 4+H``
+    - ``1N: 12-14 BAL``
+  - ``1S: 6+ 4+S``
+    - ``1N: 12-14 BAL``
+- ``1H: 11-21 5+H``
+  - ``1S: 6+ 4+S``
+    - ``1N: 12-14 BAL 3-S``
+- ``1S: 11-21 5+S``
+  - ``1N: 5-12 F1``
+- ``1N: 15-17 BAL``
+- ``2C: 22+``
+  - ``2D: 7-``
+- ``2D: 5-11 6+D``
+- ``2H: 5-11 6+H``
+- ``2S: 5-11 6+S``
+- ``2N: 20-21 semiBAL``
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+### Hand Syntax
+Hands are entered in PBN syntax (see [3.4.11](http://home.claranet.nl/users/veugent/pbn/pbn_v20.txt) for the full specification). They take the form ``{S}.{H}.{D}.{C}`` where each suit has zero or more single-digit rank identifiers (in any order): `AKQJT98765432`. (There must always be exactly three dots (``.``) so voids are distinguishable.)
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+An ``x`` may be used in place of any rank identifier to represent a spot card below ``T``.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+#### Sample Hands
+- ``AQJ4.8732.T92.K9``
+(equivalent to
+<span style="color: #0000FF">&spades;</span>AQJ4
+<span style="color: #FF0000">&hearts;</span>8732
+<span style="color: #FFA500">&diams;</span>T92
+<span style="color: #32CD32">&clubs;</span>K9
+)
+- ``AKQxx.Jxx..Qxxxx``
+(equivalent to
+<span style="color: #0000FF">&spades;</span>AKQxx
+<span style="color: #FF0000">&hearts;</span>Jxx
+<span style="color: #FFA500">&diams;</span>-
+<span style="color: #32CD32">&clubs;</span>Qxxxx
+)
