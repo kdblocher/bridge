@@ -110,6 +110,7 @@ const Hand = ({ type }: HandProps) => {
 const HandEditor = () => {
   const dispatch = useAppDispatch()
   const [count, setCount] = useState<number>(10000)
+  const generating = useAppSelector(state => state.selection.generating)
 
   return (
     <table>
@@ -133,6 +134,7 @@ const HandEditor = () => {
             <button type="button" onClick={() => dispatch(genHands())}>Generate</button> <br/>
             <button type="button" onClick={() => dispatch(genManyHands(count))}>Generate lots of hands</button>
             <input type="number" value={count} onChange={e => setCount(parseInt(e.target.value))} />
+            {generating && <span>Generating...</span>}
           </td>
         </tr>
       </tbody>

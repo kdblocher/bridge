@@ -6,10 +6,11 @@ import { Constraint, satisfies } from '../model/constraints'
 import { Deal, Direction, deal } from "../model/bridge"
 import { O, U } from 'ts-toolbelt'
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit"
-import { either, option, readonlyArray, readonlySet } from "fp-ts"
-import { flow, pipe } from "fp-ts/lib/function"
+import { constant, flow, pipe } from "fp-ts/lib/function"
+import { either, option, readonlyArray, readonlySet, task } from "fp-ts"
 
 import { Either } from 'fp-ts/lib/Either'
+import Worker from './worker'
 import { castDraft } from "immer"
 import { decodeHand } from '../parse'
 
@@ -29,19 +30,30 @@ interface State {
   selectedBlockKey: option.Option<string>
   opener?: DecodedSerializedHand
   responder?: DecodedSerializedHand
+  generating: boolean
 }
 export type AuctionPositionType = O.SelectKeys<State, U.Nullable<DecodedHand>>
 
 const initialState : State = {
   selectedBlockKey: option.none,
+  generating: false
 }
+
+const maxProcessors = window.navigator.hardwareConcurrency
+const genManyHands = createAsyncThunk('genManyHands', async (count: number) => {
+  const handsPerWorker = count / maxProcessors
+  const remainder = count % maxProcessors
+  // return new Worker().genDeals(count)
+  const makeTask = (count: number) => () => new Worker().genDeals(count)
+  return pipe(readonlyArray.makeBy(maxProcessors - 1, constant(makeTask(handsPerWorker))),
+    readonlyArray.prepend(makeTask(handsPerWorker + remainder)),
+    task.sequenceArray,
+    task.map(readonlyArray.flatten),
+    task => task())
+})
 
 const getHandByDirection = (dir: Direction) => (d: Deal) =>
   pipe(d[dir], either.right, decodedHandLens.get, castDraft)
-
-const genManyHands = createAsyncThunk('genManyHands', (count: number) =>
-  new Promise<ReadonlyArray<Deal>>((resolve, reject) =>
-    resolve(readonlyArray.makeBy(count, flow(newDeck, deal)))))
 
 const slice = createSlice({
   name,
@@ -62,11 +74,18 @@ const slice = createSlice({
       state['responder'] = getHandByDirection("S")(d)
     }
   },
-  extraReducers: builder =>
-    builder.addCase(genManyHands.fulfilled, (state, action) => {
+  extraReducers: builder => builder
+    .addCase(genManyHands.pending, (state) => {
+      state.generating = true
+    })
+    .addCase(genManyHands.fulfilled, (state, action) => {
       const d = action.payload[Math.floor(Math.random() * action.payload.length)]
       state['opener'] = getHandByDirection("N")(d)
       state['responder'] = getHandByDirection("S")(d)
+      state.generating = false
+    })
+    .addCase(genManyHands.rejected, (state) => {
+      state.generating = false
     })
 })
 
