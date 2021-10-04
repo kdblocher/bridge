@@ -1,9 +1,11 @@
-import { readonlyArray, readonlyRecord } from 'fp-ts'
-import { pipe } from 'fp-ts/lib/function'
-import { Strain, zeroSpecificShape } from '../model/bridge'
-import { ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints'
-import { Suit } from '../model/deck'
 import * as AST from '../parse/bid.peg.g'
+
+import { ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints'
+import { Strain, zeroSpecificShape } from '../model/bridge'
+import { readonlyArray, readonlyRecord, string } from 'fp-ts'
+
+import { Suit } from '../model/deck'
+import { pipe } from 'fp-ts/lib/function'
 
 export const map = (c: AST.ConstraintList) =>
   pipe(c, readonlyArray.map(c => constraintFromAST(c.constraint)))
@@ -67,7 +69,12 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
       max: c.qualifier.kind === AST.ASTKinds.Minus ? c.value.value : 13,
       suit: suitSpecifierFromAST(c.suit)
     }
-  } else if (c.kind === AST.ASTKinds.Shape) {
+  } else if (c.kind === AST.ASTKinds.AnyShape) {
+    return {
+      type: "AnyShape",
+      counts: pipe(c.v, string.split(''), readonlyArray.map(parseInt)) as [number, number, number, number]
+    }
+  } else if (c.kind === AST.ASTKinds.SpecificShape) {
     return {
       type: "SpecificShape",
       suits: pipe(zeroSpecificShape, readonlyRecord.mapWithIndex((s, _) => c[s].value))

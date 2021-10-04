@@ -16,8 +16,8 @@
 * Notrump := v='[Nn]' '[Tt]'?
 * ConstraintList := ConstraintListItem+
 * ConstraintListItem := constraint=Constraint ' '?
-* Constraint := ConstraintAnd | ConstraintOr | Distribution | Response | SuitRange | SuitComparison | SuitBound | PointRange | PointBound 
-* ConstraintOr := left=Constraint {' or ' | ' / '} right=Constraint
+* Constraint := ConstraintOr | ConstraintAnd | Distribution | Response | SuitRange | SuitComparison | SuitBound | PointRange | PointBound 
+* ConstraintOr := left=Constraint ' or ' right=Constraint
 * ConstraintAnd := '\(' constraints=ConstraintList '\)'
 * PointRange := lower=Number '-' upper=Number
 * PointBound := value=Number qualifier=BoundQualifier
@@ -32,16 +32,17 @@
 * Plus := v='\+'
 * Minus := v='\-'
 * Equals := v='=' | v=''
-* Distribution := Balanced | SemiBalanced | Unbalanced | Shape
+* Distribution := Balanced | SemiBalanced | Unbalanced | AnyShape | SpecificShape
 * Balanced := v='BAL'
 * SemiBalanced := v='semiBAL'
 * Unbalanced := v='unBAL'
-* Shape := S=Digit H=Digit D=Digit C=Digit
+* AnyShape := v='[0-9]{4}' '\*'
+* SpecificShape := S=Digit H=Digit D=Digit C=Digit
 * Response := ForceOneRound | ForceGame | ForceSlam | Relay
 * ForceOneRound := v='F1'
 * ForceGame := v='FG'
 * ForceSlam := v='FS'
-* Relay := level=Number strain=Strain
+* Relay := '->' level=Number strain=Strain
 * Digit := literal='[0-9]'
 *   .value = number { return parseInt(literal) }
 * Number := literal='[0-9]+'
@@ -86,8 +87,6 @@ export enum ASTKinds {
     Constraint_8 = "Constraint_8",
     Constraint_9 = "Constraint_9",
     ConstraintOr = "ConstraintOr",
-    ConstraintOr_$0_1 = "ConstraintOr_$0_1",
-    ConstraintOr_$0_2 = "ConstraintOr_$0_2",
     ConstraintAnd = "ConstraintAnd",
     PointRange = "PointRange",
     PointBound = "PointBound",
@@ -115,10 +114,12 @@ export enum ASTKinds {
     Distribution_2 = "Distribution_2",
     Distribution_3 = "Distribution_3",
     Distribution_4 = "Distribution_4",
+    Distribution_5 = "Distribution_5",
     Balanced = "Balanced",
     SemiBalanced = "SemiBalanced",
     Unbalanced = "Unbalanced",
-    Shape = "Shape",
+    AnyShape = "AnyShape",
+    SpecificShape = "SpecificShape",
     Response_1 = "Response_1",
     Response_2 = "Response_2",
     Response_3 = "Response_3",
@@ -194,8 +195,8 @@ export interface ConstraintListItem {
     constraint: Constraint;
 }
 export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8 | Constraint_9;
-export type Constraint_1 = ConstraintAnd;
-export type Constraint_2 = ConstraintOr;
+export type Constraint_1 = ConstraintOr;
+export type Constraint_2 = ConstraintAnd;
 export type Constraint_3 = Distribution;
 export type Constraint_4 = Response;
 export type Constraint_5 = SuitRange;
@@ -208,9 +209,6 @@ export interface ConstraintOr {
     left: Constraint;
     right: Constraint;
 }
-export type ConstraintOr_$0 = ConstraintOr_$0_1 | ConstraintOr_$0_2;
-export type ConstraintOr_$0_1 = string;
-export type ConstraintOr_$0_2 = string;
 export interface ConstraintAnd {
     kind: ASTKinds.ConstraintAnd;
     constraints: ConstraintList;
@@ -297,11 +295,12 @@ export interface Equals_2 {
     kind: ASTKinds.Equals_2;
     v: string;
 }
-export type Distribution = Distribution_1 | Distribution_2 | Distribution_3 | Distribution_4;
+export type Distribution = Distribution_1 | Distribution_2 | Distribution_3 | Distribution_4 | Distribution_5;
 export type Distribution_1 = Balanced;
 export type Distribution_2 = SemiBalanced;
 export type Distribution_3 = Unbalanced;
-export type Distribution_4 = Shape;
+export type Distribution_4 = AnyShape;
+export type Distribution_5 = SpecificShape;
 export interface Balanced {
     kind: ASTKinds.Balanced;
     v: string;
@@ -314,8 +313,12 @@ export interface Unbalanced {
     kind: ASTKinds.Unbalanced;
     v: string;
 }
-export interface Shape {
-    kind: ASTKinds.Shape;
+export interface AnyShape {
+    kind: ASTKinds.AnyShape;
+    v: string;
+}
+export interface SpecificShape {
+    kind: ASTKinds.SpecificShape;
     S: Digit;
     H: Digit;
     D: Digit;
@@ -638,10 +641,10 @@ export class Parser {
         return lastRes;
     }
     public matchConstraint_1($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_1> {
-        return this.matchConstraintAnd($$dpth + 1, $$cr);
+        return this.matchConstraintOr($$dpth + 1, $$cr);
     }
     public matchConstraint_2($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_2> {
-        return this.matchConstraintOr($$dpth + 1, $$cr);
+        return this.matchConstraintAnd($$dpth + 1, $$cr);
     }
     public matchConstraint_3($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_3> {
         return this.matchDistribution($$dpth + 1, $$cr);
@@ -672,25 +675,13 @@ export class Parser {
                 let $$res: Nullable<ConstraintOr> = null;
                 if (true
                     && ($scope$left = this.matchConstraint($$dpth + 1, $$cr)) !== null
-                    && this.matchConstraintOr_$0($$dpth + 1, $$cr) !== null
+                    && this.regexAccept(String.raw`(?: or )`, $$dpth + 1, $$cr) !== null
                     && ($scope$right = this.matchConstraint($$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.ConstraintOr, left: $scope$left, right: $scope$right};
                 }
                 return $$res;
             });
-    }
-    public matchConstraintOr_$0($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintOr_$0> {
-        return this.choice<ConstraintOr_$0>([
-            () => this.matchConstraintOr_$0_1($$dpth + 1, $$cr),
-            () => this.matchConstraintOr_$0_2($$dpth + 1, $$cr),
-        ]);
-    }
-    public matchConstraintOr_$0_1($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintOr_$0_1> {
-        return this.regexAccept(String.raw`(?: or )`, $$dpth + 1, $$cr);
-    }
-    public matchConstraintOr_$0_2($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintOr_$0_2> {
-        return this.regexAccept(String.raw`(?: / )`, $$dpth + 1, $$cr);
     }
     public matchConstraintAnd($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintAnd> {
         return this.run<ConstraintAnd>($$dpth,
@@ -986,6 +977,7 @@ export class Parser {
             () => this.matchDistribution_2($$dpth + 1, $$cr),
             () => this.matchDistribution_3($$dpth + 1, $$cr),
             () => this.matchDistribution_4($$dpth + 1, $$cr),
+            () => this.matchDistribution_5($$dpth + 1, $$cr),
         ]);
     }
     public matchDistribution_1($$dpth: number, $$cr?: ErrorTracker): Nullable<Distribution_1> {
@@ -998,7 +990,10 @@ export class Parser {
         return this.matchUnbalanced($$dpth + 1, $$cr);
     }
     public matchDistribution_4($$dpth: number, $$cr?: ErrorTracker): Nullable<Distribution_4> {
-        return this.matchShape($$dpth + 1, $$cr);
+        return this.matchAnyShape($$dpth + 1, $$cr);
+    }
+    public matchDistribution_5($$dpth: number, $$cr?: ErrorTracker): Nullable<Distribution_5> {
+        return this.matchSpecificShape($$dpth + 1, $$cr);
     }
     public matchBalanced($$dpth: number, $$cr?: ErrorTracker): Nullable<Balanced> {
         return this.run<Balanced>($$dpth,
@@ -1039,21 +1034,35 @@ export class Parser {
                 return $$res;
             });
     }
-    public matchShape($$dpth: number, $$cr?: ErrorTracker): Nullable<Shape> {
-        return this.run<Shape>($$dpth,
+    public matchAnyShape($$dpth: number, $$cr?: ErrorTracker): Nullable<AnyShape> {
+        return this.run<AnyShape>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<AnyShape> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:[0-9]{4})`, $$dpth + 1, $$cr)) !== null
+                    && this.regexAccept(String.raw`(?:\*)`, $$dpth + 1, $$cr) !== null
+                ) {
+                    $$res = {kind: ASTKinds.AnyShape, v: $scope$v};
+                }
+                return $$res;
+            });
+    }
+    public matchSpecificShape($$dpth: number, $$cr?: ErrorTracker): Nullable<SpecificShape> {
+        return this.run<SpecificShape>($$dpth,
             () => {
                 let $scope$S: Nullable<Digit>;
                 let $scope$H: Nullable<Digit>;
                 let $scope$D: Nullable<Digit>;
                 let $scope$C: Nullable<Digit>;
-                let $$res: Nullable<Shape> = null;
+                let $$res: Nullable<SpecificShape> = null;
                 if (true
                     && ($scope$S = this.matchDigit($$dpth + 1, $$cr)) !== null
                     && ($scope$H = this.matchDigit($$dpth + 1, $$cr)) !== null
                     && ($scope$D = this.matchDigit($$dpth + 1, $$cr)) !== null
                     && ($scope$C = this.matchDigit($$dpth + 1, $$cr)) !== null
                 ) {
-                    $$res = {kind: ASTKinds.Shape, S: $scope$S, H: $scope$H, D: $scope$D, C: $scope$C};
+                    $$res = {kind: ASTKinds.SpecificShape, S: $scope$S, H: $scope$H, D: $scope$D, C: $scope$C};
                 }
                 return $$res;
             });
@@ -1124,6 +1133,7 @@ export class Parser {
                 let $scope$strain: Nullable<Strain>;
                 let $$res: Nullable<Relay> = null;
                 if (true
+                    && this.regexAccept(String.raw`(?:->)`, $$dpth + 1, $$cr) !== null
                     && ($scope$level = this.matchNumber($$dpth + 1, $$cr)) !== null
                     && ($scope$strain = this.matchStrain($$dpth + 1, $$cr)) !== null
                 ) {

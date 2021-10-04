@@ -1,9 +1,9 @@
-import { number, ord, readonlyArray, readonlySet, record } from 'fp-ts'
-import { eqStrict } from 'fp-ts/lib/Eq'
+import { Shape as AnyShape, Bid, ContractBid, SpecificShape, eqShape, getHandShape, getHandSpecificShape, makeShape } from './bridge'
+import { Card, Hand, Suit, ordCard } from './deck'
 import { constFalse, pipe } from 'fp-ts/lib/function'
-import { Bid, ContractBid, eqShape, getHandShape, getHandSpecificShape, makeShape, Shape, SpecificShape } from './bridge'
-import { Card, Hand, ordCard, Suit } from './deck'
+import { number, ord, readonlyArray, readonlySet, record } from 'fp-ts'
 
+import { eqStrict } from 'fp-ts/lib/Eq'
 
 export interface ConstraintPointRange {
   type: "PointRange"
@@ -37,9 +37,9 @@ export interface ConstraintDisjunction {
   constraints: ReadonlyArray<Constraint>
 }
 
-interface ConstraintShape {
-  type: "Shape"
-  counts: Shape
+interface ConstraintAnyShape {
+  type: "AnyShape"
+  counts: AnyShape
 }
 
 export interface ConstraintSpecificShape {
@@ -68,7 +68,7 @@ export type Constraint =
   | ConstraintSuitRange
   | ConstraintSuitComparison
   | ConstraintDistribution
-  | ConstraintShape
+  | ConstraintAnyShape
   | ConstraintSpecificShape
   | ConstraintResponse
   | ConstraintRelayResponse
@@ -118,7 +118,7 @@ export const suitCompare = (hand: Hand) => (op: SuitComparisonOperator) => (left
   return getComparator(op)(shape[left], shape[right])
 }
 
-export const isShape = (hand: Hand) => (shape: Shape) =>
+export const isShape = (hand: Hand) => (shape: AnyShape) =>
   eqShape.equals(shape, getHandShape(hand))
 
 export const isBalanced = (hand: Hand) =>
@@ -150,7 +150,7 @@ export const satisfies = (hand: Hand) => (c: Constraint) : boolean => {
     return isBalanced(hand) || isSemiBalanced(hand)
   } else if (c.type === "Unbalanced") {
     return !(isBalanced(hand) || isSemiBalanced(hand))
-  } else if (c.type === "Shape") {
+  } else if (c.type === "AnyShape") {
     return isShape(hand)(c.counts)
   } else if (c.type === "SpecificShape") {
     return isSpecificShape(hand)(c.suits)
