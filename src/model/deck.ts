@@ -1,10 +1,11 @@
-import { either, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlySet } from 'fp-ts';
+import { either, eq, nonEmptyArray as NEA, number, option, ord, readonlyArray, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import * as t from 'io-ts';
 
-export const shuffle = (nextRandom: () => number) => <T>(array: T[]): readonly T[] => {
+export const shuffle = (nextRandom: () => number) => <T>(cards: RNEA.ReadonlyNonEmptyArray<T>): RNEA.ReadonlyNonEmptyArray<T> => {
+  const array = [...cards] as NEA.NonEmptyArray<T>
   for (let i = 0; i < array.length; i++) {
-    const r = i + (nextRandom() * (array.length - 1 - i));
+    const r = i + Math.floor(nextRandom() * (array.length - 1 - i));
     [array[i], array[r]] = [array[r], array[i]]
   }
   return array;
@@ -39,10 +40,11 @@ export const ordCard : ord.Ord<Card> = ord.getMonoid<Card>().concat(
   pipe(ordRank, ord.contramap(c => c.rank))
 )
 
-export const cards: readonly Card[] = Array(52).map<Card>((_, i) => ({
-  suit: suits[i / 13],
-  rank: (RankC.decode(i % 13) as either.Right<Rank>).right
-}))
+export const cards: RNEA.ReadonlyNonEmptyArray<Card> =
+  pipe(52, RNEA.makeBy(i => ({
+    suit: suits[Math.floor(i / 13)],
+    rank: (RankC.decode((i % 13) + 2) as either.Right<Rank>).right
+  })))
 
 export type Hand = ReadonlySet<Card>
 export type GroupedHand = readonlyRecord.ReadonlyRecord<Suit, ReadonlyArray<Rank>>
@@ -58,14 +60,14 @@ export const zeroGroupedHand : GroupedHand = ({
 export const groupHandBySuits = (hand: Hand) : GroupedHand =>
   pipe(hand,
     readonlySet.toReadonlyArray(ordCard),
-    readonlyNonEmptyArray.fromReadonlyArray,
+    RNEA.fromReadonlyArray,
     option.fold(() => zeroGroupedHand, flow(
-      readonlyNonEmptyArray.groupBy(c => c.suit),
-      readonlyRecord.map(readonlyNonEmptyArray.map(c => c.rank)),
+      RNEA.groupBy(c => c.suit),
+      readonlyRecord.map(RNEA.map(c => c.rank)),
       readonlyRecord.union(readonlyArray.getUnionMonoid(eqRank))(zeroGroupedHand)
     )))
 
-export type Deck = readonly Card[]
+export type Deck = RNEA.ReadonlyNonEmptyArray<Card>
 
 export const newDeck = () : Deck =>
-  basicShuffle([...cards])
+  basicShuffle(cards)

@@ -4,7 +4,9 @@ import { pipe } from "fp-ts/lib/function"
 import { castDraft } from "immer"
 import * as D from 'io-ts/Decoder'
 import { O, U } from 'ts-toolbelt'
+import { deal } from "../model/bridge"
 import { Constraint, satisfies } from '../model/constraints'
+import { newDeck } from "../model/deck"
 import { decodeHand } from '../parse'
 
 const name = 'selection'
@@ -31,11 +33,16 @@ const slice = createSlice({
         state[action.meta] = pipe(action.payload, decodeHand, castDraft)
       },
       prepare: (payload, meta) => ({ payload, meta })
+    },
+    genHands: (state) => {
+      const d = deal(newDeck())
+      state['opener'] = pipe(d.N, either.right, castDraft)
+      state['responder'] = pipe(d.S, either.right, castDraft)
     }
   }
 })
 
-export const { setSelectedBlockKey, setHand } = slice.actions
+export const { setSelectedBlockKey, setHand, genHands } = slice.actions
 export default slice.reducer
 
 export const selectTestConstraint = (state: State, constraint: Constraint) =>

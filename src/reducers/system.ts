@@ -40,9 +40,7 @@ const getPath = (blockKey: string) =>
     if (node.blockKey === blockKey) {
       return O.some([node])
     } else {
-      return pipe(paths,
-        RA.findFirstMap(x => x),
-        O.map(RA.prepend(node)))
+      return pipe(paths, RA.findFirstMap(O.map(RA.prepend(node))))
     }
   })
 
