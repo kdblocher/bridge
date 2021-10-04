@@ -1,20 +1,34 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit"
-import { either, option } from "fp-ts"
-import { pipe } from "fp-ts/lib/function"
-import { castDraft } from "immer"
 import * as D from 'io-ts/Decoder'
-import { O, U } from 'ts-toolbelt'
-import { deal } from "../model/bridge"
+import * as iso from "monocle-ts/Iso"
+
+import { Card, Hand, eqCard, newDeck, ordCard } from "../model/deck"
 import { Constraint, satisfies } from '../model/constraints'
-import { newDeck } from "../model/deck"
+import { O, U } from 'ts-toolbelt'
+import { PayloadAction, createSlice } from "@reduxjs/toolkit"
+import { either, option, readonlySet } from "fp-ts"
+import { flow, pipe } from "fp-ts/lib/function"
+
+import { Either } from 'fp-ts/lib/Either'
+import { castDraft } from "immer"
+import { deal } from "../model/bridge"
 import { decodeHand } from '../parse'
 
 const name = 'selection'
 type DecodedHand = ReturnType<typeof decodeHand>
+type SerializedHand = ReadonlyArray<Card>
+type DecodedSerializedHand = DecodedHand extends Either<infer L, unknown> ? either.Either<L, SerializedHand> : never
+
+const handLens = iso.iso<Hand, SerializedHand>(
+  readonlySet.toReadonlyArray(ordCard),
+  readonlySet.fromReadonlyArray(eqCard)
+)
+const lift = <E>() => <A, B>(i: iso.Iso<A, B>) => iso.iso<Either<E, A>, Either<E, B>>(either.map(i.get), either.map(i.reverseGet))
+const decodedHandLens = lift<D.DecodeError>()(handLens)
+
 interface State {
   selectedBlockKey: option.Option<string>
-  opener?: DecodedHand
-  responder?: DecodedHand
+  opener?: DecodedSerializedHand
+  responder?: DecodedSerializedHand
 }
 export type AuctionPositionType = O.SelectKeys<State, U.Nullable<DecodedHand>>
 
@@ -30,14 +44,14 @@ const slice = createSlice({
     },
     setHand: {
       reducer: (state, action: PayloadAction<string, string, AuctionPositionType>) => {
-        state[action.meta] = pipe(action.payload, decodeHand, castDraft)
+        state[action.meta] = pipe(action.payload, decodeHand, decodedHandLens.get, castDraft)
       },
       prepare: (payload, meta) => ({ payload, meta })
     },
     genHands: (state) => {
       const d = deal(newDeck())
-      state['opener'] = pipe(d.N, either.right, castDraft)
-      state['responder'] = pipe(d.S, either.right, castDraft)
+      state['opener'] = pipe(d.N, either.right, decodedHandLens.get, castDraft)
+      state['responder'] = pipe(d.S, either.right, decodedHandLens.get, castDraft)
     }
   }
 })
@@ -45,14 +59,15 @@ const slice = createSlice({
 export const { setSelectedBlockKey, setHand, genHands } = slice.actions
 export default slice.reducer
 
-export const selectTestConstraint = (state: State, constraint: Constraint) =>
+export const selectTestConstraint = (state: State, constraint: Constraint) : boolean =>
   pipe(state.opener,
     either.fromNullable(D.error(undefined, "No hand defined yet")),
     either.flatten,
+    decodedHandLens.reverseGet,
     either.exists(hand => satisfies(hand)(constraint)))
 
-export const selectHand = (state: State, type: AuctionPositionType) =>
+export const selectHand = (state: State, type: AuctionPositionType) : option.Option<Hand> =>
   pipe(state[type],
     option.fromNullable,
-    option.chain(option.fromEither))
+    option.chain(flow(decodedHandLens.reverseGet, option.fromEither)))
   

@@ -1,12 +1,14 @@
-import { option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
-import { pipe } from "fp-ts/lib/function"
-import { useCallback, useEffect, useState } from "react"
-import styled from "styled-components"
-import { useAppDispatch, useAppSelector } from "../app/hooks"
 import * as Deck from "../model/deck"
-import { HandE } from "../parse/hand"
+
 import { AuctionPositionType, genHands, selectHand, setHand } from "../reducers/selection"
-import Decode from "./core/Decode"
+import { option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
+import { useAppDispatch, useAppSelector } from "../app/hooks"
+import { useCallback, useEffect, useState } from "react"
+
+import { HandE } from "../parse/hand"
+import { Option } from "./core/Monad"
+import { pipe } from "fp-ts/lib/function"
+import styled from "styled-components"
 
 interface HandProps {
   type: AuctionPositionType
@@ -87,9 +89,9 @@ const Suit = ({ suit, ranks }: SuitProps) => {
 }
 
 const Hand = ({ type }: HandProps) => {
-  const hand = useAppSelector(state => state.selection[type])
+  const hand = useAppSelector(state => selectHand(state.selection, type))
   return <>{hand &&
-    <Decode value={hand}>{hand => {
+    <Option value={hand}>{hand => {
       const groupedHand = Deck.groupHandBySuits(hand)
       return (
         <SuitList>
@@ -101,7 +103,7 @@ const Hand = ({ type }: HandProps) => {
             readonlyArray.map(readonlyTuple.snd))}
         </SuitList>
       )}}
-    </Decode>
+    </Option>
   }</>
 }
 
