@@ -3,14 +3,14 @@ import * as iso from "monocle-ts/Iso"
 
 import { Card, Hand, eqCard, newDeck, ordCard } from "../model/deck"
 import { Constraint, satisfies } from '../model/constraints'
+import { Deal, Direction, deal } from "../model/bridge"
 import { O, U } from 'ts-toolbelt'
-import { PayloadAction, createSlice } from "@reduxjs/toolkit"
-import { either, option, readonlySet } from "fp-ts"
+import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit"
+import { either, option, readonlyArray, readonlySet } from "fp-ts"
 import { flow, pipe } from "fp-ts/lib/function"
 
 import { Either } from 'fp-ts/lib/Either'
 import { castDraft } from "immer"
-import { deal } from "../model/bridge"
 import { decodeHand } from '../parse'
 
 const name = 'selection'
@@ -35,6 +35,14 @@ export type AuctionPositionType = O.SelectKeys<State, U.Nullable<DecodedHand>>
 const initialState : State = {
   selectedBlockKey: option.none,
 }
+
+const getHandByDirection = (dir: Direction) => (d: Deal) =>
+  pipe(d[dir], either.right, decodedHandLens.get, castDraft)
+
+const genManyHands = createAsyncThunk('genManyHands', (count: number) =>
+  new Promise<ReadonlyArray<Deal>>((resolve, reject) =>
+    resolve(readonlyArray.makeBy(count, flow(newDeck, deal)))))
+
 const slice = createSlice({
   name,
   initialState,
@@ -50,13 +58,21 @@ const slice = createSlice({
     },
     genHands: (state) => {
       const d = deal(newDeck())
-      state['opener'] = pipe(d.N, either.right, decodedHandLens.get, castDraft)
-      state['responder'] = pipe(d.S, either.right, decodedHandLens.get, castDraft)
+      state['opener'] = getHandByDirection("N")(d)
+      state['responder'] = getHandByDirection("S")(d)
     }
-  }
+  },
+  extraReducers: builder =>
+    builder.addCase(genManyHands.fulfilled, (state, action) => {
+      const d = action.payload[Math.floor(Math.random() * action.payload.length)]
+      state['opener'] = getHandByDirection("N")(d)
+      state['responder'] = getHandByDirection("S")(d)
+    })
 })
 
 export const { setSelectedBlockKey, setHand, genHands } = slice.actions
+export { genManyHands }
+
 export default slice.reducer
 
 export const selectTestConstraint = (state: State, constraint: Constraint) : boolean =>

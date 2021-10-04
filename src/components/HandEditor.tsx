@@ -1,6 +1,6 @@
 import * as Deck from "../model/deck"
 
-import { AuctionPositionType, genHands, selectHand, setHand } from "../reducers/selection"
+import { AuctionPositionType, genHands, genManyHands, selectHand, setHand } from "../reducers/selection"
 import { option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
 import { useAppDispatch, useAppSelector } from "../app/hooks"
 import { useCallback, useEffect, useState } from "react"
@@ -109,6 +109,7 @@ const Hand = ({ type }: HandProps) => {
 
 const HandEditor = () => {
   const dispatch = useAppDispatch()
+  const [count, setCount] = useState<number>(10000)
 
   return (
     <table>
@@ -128,7 +129,11 @@ const HandEditor = () => {
           <td><Hand type="responder" /></td>
         </tr>
         <tr>
-          <td><button type="button" onClick={() => dispatch(genHands())}>Generate</button></td>
+          <td>
+            <button type="button" onClick={() => dispatch(genHands())}>Generate</button> <br/>
+            <button type="button" onClick={() => dispatch(genManyHands(count))}>Generate lots of hands</button>
+            <input type="number" value={count} onChange={e => setCount(parseInt(e.target.value))} />
+          </td>
         </tr>
       </tbody>
     </table>
