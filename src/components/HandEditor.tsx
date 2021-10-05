@@ -1,14 +1,14 @@
-import * as Deck from "../model/deck"
-
-import { AuctionPositionType, genHands, genManyHands, selectHand, setHand } from "../reducers/selection"
 import { option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
-import { useAppDispatch, useAppSelector } from "../app/hooks"
-import { useCallback, useEffect, useState } from "react"
-
-import { HandE } from "../parse/hand"
-import { Option } from "./core/Monad"
 import { pipe } from "fp-ts/lib/function"
+import { useCallback, useEffect, useState } from "react"
 import styled from "styled-components"
+import { useAppDispatch, useAppSelector } from "../app/hooks"
+import * as Deck from "../model/deck"
+import { HandE } from "../parse/hand"
+import { AuctionPositionType, genHands, selectHand, setHand } from "../reducers/selection"
+import { Option } from "./core/Monad"
+
+
 
 interface HandProps {
   type: AuctionPositionType
@@ -109,9 +109,6 @@ const Hand = ({ type }: HandProps) => {
 
 const HandEditor = () => {
   const dispatch = useAppDispatch()
-  const [count, setCount] = useState<number>(10000)
-  const generating = useAppSelector(state => state.selection.generating)
-
   return (
     <table>
       <thead>
@@ -132,9 +129,6 @@ const HandEditor = () => {
         <tr>
           <td>
             <button type="button" onClick={() => dispatch(genHands())}>Generate</button> <br/>
-            <button type="button" onClick={() => dispatch(genManyHands(count))}>Generate lots of hands</button>
-            <input type="number" value={count} onChange={e => setCount(parseInt(e.target.value))} />
-            {generating && <span>Generating...</span>}
           </td>
         </tr>
       </tbody>

@@ -2,4 +2,5 @@
 
 import Worker from 'comlink-loader!./worker'; // inline loader
 
-export default Worker;
+const makeGenDealsTask = (count: number) => () => new Worker().genDeals(count)
+export default makeGenDealsTask;

@@ -1,8 +1,8 @@
 declare module 'comlink-loader!*' {
-  type Deal = import ("../../model/bridge").Deal
+  type SerializedDeal = import ("../../model/serialization").SerializedDeal
   class WebpackWorker extends Worker {
     constructor();
-    genDeals(count: number): Promise<ReadonlyArray<Deal>>;
+    genDeals(count: number): Promise<ReadonlyArray<SerializedDeal>>;
   }
 
   export = WebpackWorker;

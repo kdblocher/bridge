@@ -1,5 +1,6 @@
 import Editor from './Editor';
 import SelectionDetails from './SelectionDetails';
+import Stats from './Stats';
 
 const App = () => {
   return (
@@ -8,6 +9,8 @@ const App = () => {
         <Editor />
         ---
         <SelectionDetails />
+        ---
+        <Stats />
       </div>
       {/* <div style={{display: "inline-block", width: '50%'}}>
         <TestHand

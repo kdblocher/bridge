@@ -1,13 +1,13 @@
 import { apply, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlySet as RS, readonlyTuple, readonlyTuple as RT } from "fp-ts"
 import { flow, pipe } from "fp-ts/lib/function"
-import { ReadonlyRecord } from "fp-ts/lib/ReadonlyRecord"
 import { first } from 'fp-ts/lib/Semigroup'
 import { Deck, eqCard, Hand, ordCard, Suit, suits } from "./deck"
 
 export const directions = ['N', 'E', 'S', 'W'] as const
 export type Direction = typeof directions[number]
+export const ordDirection : ord.Ord<Direction> = pipe(number.Ord, ord.contramap(d => directions.indexOf(d)))
 
-export type Deal = Record<Direction, Hand>
+export type Deal = readonlyRecord.ReadonlyRecord<Direction, Hand>
 export type Player = {
   direction: Direction
   hand: Hand
@@ -18,7 +18,7 @@ export const deal = (deck: Deck) : Deal =>
     RNEA.zip(RNEA.chunksOf(13)(deck)),
     readonlyNonEmptyArray.groupBy(RT.fst),
     readonlyRecord.map((x) => { return pipe(x, RNEA.head, RT.snd, RS.fromReadonlyArray(eqCard)) }),
-    (x: ReadonlyRecord<Direction, Hand>) => x)
+    (x: readonlyRecord.ReadonlyRecord<Direction, Hand>) => x)
 
 export const vulnerabilities = ["Neither", "NorthSouth", "EastWest", "Both"] as const
 export type Vulnerability = typeof vulnerabilities[number]

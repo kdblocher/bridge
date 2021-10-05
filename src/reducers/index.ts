@@ -1,15 +1,18 @@
-import { either, option, readonlyArray } from 'fp-ts'
-import { pipe } from 'fp-ts/lib/function'
+import { either, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple, string } from 'fp-ts'
+import { flow, pipe } from 'fp-ts/lib/function'
 import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray'
 import { RootState } from '../app/store'
+import { ContractBid } from '../model/bridge'
 import { ConstrainedBid, satisfies } from '../model/constraints'
 import { Hand } from '../model/deck'
+import generator, { selectAllDeals } from './generator'
 import selection, { selectHand } from './selection'
 import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system'
 
 const reducers = {
   system,
-  selection
+  selection,
+  generator
 }
 export default reducers
 
@@ -51,7 +54,40 @@ export const selectPathsSatisfyHands = (state: RootState) =>
     option.map(o => pipe(
       selectAllCompleteBidPaths(state.system),
       readonlyArray.map<ReadonlyNonEmptyArray<ConstrainedBid>, BidResult>(path => ({
-        path: path,
+        path,
         result: checkBidPath(o.opener, o.responder)(path)
       })))),
+    option.toNullable)
+
+interface BidCountResult {
+  path: ReadonlyNonEmptyArray<ConstrainedBid>
+  count: number
+}
+const ordStats = pipe(
+  number.Ord,
+  ord.reverse,
+  ord.contramap<number, BidCountResult>(r => r.count))
+
+export const selectSatisfyStats = (state: RootState) : ReadonlyArray<BidCountResult> | null =>
+  pipe(readonlyArray.Do,
+    readonlyArray.apS('deal', selectAllDeals(state.generator)),
+    readonlyArray.apS('path', selectAllCompleteBidPaths(state.system)),
+    readonlyArray.map(ra => ({
+      path: ra.path,
+      result: checkBidPath(ra.deal[0], ra.deal[1])(ra.path)
+    })),
+    readonlyNonEmptyArray.fromReadonlyArray,
+    option.map(
+      flow(
+        readonlyNonEmptyArray.groupBy(x =>
+          pipe(x.path,
+            readonlyArray.map(p => p.bid as ContractBid),
+            readonlyArray.foldMap(string.Monoid)(b => `${b.level}${b.strain}`))),
+        readonlyRecord.map(r => ({
+          path: r[0].path,
+          count: pipe(r, readonlyArray.filter(a => a.result)).length
+        })),
+        readonlyRecord.toReadonlyArray,
+        readonlyArray.map(readonlyTuple.snd),
+        readonlyArray.sort(ordStats))),
     option.toNullable)

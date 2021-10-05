@@ -1,20 +1,11 @@
 import { option } from "fp-ts"
 import { pipe } from "fp-ts/lib/function"
 import { draw } from "io-ts/lib/Decoder"
-import styled from "styled-components"
 import { useAppSelector } from "../app/hooks"
-import { ContractBid } from "../model/bridge"
 import { selectHandsSatisfySelectedPath, selectPathsSatisfyHands } from "../reducers"
 import { selectErrors, selectNodeByKey, selectPathByKey } from "../reducers/system"
+import BidPath from "./core/BidPath"
 import HandEditor from "./HandEditor"
-
-const SuitSpan = styled.span `
-  &.S::after { content: "♠"; color: #0000FF; }
-  &.H::after { content: "♥"; color: #FF0000; }
-  &.D::after { content: "♦"; color: #FFA500; }
-  &.C::after { content: "♣"; color: #32CD32; }
-  &.N::after { content: "NT" }
-`
 
 const SelectionDetails = () => {
   const selected = useAppSelector(state => state.selection.selectedBlockKey)
@@ -59,11 +50,7 @@ const SelectionDetails = () => {
         <h3>Results</h3>
         <ul>
           {results.map((r, i) => <li key={i}>
-            {r.path.map(b => b.bid as ContractBid).map(bid => <>
-              &nbsp;
-              <span>{bid.level}</span>
-              <SuitSpan className={bid.strain}></SuitSpan>
-            </>)}
+            <BidPath path={r.path} />
             : &nbsp;
             <span>{r.result.toString()}</span>
           </li>)}
