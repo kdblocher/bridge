@@ -5,7 +5,7 @@ import * as t from 'io-ts';
 export const shuffle = (nextRandom: () => number) => <T>(cards: RNEA.ReadonlyNonEmptyArray<T>): RNEA.ReadonlyNonEmptyArray<T> => {
   const array = [...cards] as NEA.NonEmptyArray<T>
   for (let i = 0; i < array.length; i++) {
-    const r = i + Math.floor(nextRandom() * (array.length - 1 - i));
+    const r = i + Math.floor(nextRandom() * (array.length - i));
     [array[i], array[r]] = [array[r], array[i]]
   }
   return array;
