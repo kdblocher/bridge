@@ -1,6 +1,7 @@
 import Editor from './Editor';
 import SelectionDetails from './SelectionDetails';
 import Stats from './Stats';
+import TestHands from './TestHands';
 
 const App = () => {
   return (
@@ -16,6 +17,7 @@ const App = () => {
           &nbsp;|&nbsp;
           <a target="_blank" rel="noreferrer" href="https://github.com/kdblocher/bridge/issues/new">Report issue</a>
         </div>
+        <TestHands />
         <SelectionDetails />
       </div>
     </div>

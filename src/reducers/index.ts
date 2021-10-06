@@ -1,13 +1,14 @@
+import { ConstrainedBid, satisfies } from '../model/constraints'
 import { either, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple, string } from 'fp-ts'
 import { flow, pipe } from 'fp-ts/lib/function'
-import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray'
-import { RootState } from '../app/store'
-import { ContractBid } from '../model/bridge'
-import { ConstrainedBid, satisfies } from '../model/constraints'
-import { Hand } from '../model/deck'
 import generator, { selectAllDeals } from './generator'
 import selection, { selectHand } from './selection'
 import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system'
+
+import { ContractBid } from '../model/bridge'
+import { Hand } from '../model/deck'
+import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray'
+import { RootState } from '../app/store'
 
 const reducers = {
   system,
