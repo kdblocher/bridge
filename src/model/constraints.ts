@@ -37,6 +37,11 @@ export interface ConstraintDisjunction {
   constraints: ReadonlyArray<Constraint>
 }
 
+export interface ConstraintNegation {
+  type: "Negation"
+  constraint: Constraint
+}
+
 interface ConstraintAnyShape {
   type: "AnyShape"
   counts: AnyShape
@@ -64,6 +69,7 @@ export interface ConstraintRelayResponse {
 export type Constraint =
   | ConstraintConjunction
   | ConstraintDisjunction
+  | ConstraintNegation
   | ConstraintPointRange
   | ConstraintSuitRange
   | ConstraintSuitComparison
@@ -140,6 +146,8 @@ export const satisfies = (hand: Hand) => (c: Constraint) : boolean => {
     return pipe(c.constraints, readonlyArray.every(satisfies(hand)))
   } else if (c.type === "Disjunction") {
     return pipe(c.constraints, readonlyArray.exists(satisfies(hand)))
+  } else if (c.type === "Negation") { 
+    return !satisfies(hand)(c.constraint)
   } else if (c.type === "PointRange") {
     return pipe(hand, getHcp, ord.between(number.Ord)(c.min, c.max))
   } else if (c.type === "SuitRange") {
