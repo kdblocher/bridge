@@ -37,6 +37,7 @@ The tool will attempt to parse each line into a [set of] constraints, which it t
 | Relay | `->` _b_ | Marks the bid as a [relay](https://en.wikipedia.org/wiki/Relay_bid) to bid _b_. | `->3C` |
 | Conjunction | _c_<sub>1</sub> &centerdot; _c_<sub>2</sub> ... | Holds if all constraints hold. | `11-15 4S 5H` |
 | Disjunction | _c_<sub>1</sub> &centerdot; ``or`` &centerdot; _c_<sub>2</sub> ... |  Holds if any constraint holds. | `4414 or 4405 or 4315 or 3415` |
+| Negatiion | `not` &centerdot; _c_ <br/> `!` &centerdot; _c_ | Holds when _c_ does not. | `not (14-15 BAL)`
 | Grouping | `(`_c_`)` | Syntactic grouping of constraints _c_. | `6+C or (5+C 4M)` <br /> `(5-10 6+M) or (4441* 17-24)` |
 
 - "**&centerdot;**" denotes a syntactic space between the terms in the syntax above. If there is no dot, do not space the terms.)
