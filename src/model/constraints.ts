@@ -91,8 +91,10 @@ export const getHcp =
     readonlySet.toReadonlyArray(ordCard),
     readonlyArray.foldMap(number.MonoidSum)(getCardHcp))
 
-export const isPointRange = (range: ConstraintPointRange) => 
-  flow(getHcp, ord.between(number.Ord)(range.min, range.max))
+const rangeCheck = (range: { min: number, max: number }) => ord.between(number.Ord)(range.min, range.max)
+
+export const isPointRange =
+  flow(rangeCheck, P.contramap(getHcp))
 
 export const isSpecificShape = (shape: SpecificShape) =>
   flow(getHandSpecificShape, suits => record.getEq(eqStrict).equals(suits, shape))
@@ -103,9 +105,7 @@ export const isSuitRange = (range: ConstraintSuitRange) => {
     range.suit === "Minor" ? ["D", "C"] :
     [range.suit]
   return flow(getHandSpecificShape, shape =>
-    pipe(getSuitsToCheck, readonlyArray.exists(s => {
-      return ord.between(number.Ord)(range.min, range.max)(shape[s])
-    })))
+    pipe(getSuitsToCheck, readonlyArray.exists(s => ord.between(number.Ord)(range.min, range.max)(shape[s]))))
 }
 
 const getComparator = (op: SuitComparisonOperator) => {
