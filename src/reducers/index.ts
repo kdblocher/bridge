@@ -31,7 +31,7 @@ const checkBidPath = (opener: Hand, responder: Hand) => (bids: ReadonlyArray<Con
     alternate(opener, responder),
     unfold(bids.length),
     readonlyArray.zip(bids),
-    readonlyArray.every(([hand, bid]) => satisfies(hand)(bid.constraint)))
+    readonlyArray.every(([hand, bid]) => satisfies(bid.constraint)(hand)))
 
 export const selectHandsSatisfySelectedPath = (state: RootState) =>
   pipe(option.Do,
