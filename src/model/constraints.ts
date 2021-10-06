@@ -3,6 +3,7 @@ import { Card, Hand, Suit, ordCard } from './deck'
 import { predicate as P, number, ord, readonlyArray, readonlySet, record } from 'fp-ts'
 import { constFalse, flow, pipe } from 'fp-ts/lib/function'
 
+import { constant } from 'fp-ts/lib/function'
 import { eqStrict } from 'fp-ts/lib/Eq'
 
 export interface ConstraintPointRange {
@@ -25,6 +26,11 @@ export interface ConstraintSuitComparison {
   left: Suit,
   right: Suit,
   op: SuitComparisonOperator
+}
+
+export interface ConstraintConst {
+  type: "Constant",
+  value: boolean
 }
 
 export interface ConstraintConjunction {
@@ -67,6 +73,7 @@ export interface ConstraintRelayResponse {
 }
 
 export type Constraint =
+  | ConstraintConst
   | ConstraintConjunction
   | ConstraintDisjunction
   | ConstraintNegation
@@ -147,7 +154,9 @@ export const isSemiBalanced =
   ], exists(isShape))
 
 export const satisfies = (c: Constraint) : P.Predicate<Hand> => {
-  if (c.type === "Conjunction") {
+  if (c.type === "Constant") {
+    return constant(c.value)
+  } else if (c.type === "Conjunction") {
     return pipe(c.constraints, forall(satisfies))
   } else if (c.type === "Disjunction") {
     return pipe(c.constraints, exists(satisfies))

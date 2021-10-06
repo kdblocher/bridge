@@ -17,10 +17,16 @@ Notrump := v='[Nn]' '[Tt]'?
 
 ConstraintList := ConstraintListItem+
 ConstraintListItem := constraint=Constraint ' '?
-Constraint := ConstraintOr | ConstraintAnd | ConstraintNot | Distribution | Response | SuitRange | SuitComparison | SuitBound | PointRange | PointBound 
+Constraint :=  ConstraintConst | ConstraintOr | ConstraintAnd | ConstraintNot | Distribution | Response | SuitRange | SuitComparison | SuitBound | PointRange | PointBound
+
+ConstraintConst := ConstraintTrue | ConstraintFalse
+ConstraintTrue := v='true'
+ConstraintFalse := v='false'
+
 ConstraintOr := left=Constraint ' or ' right=Constraint
 ConstraintAnd := '\(' constraints=ConstraintList '\)'
 ConstraintNot := {'not' | '!'} ' '? constraint=Constraint
+
 
 PointRange := lower=Number '-' upper=Number
 PointBound := value=Number qualifier=BoundQualifier
