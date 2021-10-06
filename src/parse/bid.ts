@@ -26,7 +26,11 @@ export const suitSpecifierFromAST = (s: AST.SuitRangeSpecifier) : SuitRangeSpeci
   suitFromAST(s)
 
 export const constraintFromAST = (c: AST.Constraint) : Constraint => {
-  if (c.kind === AST.ASTKinds.ConstraintAnd) {
+  if (c.kind === AST.ASTKinds.ConstraintTrue) {
+    return { type: "Constant", value: true }
+  } else if (c.kind === AST.ASTKinds.ConstraintFalse) {
+    return { type: "Constant", value: false }
+  } else if (c.kind === AST.ASTKinds.ConstraintAnd) {
     let result = map(c.constraints)
     if (result.length === 1) {
       return result[0]
