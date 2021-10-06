@@ -43,6 +43,11 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
       type: "Disjunction",
       constraints: [...flatten(left), ...flatten(right)]
     }
+  } else if (c.kind === AST.ASTKinds.ConstraintNot) {
+    return {
+      type: "Negation",
+      constraint: constraintFromAST(c.constraint)
+    }
   } else if (c.kind === AST.ASTKinds.PointRange) {
     return {
       type: "PointRange",
