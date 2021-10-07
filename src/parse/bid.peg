@@ -43,7 +43,7 @@ SuitComparisonOperator := v='<' | v='<=' | v='=' | v='>=' | v='>'
 BoundQualifier := Plus | Minus | Equals
 Plus := v='\+'
 Minus := v='\-'
-Equals := v='=' | v=''
+Equals := v='='
 
 Distribution := Balanced | SemiBalanced | Unbalanced | AnyShape | SpecificShape
 Balanced := v='BAL'
