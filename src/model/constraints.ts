@@ -2,7 +2,7 @@ import { number, option, ord, predicate as P, readonlyArray, readonlySet, readon
 import { eqStrict } from 'fp-ts/lib/Eq'
 import { constant, constFalse, flow, identity, pipe } from 'fp-ts/lib/function'
 import { Bid, ContractBid, eqShape, getHandShape, getHandSpecificShape, makeShape, Shape as AnyShape, SpecificShape } from './bridge'
-import { Card, Hand, ordCard, Suit, suits } from './deck'
+import { Card, eqSuit, Hand, ordCard, Suit, suits } from './deck'
 
 
 export interface ConstraintPointRange {
@@ -153,7 +153,17 @@ export const suitPrimary = (suit: Suit) =>
           readonlyArray.map(higher => suitCompare("<")(higher, suit)))),
       readonlyArray.map(lower => suitCompare("<=")(lower, suit))),
     readonlyArray.flatten,
-    readonlyArray.foldMap(P.getMonoidAll<Hand>())(identity))
+    readonlyArray.prepend(isSuitRange({ type: "SuitRange", suit, min: 5, max: 13 })),
+    forall(identity))
+
+export const suitSecondary = (secondarySuit: Suit) => (primarySuit: Suit) =>
+  pipe(readonlyArray.Do,
+    readonlyArray.apS('otherSuit', suits),
+    readonlyArray.apS('suit', [secondarySuit, primarySuit]),
+    readonlyArray.filter(({ suit, otherSuit }) => !eqSuit.equals(suit, otherSuit)),
+    readonlyArray.map(({ suit, otherSuit }) => suitCompare(">")(suit, otherSuit)),
+    readonlyArray.prepend(isSuitRange({ type: "SuitRange", suit: secondarySuit, min: 4, max: 13 })),
+    forall(identity))
 
 export const isShape = (shape: AnyShape) => (hand: Hand) =>
   eqShape.equals(shape, getHandShape(hand))
