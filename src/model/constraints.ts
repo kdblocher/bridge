@@ -1,9 +1,9 @@
-import { number, option, ord, predicate as P, readonlyArray, readonlySet, readonlyTuple, record } from 'fp-ts'
-import { eqStrict } from 'fp-ts/lib/Eq'
-import { constant, constFalse, flow, identity, pipe } from 'fp-ts/lib/function'
-import { Bid, ContractBid, eqShape, getHandShape, getHandSpecificShape, makeShape, Shape as AnyShape, SpecificShape } from './bridge'
-import { Card, eqSuit, Hand, ordCard, Suit, suits } from './deck'
+import { Shape as AnyShape, Bid, ContractBid, SpecificShape, eqShape, getHandShape, getHandSpecificShape, makeShape } from './bridge'
+import { Card, Hand, Suit, eqSuit, ordCard, suits } from './deck'
+import { predicate as P, number, option, ord, readonlyArray, readonlySet, readonlyTuple, record } from 'fp-ts'
+import { constFalse, constant, flow, identity, pipe } from 'fp-ts/lib/function'
 
+import { eqStrict } from 'fp-ts/lib/Eq'
 
 export interface ConstraintPointRange {
   type: "PointRange"
@@ -126,18 +126,19 @@ export const isSuitRange = (range: ConstraintSuitRange) => {
     pipe(getSuitsToCheck, readonlyArray.exists(s => ord.between(number.Ord)(range.min, range.max)(shape[s]))))
 }
 
+const assertUnreachable = (x: never) => {
+  throw new Error (`shouldn't get here with ${JSON.stringify(x)}`)
+}
+
 const getComparator = (op: SuitComparisonOperator) => {
-  if (op === "<") {
-    return ord.lt(number.Ord)
-  } else if (op === "<=") {
-    return ord.leq(number.Ord)
-  } else if (op === "=") {
-    return number.Eq.equals
-  } else if (op === ">=") {
-    return ord.geq(number.Ord)
-  } else if (op === ">") {
-    return ord.gt(number.Ord)
-  } else return constFalse
+  switch (op) {
+    case "<" : return ord.lt(number.Ord)
+    case "<=": return ord.leq(number.Ord)
+    case "=" : return number.Eq.equals
+    case ">=": return ord.geq(number.Ord)
+    case ">" : return ord.gt(number.Ord)
+    default  : return assertUnreachable(op)
+  }
 }
 
 export const suitCompare = (op: SuitComparisonOperator) => (left: Suit, right: Suit) =>
@@ -186,34 +187,42 @@ export const isSemiBalanced =
   ], exists(isShape))
 
 export const satisfies = (c: Constraint) : P.Predicate<Hand> => {
-  if (c.type === "Constant") {
-    return constant(c.value)
-  } else if (c.type === "Conjunction") {
-    return pipe(c.constraints, forall(satisfies))
-  } else if (c.type === "Disjunction") {
-    return pipe(c.constraints, exists(satisfies))
-  } else if (c.type === "Negation") { 
-    return pipe(c.constraint, satisfies, P.not)
-  } else if (c.type === "PointRange") {
-    return isPointRange(c)
-  } else if (c.type === "SuitRange") {
-    return isSuitRange(c)
-  } else if (c.type === "SuitComparison") {
-    return suitCompare(c.op)(c.left, c.right)
-  } else if (c.type === "SuitPrimary") {
-    return suitPrimary(c.suit)
-  } else if (c.type === "Balanced") {
-    return isBalanced
-  } else if (c.type === "SemiBalanced") {
-    return P.or(isBalanced)(isSemiBalanced)
-  } else if (c.type === "Unbalanced") {
-    return P.not(P.or(isBalanced)(isSemiBalanced))
-  } else if (c.type === "AnyShape") {
-    return isShape(c.counts)
-  } else if (c.type === "SpecificShape") {
-    return isSpecificShape(c.suits)
-  } 
-  // these aren't supported yet, they need contextual info
-  //if (c.type === "ForceOneRound" || c.type === "ForceGame" || c.type === "ForceSlam" || c.type === "Relay") {
-  return constFalse
+  switch (c.type) {
+    case "Constant":
+      return constant(c.value)
+    case "Conjunction":
+      return pipe(c.constraints, forall(satisfies))
+    case "Disjunction":
+      return pipe(c.constraints, exists(satisfies))
+    case "Negation": 
+      return pipe(c.constraint, satisfies, P.not)
+    case "PointRange":
+      return isPointRange(c)
+    case "SuitRange":
+      return isSuitRange(c)
+    case "SuitComparison":
+      return suitCompare(c.op)(c.left, c.right)
+    case "SuitPrimary":
+      return suitPrimary(c.suit)
+    case "Balanced":
+      return isBalanced
+    case "SemiBalanced":
+      return P.or(isBalanced)(isSemiBalanced)
+    case "Unbalanced":
+      return P.not(P.or(isBalanced)(isSemiBalanced))
+    case "AnyShape":
+      return isShape(c.counts)
+    case "SpecificShape":
+      return isSpecificShape(c.suits)
+
+    case "ForceOneRound":
+    case "ForceGame":
+    case "ForceSlam":
+    case "Relay":
+    case "SuitSecondary":
+      return constFalse
+      
+    default:
+      return assertUnreachable(c)
+  }
 }
