@@ -162,7 +162,10 @@ export const suitSecondary = (secondarySuit: Suit) => (primarySuit: Suit) =>
     readonlyArray.apS('suit', [secondarySuit, primarySuit]),
     readonlyArray.filter(({ suit, otherSuit }) => !eqSuit.equals(suit, otherSuit)),
     readonlyArray.map(({ suit, otherSuit }) => suitCompare(">")(suit, otherSuit)),
-    readonlyArray.prepend(isSuitRange({ type: "SuitRange", suit: secondarySuit, min: 4, max: 13 })),
+    readonlyArray.concat([
+      isSuitRange({ type: "SuitRange", suit: secondarySuit, min: 4, max: 13 }),
+      suitCompare(">=")(primarySuit, secondarySuit)
+    ]),
     forall(identity))
 
 export const isShape = (shape: AnyShape) => (hand: Hand) =>
