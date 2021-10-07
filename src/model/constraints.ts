@@ -1,10 +1,9 @@
-import { Shape as AnyShape, Bid, ContractBid, SpecificShape, eqShape, getHandShape, getHandSpecificShape, makeShape } from './bridge'
-import { Card, Hand, Suit, ordCard } from './deck'
-import { predicate as P, number, ord, readonlyArray, readonlySet, record } from 'fp-ts'
-import { constFalse, flow, pipe } from 'fp-ts/lib/function'
-
-import { constant } from 'fp-ts/lib/function'
+import { number, option, ord, predicate as P, readonlyArray, readonlySet, readonlyTuple, record } from 'fp-ts'
 import { eqStrict } from 'fp-ts/lib/Eq'
+import { constant, constFalse, flow, identity, pipe } from 'fp-ts/lib/function'
+import { Bid, ContractBid, eqShape, getHandShape, getHandSpecificShape, makeShape, Shape as AnyShape, SpecificShape } from './bridge'
+import { Card, eqSuit, Hand, ordCard, Suit, suits } from './deck'
+
 
 export interface ConstraintPointRange {
   type: "PointRange"
@@ -28,21 +27,28 @@ export interface ConstraintSuitComparison {
   op: SuitComparisonOperator
 }
 
+export interface ConstraintSuitPrimary {
+  type: "SuitPrimary",
+  suit: Suit
+}
+export interface ConstraintSuitSecondary {
+  type: "SuitSecondary",
+  suit: Suit
+}
+export type CosntraintSuitRank = ConstraintSuitPrimary | ConstraintSuitSecondary
+
 export interface ConstraintConst {
   type: "Constant",
   value: boolean
 }
-
 export interface ConstraintConjunction {
   type: "Conjunction"
   constraints: ReadonlyArray<Constraint>
 }
-
 export interface ConstraintDisjunction {
   type: "Disjunction"
   constraints: ReadonlyArray<Constraint>
 }
-
 export interface ConstraintNegation {
   type: "Negation"
   constraint: Constraint
@@ -80,15 +86,20 @@ export type Constraint =
   | ConstraintPointRange
   | ConstraintSuitRange
   | ConstraintSuitComparison
+  | CosntraintSuitRank
   | ConstraintDistribution
   | ConstraintAnyShape
   | ConstraintSpecificShape
   | ConstraintResponse
   | ConstraintRelayResponse
+
 export interface ConstrainedBid {
   bid: Bid
   constraint: Constraint
 }
+
+const exists = pipe(P.getMonoidAny<Hand>(), readonlyArray.foldMap)
+const forall = pipe(P.getMonoidAll<Hand>(), readonlyArray.foldMap)
 
 export const getCardHcp = (card: Card) =>
   Math.max(0, card.rank - 10)
@@ -133,11 +144,32 @@ export const suitCompare = (op: SuitComparisonOperator) => (left: Suit, right: S
   flow(getHandSpecificShape,
     shape => getComparator(op)(shape[left], shape[right]))
 
+export const suitPrimary = (suit: Suit) =>
+  pipe(suits,
+    readonlyArray.splitAt(suits.indexOf(suit)),
+    readonlyTuple.bimap(
+      flow(readonlyArray.tail,
+        option.fold(() => [],
+          readonlyArray.map(higher => suitCompare("<")(higher, suit)))),
+      readonlyArray.map(lower => suitCompare("<=")(lower, suit))),
+    readonlyArray.flatten,
+    readonlyArray.prepend(isSuitRange({ type: "SuitRange", suit, min: 5, max: 13 })),
+    forall(identity))
+
+export const suitSecondary = (secondarySuit: Suit) => (primarySuit: Suit) =>
+  pipe(readonlyArray.Do,
+    readonlyArray.apS('otherSuit', suits),
+    readonlyArray.apS('suit', [secondarySuit, primarySuit]),
+    readonlyArray.filter(({ suit, otherSuit }) => !eqSuit.equals(suit, otherSuit)),
+    readonlyArray.map(({ suit, otherSuit }) => suitCompare(">")(suit, otherSuit)),
+    readonlyArray.concat([
+      isSuitRange({ type: "SuitRange", suit: secondarySuit, min: 4, max: 13 }),
+      suitCompare(">=")(primarySuit, secondarySuit)
+    ]),
+    forall(identity))
+
 export const isShape = (shape: AnyShape) => (hand: Hand) =>
   eqShape.equals(shape, getHandShape(hand))
-
-const exists = pipe(P.getMonoidAny<Hand>(), readonlyArray.foldMap)
-const forall = pipe(P.getMonoidAll<Hand>(), readonlyArray.foldMap)
 
 export const isBalanced =
   pipe([
@@ -166,6 +198,10 @@ export const satisfies = (c: Constraint) : P.Predicate<Hand> => {
     return isPointRange(c)
   } else if (c.type === "SuitRange") {
     return isSuitRange(c)
+  } else if (c.type === "SuitComparison") {
+    return suitCompare(c.op)(c.left, c.right)
+  } else if (c.type === "SuitPrimary") {
+    return suitPrimary(c.suit)
   } else if (c.type === "Balanced") {
     return isBalanced
   } else if (c.type === "SemiBalanced") {
@@ -176,9 +212,7 @@ export const satisfies = (c: Constraint) : P.Predicate<Hand> => {
     return isShape(c.counts)
   } else if (c.type === "SpecificShape") {
     return isSpecificShape(c.suits)
-  } else if (c.type === "SuitComparison") {
-    return suitCompare(c.op)(c.left, c.right)
-  }
+  } 
   // these aren't supported yet, they need contextual info
   //if (c.type === "ForceOneRound" || c.type === "ForceGame" || c.type === "ForceSlam" || c.type === "Relay") {
   return constFalse

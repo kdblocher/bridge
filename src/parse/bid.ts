@@ -34,11 +34,11 @@ export const bindValueFromASTQualifier = (s: AST.BoundQualifier, value: number) 
       || (type === 'max' && s.kind === AST.ASTKinds.Minus)))
 
 export const constraintFromAST = (c: AST.Constraint) : Constraint => {
-  if (c.kind === AST.ASTKinds.ConstraintTrue) {
+  if (c.kind === AST.ASTKinds.True) {
     return { type: "Constant", value: true }
-  } else if (c.kind === AST.ASTKinds.ConstraintFalse) {
+  } else if (c.kind === AST.ASTKinds.False) {
     return { type: "Constant", value: false }
-  } else if (c.kind === AST.ASTKinds.ConstraintAnd) {
+  } else if (c.kind === AST.ASTKinds.And) {
     let result = map(c.constraints)
     if (result.length === 1) {
       return result[0]
@@ -48,14 +48,14 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
         constraints: map(c.constraints)
       }
     }
-  } else if (c.kind === AST.ASTKinds.ConstraintOr) {
+  } else if (c.kind === AST.ASTKinds.Or) {
     const [left, right] = [constraintFromAST(c.left), constraintFromAST(c.right)]
     const flatten = (c: Constraint) => c.type === "Disjunction" ? c.constraints : [c]
     return {
       type: "Disjunction",
       constraints: [...flatten(left), ...flatten(right)]
     }
-  } else if (c.kind === AST.ASTKinds.ConstraintNot) {
+  } else if (c.kind === AST.ASTKinds.Not) {
     return {
       type: "Negation",
       constraint: constraintFromAST(c.constraint)
@@ -78,6 +78,18 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
       min: c.lower.value,
       max: c.upper.value,
       suit: suitSpecifierFromAST(c.suit)
+    }
+  } else if (c.kind === AST.ASTKinds.SuitComparison) {
+    return {
+      type: "SuitComparison",
+      op: c.op.v as SuitComparisonOperator,
+      left: suitFromAST(c.left),
+      right: suitFromAST(c.right)
+    }
+  } else if (c.kind === AST.ASTKinds.Primary || c.kind === AST.ASTKinds.Secondary) {
+    return {
+      type: `Suit${c.kind}`,
+      suit: suitFromAST(c.suit)
     }
   } else if (c.kind === AST.ASTKinds.SuitBound) {
     return {
@@ -103,13 +115,6 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
         level: c.level.value,
         strain: strainFromAST(c.strain)
       }
-    }
-  } else if (c.kind === AST.ASTKinds.SuitComparison) {
-    return {
-      type: "SuitComparison",
-      op: c.op.v as SuitComparisonOperator,
-      left: suitFromAST(c.left),
-      right: suitFromAST(c.right)
     }
   } else {
     return { type: c.kind }

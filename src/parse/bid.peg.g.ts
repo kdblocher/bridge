@@ -16,13 +16,25 @@
 * Notrump := v='[Nn]' '[Tt]'?
 * ConstraintList := ConstraintListItem+
 * ConstraintListItem := constraint=Constraint ' '?
-* Constraint :=  ConstraintConst | ConstraintOr | ConstraintAnd | ConstraintNot | Distribution | Response | SuitRange | SuitComparison | SuitBound | PointRange | PointBound
-* ConstraintConst := ConstraintTrue | ConstraintFalse
-* ConstraintTrue := v='true'
-* ConstraintFalse := v='false'
-* ConstraintOr := left=Constraint ' or ' right=Constraint
-* ConstraintAnd := '\(' constraints=ConstraintList '\)'
-* ConstraintNot := {'not' | '!'} ' '? constraint=Constraint
+* Constraint :=
+*     Const
+*   | Or
+*   | And
+*   | Not
+*   | Distribution
+*   | Response
+*   | SuitRange
+*   | SuitComparison
+*   | SuitBound
+*   | SuitRank
+*   | PointRange
+*   | PointBound
+* Const := True | False
+* True := v='true'
+* False := v='false'
+* Or := left=Constraint ' or ' right=Constraint
+* And := '\(' constraints=ConstraintList '\)'
+* Not := {'not' | '!'} ' '? constraint=Constraint
 * PointRange := lower=Number '-' upper=Number
 * PointBound := value=Number qualifier=BoundQualifier
 * SuitRange := lower=Digit '-' upper=Digit suit=SuitRangeSpecifier
@@ -42,6 +54,9 @@
 * Unbalanced := v='unBAL'
 * AnyShape := v='[0-9]{4}' '\*'
 * SpecificShape := S=Digit H=Digit D=Digit C=Digit
+* SuitRank := Primary | Secondary
+* Primary := suit=Suit '1'
+* Secondary := suit=Suit '2'
 * Response := ForceOneRound | ForceGame | ForceSlam | Relay
 * ForceOneRound := v='F1'
 * ForceGame := v='FG'
@@ -92,15 +107,16 @@ export enum ASTKinds {
     Constraint_9 = "Constraint_9",
     Constraint_10 = "Constraint_10",
     Constraint_11 = "Constraint_11",
-    ConstraintConst_1 = "ConstraintConst_1",
-    ConstraintConst_2 = "ConstraintConst_2",
-    ConstraintTrue = "ConstraintTrue",
-    ConstraintFalse = "ConstraintFalse",
-    ConstraintOr = "ConstraintOr",
-    ConstraintAnd = "ConstraintAnd",
-    ConstraintNot = "ConstraintNot",
-    ConstraintNot_$0_1 = "ConstraintNot_$0_1",
-    ConstraintNot_$0_2 = "ConstraintNot_$0_2",
+    Constraint_12 = "Constraint_12",
+    Const_1 = "Const_1",
+    Const_2 = "Const_2",
+    True = "True",
+    False = "False",
+    Or = "Or",
+    And = "And",
+    Not = "Not",
+    Not_$0_1 = "Not_$0_1",
+    Not_$0_2 = "Not_$0_2",
     PointRange = "PointRange",
     PointBound = "PointBound",
     SuitRange = "SuitRange",
@@ -132,6 +148,10 @@ export enum ASTKinds {
     Unbalanced = "Unbalanced",
     AnyShape = "AnyShape",
     SpecificShape = "SpecificShape",
+    SuitRank_1 = "SuitRank_1",
+    SuitRank_2 = "SuitRank_2",
+    Primary = "Primary",
+    Secondary = "Secondary",
     Response_1 = "Response_1",
     Response_2 = "Response_2",
     Response_3 = "Response_3",
@@ -206,45 +226,46 @@ export interface ConstraintListItem {
     kind: ASTKinds.ConstraintListItem;
     constraint: Constraint;
 }
-export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8 | Constraint_9 | Constraint_10 | Constraint_11;
-export type Constraint_1 = ConstraintConst;
-export type Constraint_2 = ConstraintOr;
-export type Constraint_3 = ConstraintAnd;
-export type Constraint_4 = ConstraintNot;
+export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8 | Constraint_9 | Constraint_10 | Constraint_11 | Constraint_12;
+export type Constraint_1 = Const;
+export type Constraint_2 = Or;
+export type Constraint_3 = And;
+export type Constraint_4 = Not;
 export type Constraint_5 = Distribution;
 export type Constraint_6 = Response;
 export type Constraint_7 = SuitRange;
 export type Constraint_8 = SuitComparison;
 export type Constraint_9 = SuitBound;
-export type Constraint_10 = PointRange;
-export type Constraint_11 = PointBound;
-export type ConstraintConst = ConstraintConst_1 | ConstraintConst_2;
-export type ConstraintConst_1 = ConstraintTrue;
-export type ConstraintConst_2 = ConstraintFalse;
-export interface ConstraintTrue {
-    kind: ASTKinds.ConstraintTrue;
+export type Constraint_10 = SuitRank;
+export type Constraint_11 = PointRange;
+export type Constraint_12 = PointBound;
+export type Const = Const_1 | Const_2;
+export type Const_1 = True;
+export type Const_2 = False;
+export interface True {
+    kind: ASTKinds.True;
     v: string;
 }
-export interface ConstraintFalse {
-    kind: ASTKinds.ConstraintFalse;
+export interface False {
+    kind: ASTKinds.False;
     v: string;
 }
-export interface ConstraintOr {
-    kind: ASTKinds.ConstraintOr;
+export interface Or {
+    kind: ASTKinds.Or;
     left: Constraint;
     right: Constraint;
 }
-export interface ConstraintAnd {
-    kind: ASTKinds.ConstraintAnd;
+export interface And {
+    kind: ASTKinds.And;
     constraints: ConstraintList;
 }
-export interface ConstraintNot {
-    kind: ASTKinds.ConstraintNot;
+export interface Not {
+    kind: ASTKinds.Not;
     constraint: Constraint;
 }
-export type ConstraintNot_$0 = ConstraintNot_$0_1 | ConstraintNot_$0_2;
-export type ConstraintNot_$0_1 = string;
-export type ConstraintNot_$0_2 = string;
+export type Not_$0 = Not_$0_1 | Not_$0_2;
+export type Not_$0_1 = string;
+export type Not_$0_2 = string;
 export interface PointRange {
     kind: ASTKinds.PointRange;
     lower: Number;
@@ -350,6 +371,17 @@ export interface SpecificShape {
     H: Digit;
     D: Digit;
     C: Digit;
+}
+export type SuitRank = SuitRank_1 | SuitRank_2;
+export type SuitRank_1 = Primary;
+export type SuitRank_2 = Secondary;
+export interface Primary {
+    kind: ASTKinds.Primary;
+    suit: Suit;
+}
+export interface Secondary {
+    kind: ASTKinds.Secondary;
+    suit: Suit;
 }
 export type Response = Response_1 | Response_2 | Response_3 | Response_4;
 export type Response_1 = ForceOneRound;
@@ -642,6 +674,7 @@ export class Parser {
                 () => this.matchConstraint_9($$dpth + 1, $$cr),
                 () => this.matchConstraint_10($$dpth + 1, $$cr),
                 () => this.matchConstraint_11($$dpth + 1, $$cr),
+                () => this.matchConstraint_12($$dpth + 1, $$cr),
             ]);
         };
         const $scope$pos = this.mark();
@@ -670,16 +703,16 @@ export class Parser {
         return lastRes;
     }
     public matchConstraint_1($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_1> {
-        return this.matchConstraintConst($$dpth + 1, $$cr);
+        return this.matchConst($$dpth + 1, $$cr);
     }
     public matchConstraint_2($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_2> {
-        return this.matchConstraintOr($$dpth + 1, $$cr);
+        return this.matchOr($$dpth + 1, $$cr);
     }
     public matchConstraint_3($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_3> {
-        return this.matchConstraintAnd($$dpth + 1, $$cr);
+        return this.matchAnd($$dpth + 1, $$cr);
     }
     public matchConstraint_4($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_4> {
-        return this.matchConstraintNot($$dpth + 1, $$cr);
+        return this.matchNot($$dpth + 1, $$cr);
     }
     public matchConstraint_5($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_5> {
         return this.matchDistribution($$dpth + 1, $$cr);
@@ -697,105 +730,108 @@ export class Parser {
         return this.matchSuitBound($$dpth + 1, $$cr);
     }
     public matchConstraint_10($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_10> {
-        return this.matchPointRange($$dpth + 1, $$cr);
+        return this.matchSuitRank($$dpth + 1, $$cr);
     }
     public matchConstraint_11($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_11> {
+        return this.matchPointRange($$dpth + 1, $$cr);
+    }
+    public matchConstraint_12($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_12> {
         return this.matchPointBound($$dpth + 1, $$cr);
     }
-    public matchConstraintConst($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintConst> {
-        return this.choice<ConstraintConst>([
-            () => this.matchConstraintConst_1($$dpth + 1, $$cr),
-            () => this.matchConstraintConst_2($$dpth + 1, $$cr),
+    public matchConst($$dpth: number, $$cr?: ErrorTracker): Nullable<Const> {
+        return this.choice<Const>([
+            () => this.matchConst_1($$dpth + 1, $$cr),
+            () => this.matchConst_2($$dpth + 1, $$cr),
         ]);
     }
-    public matchConstraintConst_1($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintConst_1> {
-        return this.matchConstraintTrue($$dpth + 1, $$cr);
+    public matchConst_1($$dpth: number, $$cr?: ErrorTracker): Nullable<Const_1> {
+        return this.matchTrue($$dpth + 1, $$cr);
     }
-    public matchConstraintConst_2($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintConst_2> {
-        return this.matchConstraintFalse($$dpth + 1, $$cr);
+    public matchConst_2($$dpth: number, $$cr?: ErrorTracker): Nullable<Const_2> {
+        return this.matchFalse($$dpth + 1, $$cr);
     }
-    public matchConstraintTrue($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintTrue> {
-        return this.run<ConstraintTrue>($$dpth,
+    public matchTrue($$dpth: number, $$cr?: ErrorTracker): Nullable<True> {
+        return this.run<True>($$dpth,
             () => {
                 let $scope$v: Nullable<string>;
-                let $$res: Nullable<ConstraintTrue> = null;
+                let $$res: Nullable<True> = null;
                 if (true
                     && ($scope$v = this.regexAccept(String.raw`(?:true)`, $$dpth + 1, $$cr)) !== null
                 ) {
-                    $$res = {kind: ASTKinds.ConstraintTrue, v: $scope$v};
+                    $$res = {kind: ASTKinds.True, v: $scope$v};
                 }
                 return $$res;
             });
     }
-    public matchConstraintFalse($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintFalse> {
-        return this.run<ConstraintFalse>($$dpth,
+    public matchFalse($$dpth: number, $$cr?: ErrorTracker): Nullable<False> {
+        return this.run<False>($$dpth,
             () => {
                 let $scope$v: Nullable<string>;
-                let $$res: Nullable<ConstraintFalse> = null;
+                let $$res: Nullable<False> = null;
                 if (true
                     && ($scope$v = this.regexAccept(String.raw`(?:false)`, $$dpth + 1, $$cr)) !== null
                 ) {
-                    $$res = {kind: ASTKinds.ConstraintFalse, v: $scope$v};
+                    $$res = {kind: ASTKinds.False, v: $scope$v};
                 }
                 return $$res;
             });
     }
-    public matchConstraintOr($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintOr> {
-        return this.run<ConstraintOr>($$dpth,
+    public matchOr($$dpth: number, $$cr?: ErrorTracker): Nullable<Or> {
+        return this.run<Or>($$dpth,
             () => {
                 let $scope$left: Nullable<Constraint>;
                 let $scope$right: Nullable<Constraint>;
-                let $$res: Nullable<ConstraintOr> = null;
+                let $$res: Nullable<Or> = null;
                 if (true
                     && ($scope$left = this.matchConstraint($$dpth + 1, $$cr)) !== null
                     && this.regexAccept(String.raw`(?: or )`, $$dpth + 1, $$cr) !== null
                     && ($scope$right = this.matchConstraint($$dpth + 1, $$cr)) !== null
                 ) {
-                    $$res = {kind: ASTKinds.ConstraintOr, left: $scope$left, right: $scope$right};
+                    $$res = {kind: ASTKinds.Or, left: $scope$left, right: $scope$right};
                 }
                 return $$res;
             });
     }
-    public matchConstraintAnd($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintAnd> {
-        return this.run<ConstraintAnd>($$dpth,
+    public matchAnd($$dpth: number, $$cr?: ErrorTracker): Nullable<And> {
+        return this.run<And>($$dpth,
             () => {
                 let $scope$constraints: Nullable<ConstraintList>;
-                let $$res: Nullable<ConstraintAnd> = null;
+                let $$res: Nullable<And> = null;
                 if (true
                     && this.regexAccept(String.raw`(?:\()`, $$dpth + 1, $$cr) !== null
                     && ($scope$constraints = this.matchConstraintList($$dpth + 1, $$cr)) !== null
                     && this.regexAccept(String.raw`(?:\))`, $$dpth + 1, $$cr) !== null
                 ) {
-                    $$res = {kind: ASTKinds.ConstraintAnd, constraints: $scope$constraints};
+                    $$res = {kind: ASTKinds.And, constraints: $scope$constraints};
                 }
                 return $$res;
             });
     }
-    public matchConstraintNot($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintNot> {
-        return this.run<ConstraintNot>($$dpth,
+    public matchNot($$dpth: number, $$cr?: ErrorTracker): Nullable<Not> {
+        return this.run<Not>($$dpth,
             () => {
                 let $scope$constraint: Nullable<Constraint>;
-                let $$res: Nullable<ConstraintNot> = null;
+                let $$res: Nullable<Not> = null;
                 if (true
-                    && this.matchConstraintNot_$0($$dpth + 1, $$cr) !== null
+                    && this.matchNot_$0($$dpth + 1, $$cr) !== null
                     && ((this.regexAccept(String.raw`(?: )`, $$dpth + 1, $$cr)) || true)
                     && ($scope$constraint = this.matchConstraint($$dpth + 1, $$cr)) !== null
                 ) {
-                    $$res = {kind: ASTKinds.ConstraintNot, constraint: $scope$constraint};
+                    $$res = {kind: ASTKinds.Not, constraint: $scope$constraint};
                 }
                 return $$res;
             });
     }
-    public matchConstraintNot_$0($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintNot_$0> {
-        return this.choice<ConstraintNot_$0>([
-            () => this.matchConstraintNot_$0_1($$dpth + 1, $$cr),
-            () => this.matchConstraintNot_$0_2($$dpth + 1, $$cr),
+    public matchNot_$0($$dpth: number, $$cr?: ErrorTracker): Nullable<Not_$0> {
+        return this.choice<Not_$0>([
+            () => this.matchNot_$0_1($$dpth + 1, $$cr),
+            () => this.matchNot_$0_2($$dpth + 1, $$cr),
         ]);
     }
-    public matchConstraintNot_$0_1($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintNot_$0_1> {
+    public matchNot_$0_1($$dpth: number, $$cr?: ErrorTracker): Nullable<Not_$0_1> {
         return this.regexAccept(String.raw`(?:not)`, $$dpth + 1, $$cr);
     }
-    public matchConstraintNot_$0_2($$dpth: number, $$cr?: ErrorTracker): Nullable<ConstraintNot_$0_2> {
+    public matchNot_$0_2($$dpth: number, $$cr?: ErrorTracker): Nullable<Not_$0_2> {
         return this.regexAccept(String.raw`(?:!)`, $$dpth + 1, $$cr);
     }
     public matchPointRange($$dpth: number, $$cr?: ErrorTracker): Nullable<PointRange> {
@@ -1144,6 +1180,46 @@ export class Parser {
                     && ($scope$C = this.matchDigit($$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.SpecificShape, S: $scope$S, H: $scope$H, D: $scope$D, C: $scope$C};
+                }
+                return $$res;
+            });
+    }
+    public matchSuitRank($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitRank> {
+        return this.choice<SuitRank>([
+            () => this.matchSuitRank_1($$dpth + 1, $$cr),
+            () => this.matchSuitRank_2($$dpth + 1, $$cr),
+        ]);
+    }
+    public matchSuitRank_1($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitRank_1> {
+        return this.matchPrimary($$dpth + 1, $$cr);
+    }
+    public matchSuitRank_2($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitRank_2> {
+        return this.matchSecondary($$dpth + 1, $$cr);
+    }
+    public matchPrimary($$dpth: number, $$cr?: ErrorTracker): Nullable<Primary> {
+        return this.run<Primary>($$dpth,
+            () => {
+                let $scope$suit: Nullable<Suit>;
+                let $$res: Nullable<Primary> = null;
+                if (true
+                    && ($scope$suit = this.matchSuit($$dpth + 1, $$cr)) !== null
+                    && this.regexAccept(String.raw`(?:1)`, $$dpth + 1, $$cr) !== null
+                ) {
+                    $$res = {kind: ASTKinds.Primary, suit: $scope$suit};
+                }
+                return $$res;
+            });
+    }
+    public matchSecondary($$dpth: number, $$cr?: ErrorTracker): Nullable<Secondary> {
+        return this.run<Secondary>($$dpth,
+            () => {
+                let $scope$suit: Nullable<Suit>;
+                let $$res: Nullable<Secondary> = null;
+                if (true
+                    && ($scope$suit = this.matchSuit($$dpth + 1, $$cr)) !== null
+                    && this.regexAccept(String.raw`(?:2)`, $$dpth + 1, $$cr) !== null
+                ) {
+                    $$res = {kind: ASTKinds.Secondary, suit: $scope$suit};
                 }
                 return $$res;
             });

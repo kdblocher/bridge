@@ -17,16 +17,27 @@ Notrump := v='[Nn]' '[Tt]'?
 
 ConstraintList := ConstraintListItem+
 ConstraintListItem := constraint=Constraint ' '?
-Constraint :=  ConstraintConst | ConstraintOr | ConstraintAnd | ConstraintNot | Distribution | Response | SuitRange | SuitComparison | SuitBound | PointRange | PointBound
+Constraint :=
+    Const
+  | Or
+  | And
+  | Not
+  | Distribution
+  | Response
+  | SuitRange
+  | SuitComparison
+  | SuitBound
+  | SuitRank
+  | PointRange
+  | PointBound
 
-ConstraintConst := ConstraintTrue | ConstraintFalse
-ConstraintTrue := v='true'
-ConstraintFalse := v='false'
+Const := True | False
+True := v='true'
+False := v='false'
 
-ConstraintOr := left=Constraint ' or ' right=Constraint
-ConstraintAnd := '\(' constraints=ConstraintList '\)'
-ConstraintNot := {'not' | '!'} ' '? constraint=Constraint
-
+Or := left=Constraint ' or ' right=Constraint
+And := '\(' constraints=ConstraintList '\)'
+Not := {'not' | '!'} ' '? constraint=Constraint
 
 PointRange := lower=Number '-' upper=Number
 PointBound := value=Number qualifier=BoundQualifier
@@ -51,6 +62,10 @@ SemiBalanced := v='semiBAL'
 Unbalanced := v='unBAL'
 AnyShape := v='[0-9]{4}' '\*'
 SpecificShape := S=Digit H=Digit D=Digit C=Digit
+
+SuitRank := Primary | Secondary
+Primary := suit=Suit '1'
+Secondary := suit=Suit '2'
 
 Response := ForceOneRound | ForceGame | ForceSlam | Relay
 ForceOneRound := v='F1'
