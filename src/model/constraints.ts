@@ -1,10 +1,9 @@
-import { Shape as AnyShape, Bid, ContractBid, SpecificShape, eqShape, getHandShape, getHandSpecificShape, makeShape } from './bridge'
-import { Card, Hand, Suit, ordCard, suits } from './deck'
-import { predicate as P, number, option, ord, readonlyArray, readonlySet, readonlyTuple, record } from 'fp-ts'
-import { constFalse, flow, identity, pipe } from 'fp-ts/lib/function'
-
-import { constant } from 'fp-ts/lib/function'
+import { number, option, ord, predicate as P, readonlyArray, readonlySet, readonlyTuple, record } from 'fp-ts'
 import { eqStrict } from 'fp-ts/lib/Eq'
+import { constant, constFalse, flow, identity, pipe } from 'fp-ts/lib/function'
+import { Bid, ContractBid, eqShape, getHandShape, getHandSpecificShape, makeShape, Shape as AnyShape, SpecificShape } from './bridge'
+import { Card, Hand, ordCard, Suit, suits } from './deck'
+
 
 export interface ConstraintPointRange {
   type: "PointRange"
@@ -143,7 +142,7 @@ const getComparator = (op: SuitComparisonOperator) => {
 
 export const suitCompare = (op: SuitComparisonOperator) => (left: Suit, right: Suit) =>
   flow(getHandSpecificShape,
-    shape => { return getComparator(op)(shape[left], shape[right]) })
+    shape => getComparator(op)(shape[left], shape[right]))
 
 export const suitPrimary = (suit: Suit) =>
   pipe(suits,
@@ -151,8 +150,8 @@ export const suitPrimary = (suit: Suit) =>
     readonlyTuple.bimap(
       flow(readonlyArray.tail,
         option.fold(() => [],
-          readonlyArray.map(higher => { return suitCompare("<")(higher, suit) }))),
-      readonlyArray.map(lower => { return suitCompare("<=")(lower, suit) })),
+          readonlyArray.map(higher => suitCompare("<")(higher, suit)))),
+      readonlyArray.map(lower => suitCompare("<=")(lower, suit))),
     readonlyArray.flatten,
     readonlyArray.foldMap(P.getMonoidAll<Hand>())(identity))
 

@@ -17,7 +17,7 @@ export const deal = (deck: Deck) : Deal =>
   pipe(directions,
     RNEA.zip(RNEA.chunksOf(13)(deck)),
     readonlyNonEmptyArray.groupBy(RT.fst),
-    readonlyRecord.map((x) => { return pipe(x, RNEA.head, RT.snd, RS.fromReadonlyArray(eqCard)) }),
+    readonlyRecord.map(flow(RNEA.head, RT.snd, RS.fromReadonlyArray(eqCard))),
     (x: readonlyRecord.ReadonlyRecord<Direction, Hand>) => x)
 
 export const vulnerabilities = ["Neither", "NorthSouth", "EastWest", "Both"] as const
