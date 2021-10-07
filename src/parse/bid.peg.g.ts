@@ -35,7 +35,7 @@
 * BoundQualifier := Plus | Minus | Equals
 * Plus := v='\+'
 * Minus := v='\-'
-* Equals := v='=' | v=''
+* Equals := v='='
 * Distribution := Balanced | SemiBalanced | Unbalanced | AnyShape | SpecificShape
 * Balanced := v='BAL'
 * SemiBalanced := v='semiBAL'
@@ -121,8 +121,7 @@ export enum ASTKinds {
     BoundQualifier_3 = "BoundQualifier_3",
     Plus = "Plus",
     Minus = "Minus",
-    Equals_1 = "Equals_1",
-    Equals_2 = "Equals_2",
+    Equals = "Equals",
     Distribution_1 = "Distribution_1",
     Distribution_2 = "Distribution_2",
     Distribution_3 = "Distribution_3",
@@ -319,13 +318,8 @@ export interface Minus {
     kind: ASTKinds.Minus;
     v: string;
 }
-export type Equals = Equals_1 | Equals_2;
-export interface Equals_1 {
-    kind: ASTKinds.Equals_1;
-    v: string;
-}
-export interface Equals_2 {
-    kind: ASTKinds.Equals_2;
+export interface Equals {
+    kind: ASTKinds.Equals;
     v: string;
 }
 export type Distribution = Distribution_1 | Distribution_2 | Distribution_3 | Distribution_4 | Distribution_5;
@@ -1046,33 +1040,14 @@ export class Parser {
             });
     }
     public matchEquals($$dpth: number, $$cr?: ErrorTracker): Nullable<Equals> {
-        return this.choice<Equals>([
-            () => this.matchEquals_1($$dpth + 1, $$cr),
-            () => this.matchEquals_2($$dpth + 1, $$cr),
-        ]);
-    }
-    public matchEquals_1($$dpth: number, $$cr?: ErrorTracker): Nullable<Equals_1> {
-        return this.run<Equals_1>($$dpth,
+        return this.run<Equals>($$dpth,
             () => {
                 let $scope$v: Nullable<string>;
-                let $$res: Nullable<Equals_1> = null;
+                let $$res: Nullable<Equals> = null;
                 if (true
                     && ($scope$v = this.regexAccept(String.raw`(?:=)`, $$dpth + 1, $$cr)) !== null
                 ) {
-                    $$res = {kind: ASTKinds.Equals_1, v: $scope$v};
-                }
-                return $$res;
-            });
-    }
-    public matchEquals_2($$dpth: number, $$cr?: ErrorTracker): Nullable<Equals_2> {
-        return this.run<Equals_2>($$dpth,
-            () => {
-                let $scope$v: Nullable<string>;
-                let $$res: Nullable<Equals_2> = null;
-                if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:)`, $$dpth + 1, $$cr)) !== null
-                ) {
-                    $$res = {kind: ASTKinds.Equals_2, v: $scope$v};
+                    $$res = {kind: ASTKinds.Equals, v: $scope$v};
                 }
                 return $$res;
             });

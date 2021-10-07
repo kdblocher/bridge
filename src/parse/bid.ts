@@ -1,11 +1,11 @@
+import { option, readonlyArray, readonlyRecord, string } from 'fp-ts'
+import { constant, pipe } from 'fp-ts/lib/function'
+import { Strain, zeroSpecificShape } from '../model/bridge'
+import { ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints'
+import { Suit } from '../model/deck'
 import * as AST from '../parse/bid.peg.g'
 
-import { ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints'
-import { Strain, zeroSpecificShape } from '../model/bridge'
-import { readonlyArray, readonlyRecord, string } from 'fp-ts'
 
-import { Suit } from '../model/deck'
-import { pipe } from 'fp-ts/lib/function'
 
 export const map = (c: AST.ConstraintList) =>
   pipe(c, readonlyArray.map(c => constraintFromAST(c.constraint)))
@@ -24,6 +24,14 @@ export const suitSpecifierFromAST = (s: AST.SuitRangeSpecifier) : SuitRangeSpeci
   s.kind === AST.ASTKinds.Major ? "Major" :
   s.kind === AST.ASTKinds.Minor ? "Minor" :
   suitFromAST(s)
+
+export const bindValueFromASTQualifier = (s: AST.BoundQualifier, value: number) => (type: 'min' | 'max') =>
+  pipe(value,
+    option.of,
+    option.filter(_ =>
+      s.kind === AST.ASTKinds.Equals
+      || (type === 'min' && s.kind === AST.ASTKinds.Plus)
+      || (type === 'max' && s.kind === AST.ASTKinds.Minus)))
 
 export const constraintFromAST = (c: AST.Constraint) : Constraint => {
   if (c.kind === AST.ASTKinds.ConstraintTrue) {
@@ -61,8 +69,8 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
   } else if (c.kind === AST.ASTKinds.PointBound) {
     return {
       type: "PointRange",
-      min: c.qualifier.kind === AST.ASTKinds.Plus ? c.value.value : 0,
-      max: c.qualifier.kind === AST.ASTKinds.Minus ? c.value.value : 37
+      min: pipe(bindValueFromASTQualifier(c.qualifier, c.value.value)('min'), option.getOrElse(constant(0))),
+      max: pipe(bindValueFromASTQualifier(c.qualifier, c.value.value)('max'), option.getOrElse(constant(37))),
     }
   } else if (c.kind === AST.ASTKinds.SuitRange) {
     return {
@@ -74,8 +82,8 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
   } else if (c.kind === AST.ASTKinds.SuitBound) {
     return {
       type: "SuitRange",
-      min: c.qualifier.kind === AST.ASTKinds.Plus ? c.value.value : 0,
-      max: c.qualifier.kind === AST.ASTKinds.Minus ? c.value.value : 13,
+      min: pipe(bindValueFromASTQualifier(c.qualifier, c.value.value)('min'), option.getOrElse(constant(0))),
+      max: pipe(bindValueFromASTQualifier(c.qualifier, c.value.value)('max'), option.getOrElse(constant(13))),
       suit: suitSpecifierFromAST(c.suit)
     }
   } else if (c.kind === AST.ASTKinds.AnyShape) {
