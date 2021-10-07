@@ -37,7 +37,8 @@
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
-    "extends": "react-app"
+    "extends": "react-app",
+    "ignorePatterns": ["**/*.peg.g.ts"]
   },
   "browserslist": {
     "production": [
