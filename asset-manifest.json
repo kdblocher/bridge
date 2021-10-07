@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/bridge/static/css/main.e8e5c3ac.chunk.css",
-    "main.js": "/bridge/static/js/main.b664e494.chunk.js",
-    "main.js.map": "/bridge/static/js/main.b664e494.chunk.js.map",
+    "main.js": "/bridge/static/js/main.3622b477.chunk.js",
+    "main.js.map": "/bridge/static/js/main.3622b477.chunk.js.map",
     "runtime-main.js": "/bridge/static/js/runtime-main.da676aa4.js",
     "runtime-main.js.map": "/bridge/static/js/runtime-main.da676aa4.js.map",
     "static/css/2.e426f036.chunk.css": "/bridge/static/css/2.e426f036.chunk.css",
     "static/js/2.cf83df68.chunk.js": "/bridge/static/js/2.cf83df68.chunk.js",
     "static/js/2.cf83df68.chunk.js.map": "/bridge/static/js/2.cf83df68.chunk.js.map",
-    "0356a54846f40eb9c7f6.worker.js": "/bridge/0356a54846f40eb9c7f6.worker.js",
-    "0356a54846f40eb9c7f6.worker.js.map": "/bridge/0356a54846f40eb9c7f6.worker.js.map",
+    "2cc92eaa2f9a957eaa6e.worker.js": "/bridge/2cc92eaa2f9a957eaa6e.worker.js",
+    "2cc92eaa2f9a957eaa6e.worker.js.map": "/bridge/2cc92eaa2f9a957eaa6e.worker.js.map",
     "index.html": "/bridge/index.html",
     "static/css/2.e426f036.chunk.css.map": "/bridge/static/css/2.e426f036.chunk.css.map",
     "static/css/main.e8e5c3ac.chunk.css.map": "/bridge/static/css/main.e8e5c3ac.chunk.css.map",
@@ -20,6 +20,6 @@
     "static/css/2.e426f036.chunk.css",
     "static/js/2.cf83df68.chunk.js",
     "static/css/main.e8e5c3ac.chunk.css",
-    "static/js/main.b664e494.chunk.js"
+    "static/js/main.3622b477.chunk.js"
   ]
 }
