@@ -1,18 +1,7 @@
-import * as t from 'io-ts';
-
-import { nonEmptyArray as NEA, readonlyNonEmptyArray as RNEA, either, eq, number, option, ord, readonlyArray, readonlyRecord, readonlySet } from 'fp-ts';
+import { either, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
-
-export const shuffle = (nextRandom: () => number) => <T>(cards: RNEA.ReadonlyNonEmptyArray<T>): RNEA.ReadonlyNonEmptyArray<T> => {
-  const array = [...cards] as NEA.NonEmptyArray<T>
-  for (let i = 0; i < array.length; i++) {
-    const r = i + Math.floor(nextRandom() * (array.length - i));
-    [array[i], array[r]] = [array[r], array[i]]
-  }
-  return array;
-}
-
-export const basicShuffle = shuffle(Math.random)
+import * as t from 'io-ts';
+import { browserCrypto, shuffle } from 'random-js';
 
 export const suits = ['C', 'D', 'H', 'S'] as const
 export type Suit = typeof suits[number]
@@ -71,4 +60,4 @@ export const groupHandBySuits = (hand: Hand) : GroupedHand =>
 export type Deck = RNEA.ReadonlyNonEmptyArray<Card>
 
 export const newDeck = () : Deck =>
-  basicShuffle(cards)
+  shuffle(browserCrypto, [...cards]) as unknown as Deck
