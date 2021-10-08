@@ -1,8 +1,10 @@
 import { Shape as AnyShape, Bid, ContractBid, SpecificShape, eqShape, getHandShape, getHandSpecificShape, makeShape } from './bridge'
 import { Card, Hand, Suit, eqSuit, ordCard, suits } from './deck'
-import { predicate as P, number, option, ord, readonlyArray, readonlySet, readonlyTuple, record } from 'fp-ts'
-import { constFalse, constant, flow, identity, pipe } from 'fp-ts/lib/function'
+import { Lens, Optional } from 'monocle-ts'
+import { option as O, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, state as S, boolean, either, eq, hkt, identity as id, number, optionT, ord, readonlySet, readonlyTuple, record, string } from 'fp-ts'
+import { constFalse, constTrue, constant, flow, identity, pipe } from 'fp-ts/lib/function'
 
+import { assertUnreachable } from '../lib'
 import { eqStrict } from 'fp-ts/lib/Eq'
 
 export interface ConstraintPointRange {
@@ -43,11 +45,11 @@ export interface ConstraintConst {
 }
 export interface ConstraintConjunction {
   type: "Conjunction"
-  constraints: ReadonlyArray<Constraint>
+  constraints: RNEA.ReadonlyNonEmptyArray<Constraint>
 }
 export interface ConstraintDisjunction {
   type: "Disjunction"
-  constraints: ReadonlyArray<Constraint>
+  constraints: RNEA.ReadonlyNonEmptyArray<Constraint>
 }
 export interface ConstraintNegation {
   type: "Negation"
@@ -78,6 +80,10 @@ export interface ConstraintRelayResponse {
   bid: ContractBid
 }
 
+export type ConstraintForce =
+    ConstraintResponse
+  | ConstraintRelayResponse
+
 export type Constraint =
   | ConstraintConst
   | ConstraintConjunction
@@ -90,16 +96,43 @@ export type Constraint =
   | ConstraintDistribution
   | ConstraintAnyShape
   | ConstraintSpecificShape
-  | ConstraintResponse
-  | ConstraintRelayResponse
+  | ConstraintForce
+
+const contextualConstraintTypes = [
+  "Conjunction",
+  "Disjunction",
+  "Negation",
+  "ForceOneRound",
+  "ForceGame",
+  "ForceSlam",
+  "Relay",
+  "SuitPrimary",
+  "SuitSecondary",
+] as const
+
+type ContextualConstraintType = typeof contextualConstraintTypes[number]
+type BasicConstraint = Exclude<Constraint, { type: ContextualConstraintType }>
+type ContextualConstraint = Extract<Constraint, { type: ContextualConstraintType }>
+
+const isContextualConstraint = (c: Constraint) : c is ContextualConstraint =>
+  RA.elem(string.Eq as eq.Eq<Constraint["type"]>)(c.type)(contextualConstraintTypes)
+
+const separate = (c: Constraint) : either.Either<ContextualConstraint, BasicConstraint> =>
+  isContextualConstraint(c) ? either.left(c) : either.right(c as BasicConstraint)
 
 export interface ConstrainedBid {
   bid: Bid
   constraint: Constraint
 }
 
-const exists = pipe(P.getMonoidAny<Hand>(), readonlyArray.foldMap)
-const forall = pipe(P.getMonoidAll<Hand>(), readonlyArray.foldMap)
+/* eslint-disable @typescript-eslint/no-unused-vars */
+const anyP = P.getMonoidAny<Hand>()
+const allP = P.getMonoidAll<Hand>()
+const constraintFalse : P.Predicate<Hand> = constFalse
+const constraintTrue : P.Predicate<Hand> = constTrue
+const exists = pipe(anyP, RA.foldMap)
+const forall = pipe(allP, RA.foldMap)
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export const getCardHcp = (card: Card) =>
   Math.max(0, card.rank - 10)
@@ -107,7 +140,7 @@ export const getCardHcp = (card: Card) =>
 export const getHcp =
   flow(
     readonlySet.toReadonlyArray(ordCard),
-    readonlyArray.foldMap(number.MonoidSum)(getCardHcp))
+    RA.foldMap(number.MonoidSum)(getCardHcp))
 
 const rangeCheck = (range: { min: number, max: number }) => ord.between(number.Ord)(range.min, range.max)
 
@@ -123,11 +156,7 @@ export const isSuitRange = (range: ConstraintSuitRange) => {
     range.suit === "Minor" ? ["D", "C"] :
     [range.suit]
   return flow(getHandSpecificShape, shape =>
-    pipe(getSuitsToCheck, readonlyArray.exists(s => ord.between(number.Ord)(range.min, range.max)(shape[s]))))
-}
-
-const assertUnreachable = (x: never) => {
-  throw new Error (`shouldn't get here with ${JSON.stringify(x)}`)
+    pipe(getSuitsToCheck, RA.exists(s => ord.between(number.Ord)(range.min, range.max)(shape[s]))))
 }
 
 const getComparator = (op: SuitComparisonOperator) => {
@@ -147,30 +176,33 @@ export const suitCompare = (op: SuitComparisonOperator) => (left: Suit, right: S
 
 export const suitPrimary = (suit: Suit) =>
   pipe(suits,
-    readonlyArray.splitAt(suits.indexOf(suit)),
+    RA.splitAt(suits.indexOf(suit)),
     readonlyTuple.bimap(
-      flow(readonlyArray.tail,
-        option.fold(() => [],
-          readonlyArray.map(higher => suitCompare("<")(higher, suit)))),
-      readonlyArray.map(lower => suitCompare("<=")(lower, suit))),
-    readonlyArray.flatten,
-    readonlyArray.prepend(isSuitRange({ type: "SuitRange", suit, min: 5, max: 13 })),
+      flow(RA.tail,
+        O.fold(() => [],
+          RA.map(higher => suitCompare("<")(higher, suit)))),
+      RA.map(lower => suitCompare("<=")(lower, suit))),
+    RA.flatten,
+    RA.prepend(isSuitRange({ type: "SuitRange", suit, min: 5, max: 13 })),
     forall(identity))
 
 export const suitSecondary = (secondarySuit: Suit) => (primarySuit: Suit) =>
-  pipe(readonlyArray.Do,
-    readonlyArray.apS('otherSuit', suits),
-    readonlyArray.apS('suit', [secondarySuit, primarySuit]),
-    readonlyArray.filter(({ suit, otherSuit }) => !eqSuit.equals(suit, otherSuit)),
-    readonlyArray.map(({ suit, otherSuit }) => suitCompare(">")(suit, otherSuit)),
-    readonlyArray.concat([
+  pipe(RA.Do,
+    RA.apS('suit', [secondarySuit, primarySuit]),
+    RA.apS('otherSuit', pipe(suits, RA.difference(eqSuit)([secondarySuit, primarySuit]))),
+    RA.filter(({ suit, otherSuit }) => !eqSuit.equals(suit, otherSuit)),
+    RA.map(({ suit, otherSuit }) => {
+      return suitCompare(">")(suit, otherSuit)
+    }),
+    RA.concat([
       isSuitRange({ type: "SuitRange", suit: secondarySuit, min: 4, max: 13 }),
       suitCompare(">=")(primarySuit, secondarySuit)
     ]),
     forall(identity))
 
-export const isShape = (shape: AnyShape) => (hand: Hand) =>
-  eqShape.equals(shape, getHandShape(hand))
+export const isShape = (shape: AnyShape) =>
+  flow(getHandShape, handShape =>
+    eqShape.equals(shape, handShape))
 
 export const isBalanced =
   pipe([
@@ -186,24 +218,72 @@ export const isSemiBalanced =
     makeShape(6, 3, 2, 2)
   ], exists(isShape))
 
-export const satisfies = (c: Constraint) : P.Predicate<Hand> => {
+export interface BidContext {
+  path: ReadonlyArray<ConstrainedBid>
+  force: O.Option<ConstraintForce>
+  primarySuit: O.Option<Suit>
+  secondarySuit: O.Option<Suit>
+}
+export const zeroContext : BidContext = {
+  path: [],
+  force: O.none,
+  primarySuit: O.none,
+  secondarySuit: O.none
+}
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+const contextL = Lens.fromProp<BidContext>()
+const pathL = contextL('path')
+const forceL = contextL('force')
+const primarySuitL = contextL('primarySuit')
+const secondarySuitL = contextL('secondarySuit')
+const contextO = Optional.fromOptionProp<BidContext>()
+const forceO = contextO('force')
+const primarySuitO = contextO('primarySuit')
+const secondarySuitO = contextO('secondarySuit')
+/* eslint-enable @typescript-eslint/no-unused-vars */
+
+// const notBoth = <F extends hkt.URIS>(Z: zero.Zero1<F>) => <T>(x: hkt.Kind<F, T>, y: hkt.Kind<F, T>) : O.Option<hkt.Kind<F, T>> =>
+//   x === Z.zero() ? O.some(y) :
+//   y === Z.zero() ? O.some(x) :
+//   O.none
+
+// const maybeConcat = (x: BidContext) => (y: BidContext) : O.Option<BidContext> =>
+//   pipe(O.Do,
+//     O.apS('path', O.some(y.path)),
+//     O.apS('force', notBoth(O.Zero)(y.force, x.force)),
+//     O.apS('primarySuit', notBoth(O.Zero)(y.primarySuit, x.primarySuit)),
+//     O.apS('secondarySuit', notBoth(O.Zero)(y.secondarySuit, x.secondarySuit)))
+
+// const semigroupContextTraversal : Semigroup<O.Option<BidContext>> = ({
+//   concat: (a, b) => pipe(O.of(maybeConcat), O.ap(a), O.ap(b), O.flatten)
+// })
+
+type X = BidContext
+type C = Constraint
+type A = P.Predicate<Hand>
+
+const quantifierT = (quantifier: (c: ReadonlyArray<A>) => A) => (satisfies: (c: S.State<X, C>) => S.State<X, A>) =>
+  flow(
+    S.traverseArray(satisfies),
+    S.map(quantifier))
+const existsT = quantifierT(exists(identity))
+const forallT = quantifierT(forall(identity))
+
+type SatisfiesShape<R, C, A> = (recur: (c: R) => A) => (constraint: C) => A
+type SatisfiesT1<F extends hkt.URIS , C extends Constraint> = SatisfiesShape<hkt.Kind  <F,    Constraint>, hkt.Kind <F,    C>, hkt.Kind <F,    A>>
+type SatisfiesT2<F extends hkt.URIS2, C extends Constraint> = SatisfiesShape<hkt.Kind2 <F, X, Constraint>, hkt.Kind2<F, X, C>, hkt.Kind2<F, X, A>>
+
+const satisfiesBasic : ReturnType<SatisfiesT1<id.URI, BasicConstraint>> = c => {
   switch (c.type) {
     case "Constant":
       return constant(c.value)
-    case "Conjunction":
-      return pipe(c.constraints, forall(satisfies))
-    case "Disjunction":
-      return pipe(c.constraints, exists(satisfies))
-    case "Negation": 
-      return pipe(c.constraint, satisfies, P.not)
     case "PointRange":
       return isPointRange(c)
     case "SuitRange":
       return isSuitRange(c)
     case "SuitComparison":
       return suitCompare(c.op)(c.left, c.right)
-    case "SuitPrimary":
-      return suitPrimary(c.suit)
     case "Balanced":
       return isBalanced
     case "SemiBalanced":
@@ -214,15 +294,79 @@ export const satisfies = (c: Constraint) : P.Predicate<Hand> => {
       return isShape(c.counts)
     case "SpecificShape":
       return isSpecificShape(c.suits)
-
-    case "ForceOneRound":
-    case "ForceGame":
-    case "ForceSlam":
-    case "Relay":
-    case "SuitSecondary":
-      return constFalse
-      
     default:
       return assertUnreachable(c)
   }
 }
+
+const satisfiesContextual : SatisfiesT2<S.URI, ContextualConstraint> = recur =>
+  S.chain(c => {
+    switch (c.type) {
+      case "Conjunction":
+        return pipe(c.constraints, RNEA.map(c => context => [c, context]), forallT(recur))
+      case "Disjunction":
+        return pipe(c.constraints, RNEA.map(c => context => [c, context]), existsT(recur))
+      case "Negation": 
+        return pipe(c.constraint, S.of, recur, S.map(P.not))
+      case "ForceOneRound":
+      case "ForceGame":
+      case "ForceSlam":
+      case "Relay":
+        return pipe(
+          S.modify<BidContext>(forceL.set(O.some(c))),
+          S.map(() => constTrue))
+      case "SuitPrimary":
+        return pipe(
+          S.modify<BidContext>(primarySuitL.set(O.some(c.suit))),
+          S.map(() => suitPrimary(c.suit)))
+      case "SuitSecondary":
+        return pipe(
+          S.modify<BidContext>(secondarySuitL.set(O.some(c.suit))),
+          S.chain(() => S.gets(context => context.primarySuit)),
+          optionT.map(S.Functor)(suitSecondary(c.suit)),
+          S.map(O.getOrElseW(() => constraintFalse)))
+      default:
+        return assertUnreachable(c)
+    }
+  })
+
+const satisfiesS : ReturnType<SatisfiesT2<S.URI, Constraint>> = s =>
+  pipe(s,
+    S.map(separate),
+    S.chain(either.fold(
+      flow(S.of, satisfiesContextual(satisfiesS)),
+      right => pipe(S.of<X, typeof satisfiesBasic>(satisfiesBasic), S.ap(S.of(right))))))
+
+export const satisfiesWithContext = (x: Constraint) =>
+  pipe(x, S.of, satisfiesS)
+  
+export const satisfies =
+  flow(satisfiesWithContext, S.evaluate(zeroContext))
+
+module Gen {
+  export function* alternate(opener: Hand, responder: Hand) {
+    while (true) { yield opener; yield responder }
+  }
+
+  export const unfold = (length: number) => <T>(g: Generator<T>) : readonly T[] => {
+    const val = g.next()
+    return val.done || length === 0 ? [] : [val.value, ...unfold(length - 1)(g)]
+  }
+}
+
+export const satisfiesPath = (opener: Hand, responder: Hand) => (bids: ReadonlyArray<ConstrainedBid>) =>
+  pipe(
+    Gen.alternate(opener, responder),
+    Gen.unfold(bids.length),
+    RA.zip(bids),
+    S.traverseArray(([hand, bid]) =>
+      pipe(
+        S.of(bid.constraint),
+        satisfiesS,
+        S.ap(S.of(hand)),
+        S.chain(s => pipe(
+          S.modify<BidContext>(pathL.modify(RA.prepend(bid))),
+          // S.chainFirst(() => context => { console.log(JSON.stringify(context)); return [0, context] }),
+          S.map(() => s))))),
+    S.map(RA.foldMap(boolean.MonoidAll)(identity)),
+    S.evaluate(zeroContext))

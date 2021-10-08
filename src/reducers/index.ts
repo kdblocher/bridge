@@ -1,4 +1,4 @@
-import { ConstrainedBid, satisfies } from '../model/constraints'
+import { ConstrainedBid, satisfiesPath } from '../model/constraints'
 import { either, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple, string } from 'fp-ts'
 import { flow, pipe } from 'fp-ts/lib/function'
 import generator, { selectAllDeals } from './generator'
@@ -6,7 +6,6 @@ import selection, { selectHand } from './selection'
 import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system'
 
 import { ContractBid } from '../model/bridge'
-import { Hand } from '../model/deck'
 import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray'
 import { RootState } from '../app/store'
 
@@ -17,22 +16,6 @@ const reducers = {
 }
 export default reducers
 
-function* alternate(opener: Hand, responder: Hand) {
-  while (true) { yield opener; yield responder }
-}
-
-const unfold = (length: number) => <T>(g: Generator<T>) : readonly T[] => {
-  const val = g.next()
-  return val.done || length === 0 ? [] : [val.value, ...unfold(length - 1)(g)]
-}
-
-const checkBidPath = (opener: Hand, responder: Hand) => (bids: ReadonlyArray<ConstrainedBid>) =>
-  pipe(
-    alternate(opener, responder),
-    unfold(bids.length),
-    readonlyArray.zip(bids),
-    readonlyArray.every(([hand, bid]) => satisfies(bid.constraint)(hand)))
-
 export const selectHandsSatisfySelectedPath = (state: RootState) =>
   pipe(option.Do,
     option.apS('blockKey', state.selection.selectedBlockKey),
@@ -40,7 +23,7 @@ export const selectHandsSatisfySelectedPath = (state: RootState) =>
     option.apS('responder', selectHand(state.selection, 'responder')),
     option.chain(o => pipe(either.Do,
       either.apS('bids', selectBidsByKey(state.system, o.blockKey)),
-      either.map(e => checkBidPath(o.opener, o.responder)(e.bids)),
+      either.map(e => satisfiesPath(o.opener, o.responder)(e.bids)),
       option.fromEither)),
     option.toNullable)
 
@@ -56,7 +39,7 @@ export const selectPathsSatisfyHands = (state: RootState) =>
       selectAllCompleteBidPaths(state.system),
       readonlyArray.map<ReadonlyNonEmptyArray<ConstrainedBid>, BidResult>(path => ({
         path,
-        result: checkBidPath(o.opener, o.responder)(path)
+        result: satisfiesPath(o.opener, o.responder)(path)
       })))),
     option.toNullable)
 
@@ -75,7 +58,7 @@ export const selectSatisfyStats = (state: RootState) : ReadonlyArray<BidCountRes
     readonlyArray.apS('path', selectAllCompleteBidPaths(state.system)),
     readonlyArray.map(ra => ({
       path: ra.path,
-      result: checkBidPath(ra.deal[0], ra.deal[1])(ra.path)
+      result: satisfiesPath(ra.deal[0], ra.deal[1])(ra.path)
     })),
     readonlyNonEmptyArray.fromReadonlyArray,
     option.map(

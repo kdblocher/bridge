@@ -1,6 +1,7 @@
-import { either, eq, nonEmptyArray as NEA, number, option, ord, readonlyArray, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet } from 'fp-ts';
-import { flow, pipe } from 'fp-ts/lib/function';
 import * as t from 'io-ts';
+
+import { nonEmptyArray as NEA, readonlyNonEmptyArray as RNEA, either, eq, number, option, ord, readonlyArray, readonlyRecord, readonlySet } from 'fp-ts';
+import { flow, pipe } from 'fp-ts/lib/function';
 
 export const shuffle = (nextRandom: () => number) => <T>(cards: RNEA.ReadonlyNonEmptyArray<T>): RNEA.ReadonlyNonEmptyArray<T> => {
   const array = [...cards] as NEA.NonEmptyArray<T>
@@ -13,8 +14,8 @@ export const shuffle = (nextRandom: () => number) => <T>(cards: RNEA.ReadonlyNon
 
 export const basicShuffle = shuffle(Math.random)
 
-export type Suit = 'C' | 'D' | 'H' | 'S'
 export const suits = ['C', 'D', 'H', 'S'] as const
+export type Suit = typeof suits[number]
 export const eqSuit : eq.Eq<Suit> = eq.eqStrict
 export const ordSuit : ord.Ord<Suit> = pipe(number.Ord, ord.reverse, ord.contramap(x => suits.indexOf(x)))
 
