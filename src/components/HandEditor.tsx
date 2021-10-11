@@ -1,14 +1,15 @@
-import { option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
-import { pipe } from "fp-ts/lib/function"
-import { useCallback, useEffect, useState } from "react"
-import styled from "styled-components"
-import { useAppDispatch, useAppSelector } from "../app/hooks"
 import * as Deck from "../model/deck"
-import { HandE } from "../parse/hand"
+
 import { AuctionPositionType, genHands, selectHand, setHand } from "../reducers/selection"
+import { option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
+import { useAppDispatch, useAppSelector } from "../app/hooks"
+import { useCallback, useEffect, useState } from "react"
+
+import { HandE } from "../parse/hand"
 import { Option } from "./core/Monad"
-
-
+import dds from '../lib/dds'
+import { pipe } from "fp-ts/lib/function"
+import styled from "styled-components"
 
 interface HandProps {
   type: AuctionPositionType
@@ -17,6 +18,7 @@ const HandInput = ({ type }: HandProps) => {
   const dispatch = useAppDispatch()
   const [value, setValue] = useState<string>("")
   const storageKey = `hand.${type}`
+  const x = dds
 
   const encodedHand = useAppSelector(state => pipe(selectHand(state.selection, type), option.map(HandE.encode), option.toNullable))
 
