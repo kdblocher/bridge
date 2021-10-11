@@ -226,6 +226,7 @@ export const isSemiBalanced =
   ], exists(isShape))
 
 export interface BidContext {
+  bid: Bid,
   path: ReadonlyArray<Bid>
   force: O.Option<ConstraintForce>
   primarySuit: O.Option<Suit>
@@ -233,15 +234,17 @@ export interface BidContext {
   peers: ReadonlyArray<ConstrainedBid>,
 }
 export const zeroContext : BidContext = {
+  bid: {} as Bid,
   path: [],
   force: O.none,
   primarySuit: O.none,
   secondarySuit: O.none,
-  peers: []
+  peers: [],
 }
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 const contextL = Lens.fromProp<BidContext>()
+const bidL = contextL('bid')
 const pathL = contextL('path')
 const forceL = contextL('force')
 const primarySuitL = contextL('primarySuit')
@@ -314,7 +317,12 @@ const satisfiesContextual : SatisfiesT2<S.URI, ContextualConstraint> = recur =>
               RA.head)),
           S.chain(O.fold(
             () => S.of(constraintFalse),
-            x => recur(S.of(x.constraint)))))
+            otherBid => pipe(
+              S.gets(bidL.get),
+              S.chain(bid =>
+                eqBid.equals(bid, otherBid.bid) // stops cycles
+                ? S.of(constFalse)
+                : recur(S.of(otherBid.constraint)))))))
       case "ForceOneRound":
       case "ForceGame":
       case "ForceSlam":
@@ -378,14 +386,15 @@ export const satisfiesPath = (opener: Hand, responder: Hand) => (bids: ReadonlyA
     RA.zip(bids),
     S.traverseArray(([hand, { bid, siblings, constraint }]) =>
       pipe(
-        S.modify(peersL.modify(_ => siblings)),
+        S.modify(peersL.set(siblings)),
+        S.chain(() => S.modify(bidL.set(bid))),
         S.chain(() => S.of(constraint)),
         flow(specialRelayCase(bid), satisfiesS),
         // satisfiesS,
         S.ap(S.of(hand)),
         S.chain(s => pipe(
-          S.modify<BidContext>(pathL.modify(RA.prepend(bid))),
-          S.chainFirst(() => context => { console.log(JSON.stringify(context)); return [0, context] }),
+          S.modify(pathL.modify(RA.prepend(bid))),
+          // S.chainFirst(() => context => { console.log(JSON.stringify(context)); return [0, context] }),
           S.map(() => s))))),
     S.map(RA.foldMap(boolean.MonoidAll)(identity)),
     S.evaluate(zeroContext))
