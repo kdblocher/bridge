@@ -1,12 +1,11 @@
+import { either, eitherT, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, string } from 'fp-ts'
+import { constant, flow, identity, pipe } from 'fp-ts/lib/function'
+import { Strain, zeroSpecificShape } from '../model/bridge'
+import { ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints'
+import { Suit } from '../model/deck'
 import * as AST from '../parse/bid.peg.g'
 
-import { ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints'
-import { Strain, zeroSpecificShape } from '../model/bridge'
-import { constant, identity, pipe } from 'fp-ts/lib/function'
-import { either, eitherT, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, string } from 'fp-ts'
 
-import { Suit } from '../model/deck'
-import { flow } from 'fp-ts/lib/function'
 
 const constConstraintTrue  = constant<Constraint>({ type: "Constant", value: true })
 const constConstraintFalse = constant<Constraint>({ type: "Constant", value: false })
@@ -83,6 +82,15 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
         constraint: constraintFromAST(c.constraint)
       }
 
+    case AST.ASTKinds.Bid:
+      return {
+        type: "OtherBid",
+        bid: {
+          level: c.level.value,
+          strain: strainFromAST(c.strain)
+        }
+      }
+
     case AST.ASTKinds.PointRange:
       return {
         type: "PointRange",
@@ -144,8 +152,8 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
       return {
         type: "Relay",
         bid: {
-          level: c.level.value,
-          strain: strainFromAST(c.strain)
+          level: c.bid.level.value,
+          strain: strainFromAST(c.bid.strain)
         }
       }
     
@@ -154,13 +162,13 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
   }
 }
 
-export const bidFromAST = (bid: AST.Bid) : ConstrainedBid => ({
+export const bidFromAST = (bidSpec: AST.BidSpec) : ConstrainedBid => ({
   bid: {
-    level: bid.level.value,
-    strain: strainFromAST(bid.bid as AST.Strain),
+    level: bidSpec.level.value,
+    strain: strainFromAST(bidSpec.bid as AST.Strain),
   },
   constraint: pipe(
-    bid.constraints,
+    bidSpec.constraints,
     readonlyArray.map(c => c.constraint),
     connectiveFromAST("Conjunction", constConstraintFalse))
 })
