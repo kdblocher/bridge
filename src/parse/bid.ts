@@ -1,21 +1,17 @@
 import { either, eitherT, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, string } from 'fp-ts'
 import { constant, flow, identity, pipe } from 'fp-ts/lib/function'
 import { Strain, zeroSpecificShape } from '../model/bridge'
-import { ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints'
+import { constConstraintFalse, constConstraintTrue, ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints'
 import { Suit } from '../model/deck'
 import * as AST from '../parse/bid.peg.g'
 
-
-
-const constConstraintTrue  = constant<Constraint>({ type: "Constant", value: true })
-const constConstraintFalse = constant<Constraint>({ type: "Constant", value: false })
 
 const getConnectiveItems = (items: ReadonlyArray<AST.Constraint>) =>
   pipe(items,
     readonlyNonEmptyArray.fromReadonlyArray,
     option.map(flow(
       readonlyNonEmptyArray.map(constraintFromAST),
-      either.fromPredicate(i => i.length >= 1, i => i[0]))))
+      either.fromPredicate(i => i.length > 1, i => i[0]))))
 
 const connectiveFromAST = (type: "Conjunction" | "Disjunction", zero: () => Constraint) =>
   flow(getConnectiveItems,
@@ -168,8 +164,9 @@ export const bidFromAST = (bidSpec: AST.BidSpec) : ConstrainedBid => ({
     strain: strainFromAST(bidSpec.bid as AST.Strain),
   },
   constraint: pipe(
-    bidSpec.constraints,
-    readonlyArray.map(c => c.constraint),
+    bidSpec.constraints?.constraints,
+    option.fromNullable,
+    option.fold(() => [], readonlyArray.map(c => c.constraint)),
     connectiveFromAST("Conjunction", constConstraintFalse))
 })
 

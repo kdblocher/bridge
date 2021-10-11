@@ -36,7 +36,7 @@ The tool will attempt to parse each line into a [set of] constraints, which it t
 | Secondary | _s_ `2` | Holds if _s_ is 4+ cards, up to the length of the primary suit, but longer than the remaining two suits. | `C2` |
 | Shape | _n<sub>&spades;</sub>_ _n<sub>&hearts;</sub>_ _n<sub>&diams;</sub>_ _n<sub>&clubs;</sub>_ <br /> _n<sub>1</sub>_ _n<sub>2</sub>_ _n<sub>3</sub>_ _n<sub>4</sub>_ `*` | Holds if the hand distribution is **exactly** _n_ (for each suit). <br /> Holds if the hand distribution is _n_ for **any** order of suits. | `4522` (3&hearts; rebid after [Flannery](https://www.bridgebum.com/flannery_2d.php)) <br /> `4441*` ([Multi 2&diams;](https://www.bridgebum.com/multi_2d.php)) |
 | Response | `F1` <br /> `FG` <br /> `FS` | Marks the bid as [forcing](https://en.wikipedia.org/wiki/Forcing_bid) for one round, to game, or to slam (respectively). |
-| Relay | `->` _b_ | Marks the bid as a [relay](https://en.wikipedia.org/wiki/Relay_bid) to bid _b_. | `->3C` |
+| Relay | `->` _b_ | Marks the bid as a [relay](https://en.wikipedia.org/wiki/Relay_bid) to bid _b_. <br/> Bids accepting the relay may simply name the bid without `:` ... to automatically accept the relay. | `2N: ->3C` <br/> &nbsp;&nbsp;&nbsp;`3C` (accepts relay) |
 | Other Bid | _b_ | Holds when an alternative bid _b_ at the same level holds. (This is useful combined with the `not` / `!` operator.) | `1H: 5+H !1N` (don't bid 1&hearts; when 1NT is available) |
 | Conjunction | _c_<sub>1</sub> &centerdot; _c_<sub>2</sub> ... | Holds if all constraints hold. | `11-15 4S 5H` |
 | Disjunction | _c_<sub>1</sub> &centerdot; ``or`` &centerdot; _c_<sub>2</sub> ... |  Holds if any constraint holds. | `4414 or 4405 or 4315 or 3415` |
