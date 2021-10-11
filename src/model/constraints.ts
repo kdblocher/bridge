@@ -43,6 +43,9 @@ export interface ConstraintConst {
   type: "Constant",
   value: boolean
 }
+export const constConstraintTrue  = constant<Constraint>({ type: "Constant", value: true })
+export const constConstraintFalse = constant<Constraint>({ type: "Constant", value: false })
+
 export interface ConstraintConjunction {
   type: "Conjunction"
   constraints: RNEA.ReadonlyNonEmptyArray<Constraint>
@@ -358,6 +361,15 @@ module Gen {
   }
 }
 
+const specialRelayCase = (bid: Bid) => (s: S.State<BidContext, Constraint>) =>
+  pipe(s,
+    S.bindTo('constraint'),
+    S.bind('relay', ({ constraint }) =>
+      S.gets(flow(
+        forceL.get,
+        O.fold(constFalse, force =>
+          constraint.type === "Constant" && !constraint.value && force.type === "Relay" && eqBid.equals(force.bid, bid))))),
+    S.map(s => s.relay ? constConstraintTrue() : s.constraint))
 
 export const satisfiesPath = (opener: Hand, responder: Hand) => (bids: ReadonlyArray<BidInfo>) =>
   pipe(
@@ -368,11 +380,12 @@ export const satisfiesPath = (opener: Hand, responder: Hand) => (bids: ReadonlyA
       pipe(
         S.modify(peersL.modify(_ => siblings)),
         S.chain(() => S.of(constraint)),
-        satisfiesS,
+        flow(specialRelayCase(bid), satisfiesS),
+        // satisfiesS,
         S.ap(S.of(hand)),
         S.chain(s => pipe(
           S.modify<BidContext>(pathL.modify(RA.prepend(bid))),
-          // S.chainFirst(() => context => { console.log(JSON.stringify(context)); return [0, context] }),
+          S.chainFirst(() => context => { console.log(JSON.stringify(context)); return [0, context] }),
           S.map(() => s))))),
     S.map(RA.foldMap(boolean.MonoidAll)(identity)),
     S.evaluate(zeroContext))

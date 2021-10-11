@@ -1,6 +1,7 @@
 Start := spec=BidSpec $
-BidSpec := level=Digit bid=BidSpecifier ': ' constraints=ConstraintList
+BidSpec := level=Digit bid=BidSpecifier constraints=BidSpecConstraintList?
 BidSpecifier := Wildcard | SuitSpecifier
+BidSpecConstraintList := ': ' constraints=ConstraintList
 
 Wildcard := v='x'
 SuitSpecifier := Major | Minor | Strain
