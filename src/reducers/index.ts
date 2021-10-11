@@ -1,13 +1,14 @@
-import { ConstrainedBid, satisfiesPath } from '../model/constraints'
 import { either, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple, string } from 'fp-ts'
 import { flow, pipe } from 'fp-ts/lib/function'
+import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray'
+import { RootState } from '../app/store'
+import { ContractBid } from '../model/bridge'
+import { satisfiesPath, satisfiesPathWithoutSiblingCheck } from '../model/constraints'
+import { BidInfo } from '../model/system'
 import generator, { selectAllDeals } from './generator'
 import selection, { selectHand } from './selection'
 import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system'
 
-import { ContractBid } from '../model/bridge'
-import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray'
-import { RootState } from '../app/store'
 
 const reducers = {
   system,
@@ -21,30 +22,30 @@ export const selectHandsSatisfySelectedPath = (state: RootState) =>
     option.apS('blockKey', state.selection.selectedBlockKey),
     option.apS('opener', selectHand(state.selection, 'opener')),
     option.apS('responder', selectHand(state.selection, 'responder')),
-    option.chain(o => pipe(either.Do,
-      either.apS('bids', selectBidsByKey(state.system, o.blockKey)),
-      either.map(e => satisfiesPath(o.opener, o.responder)(e.bids)),
+    option.chain(o => pipe(
+      selectBidsByKey(state.system, o.blockKey),
+      either.map(satisfiesPathWithoutSiblingCheck(o.opener, o.responder)),
       option.fromEither)),
     option.toNullable)
 
 interface BidResult {
-  path: ReadonlyNonEmptyArray<ConstrainedBid>
+  path: ReadonlyNonEmptyArray<BidInfo>
   result: boolean
 }
-export const selectPathsSatisfyHands = (state: RootState) =>
+export const selectPathsSatisfyHands = (state: RootState) : ReadonlyArray<BidResult> | null =>
   pipe(option.Do,
     option.apS('opener', selectHand(state.selection, 'opener')),
     option.apS('responder', selectHand(state.selection, 'responder')),
     option.map(o => pipe(
       selectAllCompleteBidPaths(state.system),
-      readonlyArray.map<ReadonlyNonEmptyArray<ConstrainedBid>, BidResult>(path => ({
+      readonlyArray.map(path => ({
         path,
         result: satisfiesPath(o.opener, o.responder)(path)
       })))),
     option.toNullable)
 
 interface BidCountResult {
-  path: ReadonlyNonEmptyArray<ConstrainedBid>
+  path: ReadonlyNonEmptyArray<BidInfo>
   count: number
 }
 const ordStats = pipe(

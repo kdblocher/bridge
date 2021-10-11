@@ -1,4 +1,4 @@
-import { apply, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlySet as RS, readonlyTuple, readonlyTuple as RT } from "fp-ts"
+import { apply, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlySet as RS, readonlyTuple, readonlyTuple as RT, string } from "fp-ts"
 import { flow, pipe } from "fp-ts/lib/function"
 import { first } from 'fp-ts/lib/Semigroup'
 import { Deck, eqCard, Hand, ordCard, Suit, suits } from "./deck"
@@ -54,6 +54,11 @@ export interface Contract {
   level: number
   strain: Strain
 }
+export const eqContract : eq.Eq<Contract> = eq.struct({
+  level: number.Eq,
+  strain: string.Eq
+})
+
 export const contracts : ReadonlyArray<Contract> =
   apply.sequenceS(readonlyArray.Apply)(({
     level: readonlyArray.makeBy(7, level => level + 1),
@@ -63,6 +68,13 @@ export const contracts : ReadonlyArray<Contract> =
 export type NonContractBid = "Pass" | "Double" | "Redouble"
 export type ContractBid = Contract
 export type Bid = NonContractBid | ContractBid
+export const isNonContractBid = (b: Bid) : b is NonContractBid => typeof b === "string"
+export const eqNonContractBid : eq.Eq<NonContractBid> = string.Eq
+export const eqContractBid : eq.Eq<ContractBid> = eqContract
+export const eqBid : eq.Eq<Bid> = eq.fromEquals((x, y) =>
+ (isNonContractBid(x) && isNonContractBid(y) && eqNonContractBid.equals(x, y)) ||
+ (!isNonContractBid(x) && !isNonContractBid(y) && eqContractBid.equals(x, y)))
+
 
 export type Auction = RNEA.ReadonlyNonEmptyArray<Bid>
 export type NonPassAuction = Auction & [...Auction, "Pass", "Pass", "Pass"]

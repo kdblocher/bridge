@@ -1,5 +1,5 @@
-Start := bid=Bid $
-Bid := level=Digit bid=BidSpecifier ': ' constraints=ConstraintList
+Start := spec=BidSpec $
+BidSpec := level=Digit bid=BidSpecifier ': ' constraints=ConstraintList
 BidSpecifier := Wildcard | SuitSpecifier
 
 Wildcard := v='x'
@@ -30,6 +30,7 @@ Constraint :=
   | SuitRank
   | PointRange
   | PointBound
+  | Bid
 
 Const := True | False
 True := v='true'
@@ -56,6 +57,8 @@ Plus := v='\+'
 Minus := v='\-'
 Equals := v='='
 
+Bid := level=Number strain=Strain
+
 Distribution := Balanced | SemiBalanced | Unbalanced | AnyShape | SpecificShape
 Balanced := v='BAL'
 SemiBalanced := v='semiBAL'
@@ -71,7 +74,7 @@ Response := ForceOneRound | ForceGame | ForceSlam | Relay
 ForceOneRound := v='F1'
 ForceGame := v='FG'
 ForceSlam := v='FS'
-Relay := '->' level=Number strain=Strain
+Relay := '->' bid=Bid
 
 Digit := literal='[0-9]'
   .value = number { return parseInt(literal) }

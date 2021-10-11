@@ -1,11 +1,11 @@
-import * as DE from 'io-ts/lib/DecodeError'
-import * as FS from 'io-ts/lib/FreeSemigroup'
-import * as d from 'io-ts/Decoder'
-
-import { bidFromAST, parseBid } from './bid';
-import { constant, flow, pipe } from "fp-ts/lib/function";
 import { either, option, readonlyNonEmptyArray } from "fp-ts";
+import { constant, flow, pipe } from "fp-ts/lib/function";
+import * as d from 'io-ts/Decoder';
+import * as DE from 'io-ts/lib/DecodeError';
+import * as FS from 'io-ts/lib/FreeSemigroup';
+import { bidFromAST, parseBid } from './bid';
 import { handFromAST, parseHand } from './hand';
+
 
 export interface PosInfo {
   readonly overallPos: number;
@@ -51,7 +51,7 @@ const getDecoder = <T>(parser: (input: string) => ParseResult<T>) : d.Decoder<st
 
 export const decodeBid = flow(
   getDecoder(parseBid).decode,
-  either.map(x => bidFromAST(x.bid)))
+  either.map(x => bidFromAST(x.spec)))
 
 export const decodeHand = flow(
   getDecoder(parseHand).decode,

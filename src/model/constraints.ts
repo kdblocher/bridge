@@ -1,11 +1,11 @@
-import { Shape as AnyShape, Bid, ContractBid, SpecificShape, eqShape, getHandShape, getHandSpecificShape, makeShape } from './bridge'
-import { Card, Hand, Suit, eqSuit, ordCard, suits } from './deck'
-import { Lens, Optional } from 'monocle-ts'
-import { option as O, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, state as S, boolean, either, eq, hkt, identity as id, number, optionT, ord, readonlySet, readonlyTuple, record, string } from 'fp-ts'
-import { constFalse, constTrue, constant, flow, identity, pipe } from 'fp-ts/lib/function'
-
-import { assertUnreachable } from '../lib'
+import { boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyArray, readonlyNonEmptyArray as RNEA, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts'
 import { eqStrict } from 'fp-ts/lib/Eq'
+import { constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib/function'
+import { fromTraversable, lens, Lens, Optional, traversal } from 'monocle-ts'
+import { assertUnreachable } from '../lib'
+import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, makeShape, Shape as AnyShape, SpecificShape } from './bridge'
+import { Card, eqSuit, Hand, ordCard, Suit, suits } from './deck'
+import { BidInfo } from './system'
 
 export interface ConstraintPointRange {
   type: "PointRange"
@@ -66,7 +66,6 @@ export interface ConstraintSpecificShape {
   suits: SpecificShape
 }
 
-
 export interface ConstraintDistribution {
   type: "Balanced" | "SemiBalanced" | "Unbalanced"
 }
@@ -80,6 +79,11 @@ export interface ConstraintRelayResponse {
   bid: ContractBid
 }
 
+export interface ConstraintOtherBid {
+  type: "OtherBid",
+  bid: ContractBid
+}
+
 export type ConstraintForce =
     ConstraintResponse
   | ConstraintRelayResponse
@@ -89,6 +93,7 @@ export type Constraint =
   | ConstraintConjunction
   | ConstraintDisjunction
   | ConstraintNegation
+  | ConstraintOtherBid
   | ConstraintPointRange
   | ConstraintSuitRange
   | ConstraintSuitComparison
@@ -102,6 +107,7 @@ const contextualConstraintTypes = [
   "Conjunction",
   "Disjunction",
   "Negation",
+  "OtherBid",
   "ForceOneRound",
   "ForceGame",
   "ForceSlam",
@@ -191,9 +197,7 @@ export const suitSecondary = (secondarySuit: Suit) => (primarySuit: Suit) =>
     RA.apS('suit', [secondarySuit, primarySuit]),
     RA.apS('otherSuit', pipe(suits, RA.difference(eqSuit)([secondarySuit, primarySuit]))),
     RA.filter(({ suit, otherSuit }) => !eqSuit.equals(suit, otherSuit)),
-    RA.map(({ suit, otherSuit }) => {
-      return suitCompare(">")(suit, otherSuit)
-    }),
+    RA.map(({ suit, otherSuit }) => suitCompare(">")(suit, otherSuit)),
     RA.concat([
       isSuitRange({ type: "SuitRange", suit: secondarySuit, min: 4, max: 13 }),
       suitCompare(">=")(primarySuit, secondarySuit)
@@ -219,16 +223,18 @@ export const isSemiBalanced =
   ], exists(isShape))
 
 export interface BidContext {
-  path: ReadonlyArray<ConstrainedBid>
+  path: ReadonlyArray<Bid>
   force: O.Option<ConstraintForce>
   primarySuit: O.Option<Suit>
-  secondarySuit: O.Option<Suit>
+  secondarySuit: O.Option<Suit>,
+  peers: ReadonlyArray<ConstrainedBid>,
 }
 export const zeroContext : BidContext = {
   path: [],
   force: O.none,
   primarySuit: O.none,
-  secondarySuit: O.none
+  secondarySuit: O.none,
+  peers: []
 }
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -237,27 +243,14 @@ const pathL = contextL('path')
 const forceL = contextL('force')
 const primarySuitL = contextL('primarySuit')
 const secondarySuitL = contextL('secondarySuit')
+const peersL = contextL('peers')
+const peersT = pipe(peersL,
+  lens.composeTraversal(fromTraversable(readonlyArray.Traversable)<ConstrainedBid>()))
 const contextO = Optional.fromOptionProp<BidContext>()
 const forceO = contextO('force')
 const primarySuitO = contextO('primarySuit')
 const secondarySuitO = contextO('secondarySuit')
 /* eslint-enable @typescript-eslint/no-unused-vars */
-
-// const notBoth = <F extends hkt.URIS>(Z: zero.Zero1<F>) => <T>(x: hkt.Kind<F, T>, y: hkt.Kind<F, T>) : O.Option<hkt.Kind<F, T>> =>
-//   x === Z.zero() ? O.some(y) :
-//   y === Z.zero() ? O.some(x) :
-//   O.none
-
-// const maybeConcat = (x: BidContext) => (y: BidContext) : O.Option<BidContext> =>
-//   pipe(O.Do,
-//     O.apS('path', O.some(y.path)),
-//     O.apS('force', notBoth(O.Zero)(y.force, x.force)),
-//     O.apS('primarySuit', notBoth(O.Zero)(y.primarySuit, x.primarySuit)),
-//     O.apS('secondarySuit', notBoth(O.Zero)(y.secondarySuit, x.secondarySuit)))
-
-// const semigroupContextTraversal : Semigroup<O.Option<BidContext>> = ({
-//   concat: (a, b) => pipe(O.of(maybeConcat), O.ap(a), O.ap(b), O.flatten)
-// })
 
 type X = BidContext
 type C = Constraint
@@ -303,11 +296,22 @@ const satisfiesContextual : SatisfiesT2<S.URI, ContextualConstraint> = recur =>
   S.chain(c => {
     switch (c.type) {
       case "Conjunction":
-        return pipe(c.constraints, RNEA.map(c => context => [c, context]), forallT(recur))
+        return pipe(c.constraints, RNEA.map(c => S.of(c)), forallT(recur))
       case "Disjunction":
-        return pipe(c.constraints, RNEA.map(c => context => [c, context]), existsT(recur))
+        return pipe(c.constraints, RNEA.map(c => S.of(c)), existsT(recur))
       case "Negation": 
         return pipe(c.constraint, S.of, recur, S.map(P.not))
+      case "OtherBid":
+        return pipe(
+          S.gets((context: BidContext) =>
+            pipe(
+              peersT,
+              traversal.filter((b: ConstrainedBid) => eqBid.equals(b.bid, c.bid)),
+              traversal.getAll(context),
+              RA.head)),
+          S.chain(O.fold(
+            () => S.of(constraintFalse),
+            x => recur(S.of(x.constraint)))))
       case "ForceOneRound":
       case "ForceGame":
       case "ForceSlam":
@@ -354,14 +358,16 @@ module Gen {
   }
 }
 
-export const satisfiesPath = (opener: Hand, responder: Hand) => (bids: ReadonlyArray<ConstrainedBid>) =>
+
+export const satisfiesPath = (opener: Hand, responder: Hand) => (bids: ReadonlyArray<BidInfo>) =>
   pipe(
     Gen.alternate(opener, responder),
     Gen.unfold(bids.length),
     RA.zip(bids),
-    S.traverseArray(([hand, bid]) =>
+    S.traverseArray(([hand, { bid, siblings, constraint }]) =>
       pipe(
-        S.of(bid.constraint),
+        S.modify(peersL.modify(_ => siblings)),
+        S.chain(() => S.of(constraint)),
         satisfiesS,
         S.ap(S.of(hand)),
         S.chain(s => pipe(
@@ -370,3 +376,7 @@ export const satisfiesPath = (opener: Hand, responder: Hand) => (bids: ReadonlyA
           S.map(() => s))))),
     S.map(RA.foldMap(boolean.MonoidAll)(identity)),
     S.evaluate(zeroContext))
+
+// Only use for one-off checks, as it doesn't descend the entire bid tree
+export const satisfiesPathWithoutSiblingCheck = (opener: Hand, responder: Hand) =>
+  flow(RA.map((x: ConstrainedBid) => ({ ...x, siblings: [] })), satisfiesPath(opener, responder))
