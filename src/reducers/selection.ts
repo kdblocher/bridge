@@ -1,17 +1,18 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit"
-import { either, option, readonlyArray, readonlySet } from "fp-ts"
-import { flow, pipe } from "fp-ts/lib/function"
-import { castDraft } from "immer"
 import * as D from 'io-ts/Decoder'
-import { O } from 'ts-toolbelt'
-import dds, { DoubleDummyResult } from '../lib/dds/dds'
-import { Board, Deal, deal, Direction } from "../model/bridge"
+
+import { Board, Deal, Direction, deal } from "../model/bridge"
 import { Constraint, satisfies } from '../model/constraints'
-import { eqCard, Hand, newDeck, ordCard } from "../model/deck"
-import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL } from "../model/serialization"
+import { DecodedHand, DecodedSerializedHand, SerializedHand, decodedSerializedHandL, serializedBoardL, serializedHandL } from "../model/serialization"
+import { Hand, eqCard, newDeck, ordCard } from "../model/deck"
+import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit"
+import { either, option, readonlyArray, readonlySet, task } from "fp-ts"
+import { flow, pipe } from "fp-ts/lib/function"
+
+import { DoubleDummyResult } from '../model/analyze'
+import { O } from 'ts-toolbelt'
+import { castDraft } from "immer"
 import { decodeHand } from '../parse'
-
-
+import { makeGetResultsTask } from "../workers"
 
 const name = 'selection'
 
@@ -30,24 +31,35 @@ const initialState : State = {
 const getHandByDirection = (dir: Direction) => (d: Deal) =>
   pipe(d[dir], either.right, decodedSerializedHandL.get, castDraft)
 
-const genBoardFromHands = (state: State) =>
-  pipe(option.Do,
-    option.apS('opener', selectHand(state, 'opener')),
-    option.apS('responder', selectHand(state, 'responder')),
-    option.map(o => pipe(newDeck(),
-      readonlyArray.difference(eqCard)(pipe(o.opener, readonlySet.toReadonlyArray(ordCard))),
-      readonlyArray.difference(eqCard)(pipe(o.responder, readonlySet.toReadonlyArray(ordCard))),
-      readonlyArray.chunksOf(13),
-      readonlyArray.map(readonlySet.fromReadonlyArray(eqCard)),
-      ([l, r]) : Board => ({
-        dealer: 'N',
-        deal: {
-          N: o.opener,
-          S: o.responder,
-          E: l,
-          W: r
-        }
-      }))))
+interface Hands {
+  opener: SerializedHand
+  responder: SerializedHand
+}
+
+const getResult = createAsyncThunk('abc', ({ opener, responder}: Hands) =>
+  pipe(
+    genBoardFromHands(serializedHandL.reverseGet(opener), serializedHandL.reverseGet(responder)),
+    serializedBoardL.get,
+    readonlyArray.of,
+    makeGetResultsTask,
+    task.map(r => r[0]),
+    t => t()))
+
+const genBoardFromHands = (opener: Hand, responder: Hand) =>
+  pipe(newDeck(),
+    readonlyArray.difference(eqCard)(pipe(opener, readonlySet.toReadonlyArray(ordCard))),
+    readonlyArray.difference(eqCard)(pipe(responder, readonlySet.toReadonlyArray(ordCard))),
+    readonlyArray.chunksOf(13),
+    readonlyArray.map(readonlySet.fromReadonlyArray(eqCard)),
+    ([l, r]) : Board => ({
+      dealer: 'N',
+      deal: {
+        N: opener,
+        S: responder,
+        E: l,
+        W: r
+      }
+    }))
 
 const slice = createSlice({
   name,
@@ -67,17 +79,16 @@ const slice = createSlice({
       state['opener'] = getHandByDirection("N")(d)
       state['responder'] = getHandByDirection("S")(d)
     },
-    genResult: (state) => {
-      state.result = pipe(state,
-        genBoardFromHands,
-        option.map(dds),
-        option.toUndefined,
-        castDraft)
-    }
-  }
-})
+  },
+  extraReducers: builder => builder
+    .addCase(getResult.fulfilled, (state, action) => {
+      state.result = pipe(action.payload, castDraft)
+    })
+  })
 
-export const { setSelectedBlockKey, setHand, genHands, genResult } = slice.actions
+
+export const { setSelectedBlockKey, setHand, genHands } = slice.actions
+export { getResult }
 
 export default slice.reducer
 

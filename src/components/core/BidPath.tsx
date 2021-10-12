@@ -1,6 +1,7 @@
-import styled from "styled-components";
-import { ContractBid } from "../../model/bridge";
 import { ConstrainedBid } from "../../model/constraints";
+import { ContractBid } from "../../model/bridge";
+import { Fragment } from "react";
+import styled from "styled-components";
 
 const SuitSpan = styled.span `
   &.S::after { content: "♠"; color: #0000FF; }
@@ -14,12 +15,12 @@ interface Props {
   path: ReadonlyArray<ConstrainedBid>
 }
 const BidPath = ({ path }: Props) =>
-  <>{path.map(b => b.bid as ContractBid).map(bid =>
-    <>
+  <>{path.map(b => b.bid as ContractBid).map((bid, i) =>
+    <Fragment key={i}>
       &nbsp;
       <span>{bid.level}</span>
       <SuitSpan className={bid.strain}></SuitSpan>
-    </>)
+    </Fragment>)
   }</>
 
 export default BidPath

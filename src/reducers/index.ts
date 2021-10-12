@@ -1,14 +1,14 @@
 import { either, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple, string } from 'fp-ts'
 import { flow, pipe } from 'fp-ts/lib/function'
-import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray'
-import { RootState } from '../app/store'
-import { ContractBid } from '../model/bridge'
-import { satisfiesPath, satisfiesPathWithoutSiblingCheck } from '../model/constraints'
-import { BidInfo } from '../model/system'
 import generator, { selectAllDeals } from './generator'
+import { satisfiesPath, satisfiesPathWithoutSiblingCheck } from '../model/constraints'
 import selection, { selectHand } from './selection'
 import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system'
 
+import { BidInfo } from '../model/system'
+import { ContractBid } from '../model/bridge'
+import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray'
+import { RootState } from '../app/store'
 
 const reducers = {
   system,

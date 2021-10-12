@@ -1,18 +1,21 @@
+import { constant, flow, pipe } from "fp-ts/lib/function"
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
+import { makeGenDealsTask, makeGetResultsTask } from "../workers"
 import { readonlyArray, readonlyTuple, task } from "fp-ts"
-import { constant, pipe } from "fp-ts/lib/function"
+import { serializedBoardL, serializedDealL, serializedHandL } from "../model/serialization"
+
+import { DoubleDummyResult } from "../model/analyze"
 import { castDraft } from "immer"
-import { SerializedHand, serializedHandL } from "../model/serialization"
-import makeGenDealsTask from "./worker"
+import { makeBoard } from "../model/bridge"
 
 const name = 'generator'
 
 interface State {
-  deals: ReadonlyArray<[SerializedHand, SerializedHand]>
+  results: ReadonlyArray<DoubleDummyResult>
   generating: boolean
 }
 const initialState: State = {
-  deals: [],
+  results: [],
   generating: false
 }
 
@@ -22,11 +25,18 @@ const genDeals = createAsyncThunk(`${name}/genDeals`, async (count: number) => {
   const handsPerWorker = Math.floor(count / maxProcessors)
   const remainder = Math.floor(count % maxProcessors)
   // return new Worker().genDeals(count)
-  return pipe(readonlyArray.makeBy(maxProcessors - 1, constant(makeGenDealsTask(handsPerWorker))),
+  const result = await pipe(readonlyArray.makeBy(maxProcessors - 1, constant(makeGenDealsTask(handsPerWorker))),
     readonlyArray.prepend(makeGenDealsTask(handsPerWorker + remainder)),
     task.sequenceArray,
-    task.map(readonlyArray.flatten),
+    task.map(flow(
+      readonlyArray.flatten,
+      readonlyArray.mapWithIndex((i, d) => pipe(d,
+        serializedDealL.reverseGet,
+        makeBoard(i),
+        serializedBoardL.get)))),
+    task.chain(makeGetResultsTask),
     task => task())
+  return result
 })
 
 const slice = createSlice({
@@ -38,12 +48,7 @@ const slice = createSlice({
     state.generating = true
   })
   .addCase(genDeals.fulfilled, (state, action) => {
-    state.deals = pipe(
-      action.payload,
-      readonlyArray.map(deal =>
-        pipe(["N", "S"] as const,
-          readonlyTuple.bimap(dir => deal[dir], dir => deal[dir]))),
-      castDraft)
+    state.results = pipe(action.payload, castDraft)
     state.generating = false
   })
   .addCase(genDeals.rejected, (state) => {
@@ -55,5 +60,7 @@ export { genDeals }
 export default slice.reducer
 
 export const selectAllDeals = (state: State) =>
-  pipe(state.deals,
-    readonlyArray.map(readonlyTuple.bimap(serializedHandL.reverseGet, serializedHandL.reverseGet)))
+  pipe(state.results,
+    readonlyArray.map(r => pipe(
+      [r.deal["N"], r.deal["S"]] as const,
+      readonlyTuple.bimap(serializedHandL.reverseGet, serializedHandL.reverseGet))))

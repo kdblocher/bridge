@@ -1,16 +1,16 @@
-import { option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
-import { pipe } from "fp-ts/lib/function"
-import { useCallback, useEffect, useState } from "react"
-import styled from "styled-components"
-import { useAppDispatch, useAppSelector } from "../app/hooks"
-import { directions, strains } from "../model/bridge"
 import * as Deck from "../model/deck"
-import { serializedHandL } from "../model/serialization"
-import { handE } from "../parse/hand"
-import { AuctionPositionType, genHands, genResult, selectHand, setHand } from "../reducers/selection"
+
+import { AuctionPositionType, genHands, getResult, selectHand, setHand } from "../reducers/selection"
+import { constVoid, flow, pipe } from "fp-ts/lib/function"
+import { directions, strains } from "../model/bridge"
+import { option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
+import { useAppDispatch, useAppSelector } from "../app/hooks"
+import { useCallback, useEffect, useState } from "react"
+
 import { Option } from "./core/Monad"
-
-
+import { handE } from "../parse/hand"
+import { serializedHandL } from "../model/serialization"
+import styled from "styled-components"
 
 interface HandInputProps {
   type: AuctionPositionType
@@ -144,6 +144,15 @@ const HandEditor = () => {
     useAppSelector(state => selectHand(state.selection, 'opener')),
     useAppSelector(state => selectHand(state.selection, 'responder'))
   ]
+  const getResultCallback = useCallback(() => pipe(
+    option.Do,
+    option.apS('opener', o),
+    option.apS('responder', r),
+    option.map(flow(
+      readonlyRecord.map(serializedHandL.get),
+      getResult,
+      dispatch)),
+    constVoid), [dispatch, o, r])
   
   return (
     <>
@@ -166,7 +175,7 @@ const HandEditor = () => {
         <tr>
           <td>
             <button type="button" onClick={() => dispatch(genHands())}>Generate</button> <br/>
-            <button type="button" onClick={() => dispatch(genResult())}>Get Results</button> <br/>
+            <button type="button" onClick={getResultCallback}>Get Results</button> <br/>
           </td>
         </tr>
       </tbody>
