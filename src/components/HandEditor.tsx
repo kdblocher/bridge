@@ -5,16 +5,17 @@ import styled from "styled-components"
 import { useAppDispatch, useAppSelector } from "../app/hooks"
 import { directions, strains } from "../model/bridge"
 import * as Deck from "../model/deck"
+import { serializedHandL } from "../model/serialization"
 import { handE } from "../parse/hand"
 import { AuctionPositionType, genHands, genResult, selectHand, setHand } from "../reducers/selection"
 import { Option } from "./core/Monad"
 
 
 
-interface HandProps {
+interface HandInputProps {
   type: AuctionPositionType
 }
-const HandInput = ({ type }: HandProps) => {
+const HandInput = ({ type }: HandInputProps) => {
   const dispatch = useAppDispatch()
   const [value, setValue] = useState<string>("")
   const storageKey = `hand.${type}`
@@ -63,8 +64,22 @@ const HandCol = styled.th `
 
 const SuitList = styled.ol `
   white-space: nowrap;
+  width: 15em;
+  margin: 0;
   padding-left: 0;
   list-style: decimal url(data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7) inside;
+`
+
+const suitBase = `
+  &.S::before { content: "♠"; color: #0000FF }
+  &.H::before { content: "♥"; color: #FF0000 }
+  &.D::before { content: "♦"; color: #FFA500 }
+  &.C::before { content: "♣"; color: #32CD32 }
+`
+
+const StrainSpan = styled.span `
+  ${suitBase}
+  &.N::before { content: "NT"; color: #000000; font-size: 12px; }
 `
 
 const SuitListItem = styled.li `
@@ -74,10 +89,7 @@ const SuitListItem = styled.li `
     float: left;
     margin-left: 5px;
   }
-  &.S::before { content: "♠"; color: #0000FF; }
-  &.H::before { content: "♥"; color: #FF0000; }
-  &.D::before { content: "♦"; color: #FFA500; }
-  &.C::before { content: "♣"; color: #32CD32; }
+  ${suitBase}
 `
 
 const Suit = ({ suit, ranks }: SuitProps) => {
@@ -89,23 +101,21 @@ const Suit = ({ suit, ranks }: SuitProps) => {
  </SuitListItem>
 }
 
-const Hand = ({ type }: HandProps) => {
-  const hand = useAppSelector(state => selectHand(state.selection, type))
-  return <>{hand &&
-    <Option value={hand}>{hand => {
-      const groupedHand = Deck.groupHandBySuits(hand)
-      return (
-        <SuitList>
-          {pipe(groupedHand,
-            readonlyRecord.mapWithIndex((suit, ranks) =>
-              <Suit key={suit} suit={suit} ranks={ranks} />),
-            readonlyRecord.toReadonlyArray,
-            readonlyArray.sort(Deck.getOrdGroupedHand<JSX.Element>()),
-            readonlyArray.map(readonlyTuple.snd))}
-        </SuitList>
-      )}}
-    </Option>
-  }</>
+interface HandProps {
+  hand: Deck.Hand
+}
+const HandView = ({ hand }: HandProps) => {
+  const groupedHand = Deck.groupHandBySuits(hand)
+  return (
+    <SuitList>
+      {pipe(groupedHand,
+        readonlyRecord.mapWithIndex((suit, ranks) =>
+          <Suit key={suit} suit={suit} ranks={ranks} />),
+        readonlyRecord.toReadonlyArray,
+        readonlyArray.sort(Deck.getOrdGroupedHand<JSX.Element>()),
+        readonlyArray.map(readonlyTuple.snd))}
+    </SuitList>
+  )
 }
 
 const DoubleDummyResult = () => {
@@ -115,13 +125,14 @@ const DoubleDummyResult = () => {
       <thead>
         <tr>
           <th></th>
-          {strains.map((s, i) => <th key={i}>{s}</th>)}
+          {strains.map((s, i) => <th style={{fontWeight: "normal", verticalAlign: "middle"}} key={i}><StrainSpan className={s} /></th>)}
         </tr>
       </thead>
       <tbody>
         {directions.map((d, i) => <tr key={i}>
           <td>{d}</td>
           {strains.map((s, i) => <td key={i}>{result.results[s][d]}</td>)}
+          <td><HandView hand={serializedHandL.reverseGet(result.deal[d])} /></td>
         </tr>)}
       </tbody>
     </table>)
@@ -129,6 +140,11 @@ const DoubleDummyResult = () => {
 
 const HandEditor = () => {
   const dispatch = useAppDispatch()
+  const [o, r] = [
+    useAppSelector(state => selectHand(state.selection, 'opener')),
+    useAppSelector(state => selectHand(state.selection, 'responder'))
+  ]
+  
   return (
     <>
     <table>
@@ -144,8 +160,8 @@ const HandEditor = () => {
           <td><HandInput type="responder" /></td>
         </tr>
         <tr>
-          <td><Hand type="opener" /></td>
-          <td><Hand type="responder" /></td>
+          <td><Option value={o}>{hand => <HandView hand={hand} />}</Option></td>
+          <td><Option value={r}>{hand => <HandView hand={hand} />}</Option></td>
         </tr>
         <tr>
           <td>
