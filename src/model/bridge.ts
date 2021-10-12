@@ -27,9 +27,12 @@ export type Vulnerability = typeof vulnerabilities[number]
 export const strains = [...suits, 'N'] as const
 export type Strain = typeof strains[number]
 export interface Board {
-  number: number
   dealer: Direction
   deal: Deal
+}
+
+export interface BoardWithDetail extends Board {
+  number: number
   vulnerability: Vulnerability
 }
 
@@ -43,7 +46,7 @@ const boneChart = (boardNumber: number) : Vulnerability => {
   }
 }
 
-export const makeBoard = (number: number) => (deal: Deal) : Board => ({
+export const makeBoard = (number: number) => (deal: Deal) : BoardWithDetail => ({
   number,
   dealer: directions[(number - 1) % directions.length],
   deal,

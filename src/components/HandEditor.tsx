@@ -1,15 +1,15 @@
-import * as Deck from "../model/deck"
-
-import { AuctionPositionType, genHands, selectHand, setHand } from "../reducers/selection"
 import { option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
-import { useAppDispatch, useAppSelector } from "../app/hooks"
-import { useCallback, useEffect, useState } from "react"
-
-import { HandE } from "../parse/hand"
-import { Option } from "./core/Monad"
-import dds from '../lib/dds'
 import { pipe } from "fp-ts/lib/function"
+import { useCallback, useEffect, useState } from "react"
 import styled from "styled-components"
+import { useAppDispatch, useAppSelector } from "../app/hooks"
+import { directions, strains } from "../model/bridge"
+import * as Deck from "../model/deck"
+import { handE } from "../parse/hand"
+import { AuctionPositionType, genHands, genResult, selectHand, setHand } from "../reducers/selection"
+import { Option } from "./core/Monad"
+
+
 
 interface HandProps {
   type: AuctionPositionType
@@ -18,9 +18,8 @@ const HandInput = ({ type }: HandProps) => {
   const dispatch = useAppDispatch()
   const [value, setValue] = useState<string>("")
   const storageKey = `hand.${type}`
-  const x = dds
 
-  const encodedHand = useAppSelector(state => pipe(selectHand(state.selection, type), option.map(HandE.encode), option.toNullable))
+  const encodedHand = useAppSelector(state => pipe(selectHand(state.selection, type), option.map(handE.encode), option.toNullable))
 
   const onSetHand = useCallback((hand: string) => {
     setValue(hand)
@@ -109,9 +108,29 @@ const Hand = ({ type }: HandProps) => {
   }</>
 }
 
+const DoubleDummyResult = () => {
+  const result = useAppSelector(state => state.selection.result)
+  return (!result ? <></> :
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          {strains.map((s, i) => <th key={i}>{s}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {directions.map((d, i) => <tr key={i}>
+          <td>{d}</td>
+          {strains.map((s, i) => <td key={i}>{result.results[s][d]}</td>)}
+        </tr>)}
+      </tbody>
+    </table>)
+}
+
 const HandEditor = () => {
   const dispatch = useAppDispatch()
   return (
+    <>
     <table>
       <thead>
         <tr>
@@ -131,10 +150,13 @@ const HandEditor = () => {
         <tr>
           <td>
             <button type="button" onClick={() => dispatch(genHands())}>Generate</button> <br/>
+            <button type="button" onClick={() => dispatch(genResult())}>Get Results</button> <br/>
           </td>
         </tr>
       </tbody>
     </table>
+    <DoubleDummyResult />
+    </>
   )
 }
 
