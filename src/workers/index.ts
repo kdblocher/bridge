@@ -1,20 +1,39 @@
 /* eslint-disable import/no-webpack-loader-syntax */
 
+import { Observable, from, of, repeat, take } from 'rxjs';
+import { constant, flow, pipe } from 'fp-ts/lib/function';
 import { readonlyArray, task } from 'fp-ts';
 
 import DDSWorker from 'comlink-loader!./dds.worker'; // inline loader
 import DealWorker from 'comlink-loader!./deal.worker'; // inline loader
 import { SerializedBoard } from '../model/serialization';
-import { pipe } from 'fp-ts/lib/function';
+import { observable } from 'fp-ts-rxjs';
+import { parallelize } from '../lib/concurrency';
 
-export const makeGenDealsTask = (count: number) => () => new DealWorker().genDeals(count)
-export const makeGetResultsTask = (boards: ReadonlyArray<SerializedBoard>) =>
-  pipe(task.Do,
-    task.chain(() => {
-      const w = new DDSWorker()
-      return pipe(boards,
-        readonlyArray.mapWithIndex((i, b) => pipe(() => w.getResult(b),
-          task.chainFirstIOK(r => () => console.log(i))
-        )),
-        task.sequenceArray)
-    }))
+const observeBatchedDealsInfinite = (batchSize: number) => {
+  const w = new DealWorker()
+  return pipe(() => w.genDeals(batchSize),
+    observable.fromTask).pipe(
+      repeat())
+}
+
+export const observeDealsSerial = (count: number) => pipe(
+  observeBatchedDealsInfinite(Math.ceil(Math.log(count))),
+  observable.chain(x => from(x))).pipe(
+    take(count))
+
+export const observeDealsParallel = (count: number) =>
+  parallelize(concurrency => {
+    const handsPerWorker = Math.floor(count / concurrency)
+    const remainder = Math.floor(count % concurrency)
+    return idx => observeDealsSerial(idx === 0 ? handsPerWorker + remainder : handsPerWorker)
+  })
+
+export const observeResultsSerial = (boards: Observable<SerializedBoard>) => {
+  const w = new DDSWorker()
+  return pipe(boards,
+    observable.chain(b => from(w.getResult(b))))
+}
+
+export const observeResultsParallel = (boards: Observable<SerializedBoard>) =>
+  parallelize(_ => _ => observeResultsSerial(boards))

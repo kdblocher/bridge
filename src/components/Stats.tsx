@@ -2,13 +2,15 @@ import { selectAllCompleteBidPaths, selectErrors } from "../reducers/system"
 import { useAppDispatch, useAppSelector } from "../app/hooks"
 
 import BidPath from "./core/BidPath"
+import { analyzeDeals } from "../reducers/generator"
 import { draw } from "io-ts/lib/Decoder"
-import { genDeals } from "../reducers/generator"
+import { option } from "fp-ts"
+import { pipe } from "fp-ts/lib/function"
 import { selectSatisfyStats } from "../reducers"
 import { useState } from "react"
 
 const Stats = () => {
-  const generating = useAppSelector(state => state.generator.generating)
+  const generating = useAppSelector(state => pipe(state.generator.generating, option.toNullable))
   const dispatch = useAppDispatch()
   const rules = useAppSelector(state => selectAllCompleteBidPaths(state.system))
   const errors = useAppSelector(state => selectErrors(state.system))
@@ -26,9 +28,9 @@ const Stats = () => {
         </div>}
       </div>}
       {showGenerate && <div>
-        <button type="button" onClick={() => dispatch(genDeals(count))}>Generate deals</button>
+        <button type="button" onClick={() => dispatch(analyzeDeals(count))}>Generate deals</button>
         <input type="number" value={count} onChange={e => setCount(parseInt(e.target.value))} />
-        {generating && <span>Generating...</span>}
+        {generating === null ? <span>Ready!</span> : <span>Generating... ({generating} deals left)</span>}
         {stats !== null && <div>
           <h3>Results</h3>
           <ul>

@@ -12,7 +12,9 @@ import { DoubleDummyResult } from '../model/analyze'
 import { O } from 'ts-toolbelt'
 import { castDraft } from "immer"
 import { decodeHand } from '../parse'
-import { makeGetResultsTask } from "../workers"
+import { first } from 'rxjs'
+import { observable } from 'fp-ts-rxjs'
+import { observeResultsSerial } from "../workers"
 
 const name = 'selection'
 
@@ -40,9 +42,9 @@ const getResult = createAsyncThunk('abc', ({ opener, responder}: Hands) =>
   pipe(
     genBoardFromHands(serializedHandL.reverseGet(opener), serializedHandL.reverseGet(responder)),
     serializedBoardL.get,
-    readonlyArray.of,
-    makeGetResultsTask,
-    task.map(r => r[0]),
+    observable.of,
+    observeResultsSerial,
+    observable.toTask,
     t => t()))
 
 const genBoardFromHands = (opener: Hand, responder: Hand) =>

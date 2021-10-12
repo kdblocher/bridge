@@ -1,14 +1,16 @@
 import { either, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple, string } from 'fp-ts'
 import { flow, pipe } from 'fp-ts/lib/function'
-import generator, { selectAllDeals } from './generator'
+import generator, { analyzeDealsEpic, selectAllDeals } from './generator'
 import { satisfiesPath, satisfiesPathWithoutSiblingCheck } from '../model/constraints'
 import selection, { selectHand } from './selection'
 import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system'
 
+import { AnyAction } from '@reduxjs/toolkit'
 import { BidInfo } from '../model/system'
 import { ContractBid } from '../model/bridge'
 import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray'
 import { RootState } from '../app/store'
+import { combineEpics } from 'redux-observable'
 
 const reducers = {
   system,
@@ -16,6 +18,8 @@ const reducers = {
   generator
 }
 export default reducers
+
+export const rootEpic = combineEpics<AnyAction, AnyAction, RootState>(analyzeDealsEpic)
 
 export const selectHandsSatisfySelectedPath = (state: RootState) =>
   pipe(option.Do,
