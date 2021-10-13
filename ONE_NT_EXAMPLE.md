@@ -1,4 +1,4 @@
-# Setting Up a Aample Bidding Tree
+# Setting Up a An Example Bidding Tree
 
 The bridge bidding analysis tool has a detailed and full featured syntax for defining very precise bidding structures.  However, this creates both major opportunities to examine bidding systems in minute detail while simultaneiously allowing an inconsistent or incongrous system to be put in place.  To see how this works in principle, consider defining a seemingly simple response structure to a one notrump opneing.  
 
