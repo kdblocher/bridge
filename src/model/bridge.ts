@@ -1,7 +1,6 @@
-import { apply, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlySet as RS, readonlyTuple, readonlyTuple as RT, string } from "fp-ts"
+import { Deck, Hand, Suit, eqCard, ordCard, suits } from "./deck"
+import { readonlyNonEmptyArray as RNEA, readonlySet as RS, readonlyTuple as RT, apply, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlySet, readonlyTuple, semigroup, string } from "fp-ts"
 import { flow, pipe } from "fp-ts/lib/function"
-import { first } from 'fp-ts/lib/Semigroup'
-import { Deck, eqCard, Hand, ordCard, Suit, suits } from "./deck"
 
 export const directions = ['N', 'E', 'S', 'W'] as const
 export type Direction = typeof directions[number]
@@ -26,6 +25,10 @@ export type Vulnerability = typeof vulnerabilities[number]
 
 export const strains = [...suits, 'N'] as const
 export type Strain = typeof strains[number]
+export const eqStrain : eq.Eq<Strain> = eq.eqStrict
+export const minors: ReadonlyArray<Strain> = ['C', 'D']
+export const majors: ReadonlyArray<Strain> = ['H', 'S']
+
 export interface Board {
   dealer: Direction
   deal: Deal
@@ -53,30 +56,41 @@ export const makeBoard = (number: number) => (deal: Deal) : BoardWithDetail => (
   vulnerability: boneChart(number)
 })
 
-export interface Contract {
+export type NonContractBid = "Pass" | "Double" | "Redouble"
+export const eqNonContractBid : eq.Eq<NonContractBid> = string.Eq
+export interface ContractBid {
   level: number
   strain: Strain
 }
-export const eqContract : eq.Eq<Contract> = eq.struct({
+export const eqContractBid : eq.Eq<ContractBid> = eq.struct({
   level: number.Eq,
   strain: string.Eq
 })
-
-export const contracts : ReadonlyArray<Contract> =
+export const contractBids : ReadonlyArray<ContractBid> =
   apply.sequenceS(readonlyArray.Apply)(({
     level: readonlyArray.makeBy(7, level => level + 1),
     strain: strains
   }))
 
-export type NonContractBid = "Pass" | "Double" | "Redouble"
-export type ContractBid = Contract
 export type Bid = NonContractBid | ContractBid
 export const isNonContractBid = (b: Bid) : b is NonContractBid => typeof b === "string"
-export const eqNonContractBid : eq.Eq<NonContractBid> = string.Eq
-export const eqContractBid : eq.Eq<ContractBid> = eqContract
+
 export const eqBid : eq.Eq<Bid> = eq.fromEquals((x, y) =>
- (isNonContractBid(x) && isNonContractBid(y) && eqNonContractBid.equals(x, y)) ||
- (!isNonContractBid(x) && !isNonContractBid(y) && eqContractBid.equals(x, y)))
+  (isNonContractBid(x) && isNonContractBid(y) && eqNonContractBid.equals(x, y)) ||
+  (!isNonContractBid(x) && !isNonContractBid(y) && eqContractBid.equals(x, y)))
+
+export type ContractModifier = "Undoubled" | "Doubled" | "Redoubled"
+export interface Contract extends ContractBid {
+  modifier: ContractModifier
+}
+export const eqContract : eq.Eq<Contract> = eq.struct({
+  level: number.Eq,
+  strain: string.Eq,
+  modifier: string.Eq
+})
+
+
+
 
 
 export type Auction = RNEA.ReadonlyNonEmptyArray<Bid>
@@ -115,7 +129,7 @@ export const getHandSpecificShape = (hand: Hand) : SpecificShape =>
     option.fold(() => zeroSpecificShape, flow(
       readonlyNonEmptyArray.groupBy(c => c.suit),
       readonlyRecord.map(x => x.length),
-      readonlyRecord.union(first<number>())(zeroSpecificShape),
+      readonlyRecord.union(semigroup.first<number>())(zeroSpecificShape),
       (suits: readonlyRecord.ReadonlyRecord<Suit, number>) => suits)))
 
 export const getHandShape = (hand: Hand) : Shape =>
