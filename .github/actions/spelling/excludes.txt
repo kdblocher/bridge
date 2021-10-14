@@ -13,7 +13,7 @@ ignore$
 \.mod$
 \.mp[34]$
 \.png$
-\.ts$
+\.ts.?$
 \.js$
 \.sql$
 \.wav$
