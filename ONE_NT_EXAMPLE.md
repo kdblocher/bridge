@@ -13,14 +13,14 @@ Consider that you play Stayman, transfers, and 2NT as an invitational bid to 3NT
   * 3N: 11+ 
 
 ## Eliminating Duplicate Bids
-  Now consider the hand &spades;AT872, &hearts;K2, &diams;QT4, &clubs;J94.  Since the hand has 4 or more spades and 9 or more high card points, it falls under a 2C response.  Since it has 5 spades, it also falls under the 2H transfer response.  But it also would fall under the 2NT invitational bid as well.  Clearly such a hand has bidding exclusions.  In other words, you would choose to transfer the hand as your first choice of bids.  Given that, the 2N bid must be more precisely defined, as well as the 2C Stayman response.  So we will clarify the 2C bid to be exactly 4 in one of the majors.  Our first attempt might looking something like this:  
+  Now consider the hand &spades;AT872, &hearts;K2, &diams;QT4, &clubs;J94.  Since the hand has 4 or more spades and 9 or more high card points, it falls under a 2C response.  Since it has 5 spades, it also falls under the 2H transfer response.  But it also would fall under the 2NT invitational bid as well.  Clearly such a hand has bidding exclusions.  In other words, you would choose to transfer the hand as your first choice of bids.  Given that, the 2N bid must be more precisely defined, as well as the 2C Stayman response.  So we will clarify the 2C bid to be exactly 4 in one of the majors.  Both the 2N and 3N bid must have at most three cards in either major.  Our first attempt might looking something like this:  
 
   * 1NT: 15-17 BAL
     * 2C: 9+ (4=H or 4=S)
     * 2D: 5+H
     * 2H: 5+S
-    * 2N: 9-10 4-S 4-H 
-    * 3N: 11+ 4-S 4-H
+    * 2N: 9-10 3-S 3-H 
+    * 3N: 11+ 3-S 3-H
 
   ## What About Hnads That Are 5-4 in the Majors?
 
@@ -32,5 +32,23 @@ Consider that you play Stayman, transfers, and 2NT as an invitational bid to 3NT
     * 2C: 9+ (4=H or 4=S or (5+S 4=H) or (4=S 5+H))
     * 2D: 5+H H>S !2C
     * 2H: 5+S !2C
-    * 2N: 9-10 4-S 4-H 
-    * 3N: 11+ 4-S 4-H
+    * 2N: 9-10 3-S 3-H 
+    * 3N: 11+ 3-S 3-H
+
+    ## Filling Out a More Extensive Opener Rebid
+
+    For the case of transfers, of course the system will alow a fine granularity of super acceptance criteria.  For purposes of this example we will just choose an automatic bid of two of the major.  Notice there is no semi-colon after the acceptance bid. Filling out the responses to Stayman get a little easier, because the initial bid has already been defined.  Thus 2D is no four card major, 2H is four hearts, and 2S is four spades without also having four hearts.  
+
+  * 1NT: 15-17 BAL
+    * 2C: 9+ (4=H or 4=S or (5+S 4=H) or (4=S 5+H))
+      * 2D: 3-H 3-S
+      * 2H: 4+H
+      * 2S: 4+S 3-H
+    * 2D: 5+H H>S !2C -> 2H
+      * 2H
+    * 2H: 5+S !2C -> 2S
+      * 2S
+    * 2N: 9-10 3-S 3-H 
+    * 3N: 11+ 3-S 3-H
+
+Of course from here you could explore responder's rebids to Stayman or transfers, a minor suit relay system, or bids that investigate slam. The complexity of even the simplest structure may seem daunting, but by working in bite size chunks, you can explore various aspects of your system with incredibly fine detail.  
