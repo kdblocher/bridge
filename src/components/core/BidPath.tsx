@@ -1,7 +1,8 @@
-import { ConstrainedBid } from "../../model/constraints";
-import { ContractBid } from "../../model/bridge";
-import { Fragment } from "react";
-import styled from "styled-components";
+import { Fragment } from 'react';
+import styled from 'styled-components';
+
+import { ContractBid } from '../../model/bridge';
+import { ConstrainedBid } from '../../model/constraints';
 
 const SuitSpan = styled.span `
   &.S::after { content: "♠"; color: #0000FF; }

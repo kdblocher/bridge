@@ -1,19 +1,19 @@
-import * as D from 'io-ts/Decoder'
+import { either, option, readonlyArray, readonlySet } from 'fp-ts';
+import { observable } from 'fp-ts-rxjs';
+import { flow, pipe } from 'fp-ts/lib/function';
+import { castDraft } from 'immer';
+import * as D from 'io-ts/Decoder';
+import { O } from 'ts-toolbelt';
 
-import { Board, Deal, Direction, deal } from "../model/bridge"
-import { Constraint, satisfies } from '../model/constraints'
-import { DecodedHand, DecodedSerializedHand, SerializedHand, decodedSerializedHandL, serializedBoardL, serializedHandL } from "../model/serialization"
-import { Hand, eqCard, newDeck, ordCardDescending } from "../model/deck"
-import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit"
-import { either, option, readonlyArray, readonlySet } from "fp-ts"
-import { flow, pipe } from "fp-ts/lib/function"
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-import { DoubleDummyResult } from '../workers/dds.worker'
-import { O } from 'ts-toolbelt'
-import { castDraft } from "immer"
-import { decodeHand } from '../parse'
-import { observable } from 'fp-ts-rxjs'
-import { observeResultsSerial } from "../workers"
+import { Board, Deal, deal, Direction } from '../model/bridge';
+import { Constraint, satisfies } from '../model/constraints';
+import { eqCard, Hand, newDeck, ordCardDescending } from '../model/deck';
+import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL, serializedBoardL, SerializedHand, serializedHandL } from '../model/serialization';
+import { decodeHand } from '../parse';
+import { observeResultsSerial } from '../workers';
+import { DoubleDummyResult } from '../workers/dds.worker';
 
 const name = 'selection'
 
@@ -89,7 +89,7 @@ const slice = createSlice({
 
 
 export const { setSelectedBlockKey, setHand, genHands } = slice.actions
-export { getResult }
+export { getResult };
 
 export default slice.reducer
 

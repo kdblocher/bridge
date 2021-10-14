@@ -1,13 +1,12 @@
-import * as D from 'io-ts/Decoder'
-import * as iso from "monocle-ts/Iso"
+import { either, readonlyRecord, readonlySet } from 'fp-ts';
+import { Either } from 'fp-ts/lib/Either';
+import * as D from 'io-ts/Decoder';
+import * as iso from 'monocle-ts/Iso';
+import { O } from 'ts-toolbelt';
 
-import { Board, Deal } from "./bridge"
-import { Card, Hand, eqCard, ordCardDescending } from "./deck"
-import { either, readonlyRecord, readonlySet } from "fp-ts"
-
-import { Either } from 'fp-ts/lib/Either'
-import { O } from 'ts-toolbelt'
-import { decodeHand } from '../parse'
+import { decodeHand } from '../parse';
+import { Deal } from './bridge';
+import { Card, eqCard, Hand, ordCardDescending } from './deck';
 
 export type DecodedHand = ReturnType<typeof decodeHand>
 export type SerializedHand = ReadonlyArray<Card>

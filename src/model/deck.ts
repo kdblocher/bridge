@@ -5,6 +5,8 @@ import { browserCrypto, shuffle } from 'random-js';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { ordAscending, ordDescending } from '../lib';
 
+import { ordAscending, ordDescending } from '../lib';
+
 export const suits = ['C', 'D', 'H', 'S'] as const
 export type Suit = typeof suits[number]
 export const eqSuit : eq.Eq<Suit> = eq.eqStrict

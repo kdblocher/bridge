@@ -1,16 +1,17 @@
-import { AnyAction, PayloadAction, createSlice } from "@reduxjs/toolkit"
-import { bufferCount, concatWith, filter } from "rxjs"
-import { flow, pipe } from "fp-ts/lib/function"
-import { observeDealsParallel, observeResultsSerial } from "../workers"
-import { option, readonlyArray, readonlyTuple } from "fp-ts"
-import { serializedBoardL, serializedDealL, serializedHandL } from "../model/serialization"
+import { option, readonlyArray, readonlyTuple } from 'fp-ts';
+import { observable } from 'fp-ts-rxjs';
+import { flow, pipe } from 'fp-ts/lib/function';
+import { castDraft } from 'immer';
+import { Epic } from 'redux-observable';
+import { bufferCount, concatWith, filter } from 'rxjs';
 
-import { DoubleDummyResult } from "../workers/dds.worker"
-import { Epic } from "redux-observable"
-import { RootState } from "../app/store"
-import { castDraft } from "immer"
-import { makeBoard } from "../model/bridge"
-import { observable } from "fp-ts-rxjs"
+import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
+
+import { RootState } from '../app/store';
+import { makeBoard } from '../model/bridge';
+import { serializedBoardL, serializedDealL, serializedHandL } from '../model/serialization';
+import { observeDealsParallel, observeResultsSerial } from '../workers';
+import { DoubleDummyResult } from '../workers/dds.worker';
 
 const name = 'generator'
 
