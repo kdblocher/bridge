@@ -13,5 +13,8 @@ ignore$
 \.mod$
 \.mp[34]$
 \.png$
+\.ts$
+\.js$
+\.sql$
 \.wav$
 ^\.github/
