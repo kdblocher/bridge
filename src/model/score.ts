@@ -113,12 +113,22 @@ const penaltyPoints: ScoreComponent = info =>
               readonlyArray.takeLeft(undertricks + (info.isVulnerable ? 1 : 0)),
               readonlyArray.foldMap(number.MonoidSum)(identity)))))))
 
+const partScorePoints: ScoreComponent =
+  flow(contractPoints, score =>
+    score < 100 ? 50 : 0)
+
+const gamePoints: ScoreComponent = info =>
+  pipe(info, contractPoints, score =>
+    score >= 100 ? (info.isVulnerable ? 500 : 300) : 0)
+
 const scoreComponents = [
   contractPoints,
   ovetrickPoints,
   slamPoints,
   modifierPoints,
-  penaltyPoints
+  penaltyPoints,
+  partScorePoints,
+  gamePoints
 ]
 
 const ScoreC = t.brand(t.number, (i) : i is t.Branded<number, { readonly Score: unique symbol }> => typeof i === "number", 'Score')
