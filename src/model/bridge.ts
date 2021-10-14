@@ -101,7 +101,8 @@ export const eqBid : eq.Eq<Bid> = eq.fromEquals((x, y) =>
   (isNonContractBid(x) && isNonContractBid(y) && eqNonContractBid.equals(x, y)) ||
   (!isNonContractBid(x) && !isNonContractBid(y) && eqContractBid.equals(x, y)))
 
-export type ContractModifier = "Undoubled" | "Doubled" | "Redoubled"
+export const contractModifiers = ["Undoubled", "Doubled", "Redoubled"] as const
+export type ContractModifier = typeof contractModifiers[number]
 export interface Contract extends ContractBid {
   modifier: ContractModifier
 }
@@ -110,10 +111,8 @@ export const eqContract : eq.Eq<Contract> = eq.struct({
   strain: string.Eq,
   modifier: string.Eq
 })
-
-
-
-
+export const fromBid = (bid: ContractBid): Contract =>
+  ({ ...bid, modifier: "Undoubled" })
 
 export type Auction = RNEA.ReadonlyNonEmptyArray<Bid>
 const consecutivePasses = ["Pass", "Pass", "Pass"] as const

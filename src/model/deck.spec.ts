@@ -9,7 +9,8 @@ const rankA: fc.Arbitrary<Rank> =
   fc.constantFrom(...ranks)
 const cardA: fc.Arbitrary<Card> =
   fc.tuple(suitA, rankA)
-    .map(([suit, rank]) => ({ suit, rank }))
+    .map(([suit,  rank ]) =>
+         ({suit,  rank }))
 const cardsA: fc.Arbitrary<ReadonlyArray<Card>> =
   fc.array(cardA)
 

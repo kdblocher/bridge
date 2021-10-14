@@ -2,7 +2,7 @@ import * as t from 'io-ts'
 
 import { Contract, ContractModifier, Strain, eqStrain, minors } from "./bridge";
 import { constant, flow, identity, pipe } from "fp-ts/lib/function";
-import { either, eq, number, option, ord, readonlyArray } from "fp-ts";
+import { writer, either, eq, number, option, ord, readonlyArray, readonlyRecord, writerT, readonlyTuple, tuple } from "fp-ts";
 
 import { assertUnreachable } from "../lib";
 
@@ -58,9 +58,9 @@ const whenMaking = (f: (oddTricks: number) => number) => (info: ScoreInfo) =>
     option.fold(constant(0), f))
 
 const contractPoints: ScoreComponent = info =>
-  pipe(info, whenMaking(oddTricks =>
+  pipe(info, whenMaking(() =>
     contractModMultiplier(info.contract.modifier) *
-    ((oddTricks * contractPointMultiplier(info.contract.strain)) + contractFirstTrickModifier(info.contract.strain))))
+    ((info.contract.level * contractPointMultiplier(info.contract.strain)) + contractFirstTrickModifier(info.contract.strain))))
 
 const vulnerableMultiplier = (isVulnerable: boolean) =>
   50 * (isVulnerable ? 2 : 1)
@@ -74,7 +74,7 @@ const overtrickBonus = (isVulnerable: boolean, modifier: ContractModifier) =>
     option.map(contractModMultiplier),
     option.map(x => x * vulnerableMultiplier(isVulnerable)))
 
-const ovetrickPoints: ScoreComponent = info =>
+const overtrickPoints: ScoreComponent = info =>
   pipe(getOvertricks(info.contract, info.tricks),
     option.fold(constant(0), overtricks =>
       pipe(
@@ -86,7 +86,7 @@ const slamPoints: ScoreComponent = info =>
   pipe(info, whenMaking(oddTricks =>
     (info.isVulnerable ? 1.5 : 1) *
     (info.contract.level === 6 && oddTricks >= 6 ? 500 :
-      info.contract.level === 7 && oddTricks >= 7 ? 750 : 0)))
+      info.contract.level === 7 && oddTricks >= 7 ? 1000 : 0)))
 
 const modifierPoints: ScoreComponent = info =>
   pipe(info, whenMaking(() => {
@@ -98,7 +98,7 @@ const modifierPoints: ScoreComponent = info =>
     }
   }))
 
-const doubledPenalties = [50, 100, ...readonlyArray.replicate(11, 150)]
+const doubledPenalties = [100, 200, 200, ...readonlyArray.replicate(10, 300)]
 
 const penaltyPoints: ScoreComponent = info =>
   pipe(getUndertricks(info.contract, info.tricks),
@@ -108,28 +108,29 @@ const penaltyPoints: ScoreComponent = info =>
         option.fold(
           () => undertricks * vulnerableMultiplier(info.isVulnerable),
           flow(contractModMultiplier,
-            multiplier => multiplier * pipe(
+            multiplier => (multiplier / 2) * pipe(
               doubledPenalties,
               readonlyArray.takeLeft(undertricks + (info.isVulnerable ? 1 : 0)),
-              readonlyArray.foldMap(number.MonoidSum)(identity)))))))
+              readonlyArray.foldMap(number.MonoidSum)(identity)))),
+        x => -x)))
 
 const partScorePoints: ScoreComponent =
   flow(contractPoints, score =>
-    score < 100 ? 50 : 0)
+    score > 0 && score <= 100 ? 50 : 0)
 
 const gamePoints: ScoreComponent = info =>
   pipe(info, contractPoints, score =>
     score >= 100 ? (info.isVulnerable ? 500 : 300) : 0)
 
-const scoreComponents = [
-  contractPoints,
-  ovetrickPoints,
-  slamPoints,
-  modifierPoints,
-  penaltyPoints,
-  partScorePoints,
-  gamePoints
-]
+const scoreComponents : readonlyRecord.ReadonlyRecord<string, ScoreComponent> = {
+  contractPoints : contractPoints,
+  overtrickPoints: overtrickPoints,
+  slamPoints     : slamPoints,
+  modifierPoints : modifierPoints,
+  penaltyPoints  : penaltyPoints,
+  partScorePoints: partScorePoints,
+  gamePoints     : gamePoints,
+}
 
 const ScoreC = t.brand(t.number, (i) : i is t.Branded<number, { readonly Score: unique symbol }> => typeof i === "number", 'Score')
 export type Score = t.TypeOf<typeof ScoreC>
@@ -137,10 +138,21 @@ export const zeroScore = (ScoreC.decode(0) as either.Right<Score>).right
 export const eqScore : eq.Eq<Score> = number.Eq
 export const ordScore : ord.Ord<Score> = pipe(number.Ord, ord.reverse)
 
-export const score = (info: ScoreInfo): Score => 
+export type ScoreComponentLog = readonly [string, number]
+
+type W = ReadonlyArray<ScoreComponentLog>
+export const scoreW = (info: ScoreInfo): writer.Writer<W, Score> => 
   pipe(
     scoreComponents,
-    readonlyArray.flap(info),
-    readonlyArray.foldMap(number.MonoidSum)(identity),
-    ScoreC.decode,
-    s => (s as either.Right<Score>).right)
+    readonlyRecord.flap(info),
+    readonlyRecord.traverseWithIndex(writer.getApplicative(readonlyArray.getMonoid<ScoreComponentLog>()))((name, score) => pipe(
+      writer.tell([[name, score]] as const),
+      writer.map(constant(score)))),
+    writer.map(flow(
+      readonlyRecord.foldMap(ord.trivial)(number.MonoidSum)(identity),
+      ScoreC.decode,
+      s => (s as either.Right<Score>).right)),
+    writer.map((s): [Score, (w: W) => W] => [s, cs => [["TOTAL", s], ...cs]]),
+    writer.pass)
+
+export const score = flow(scoreW, writer.evaluate)
