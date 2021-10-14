@@ -49,7 +49,7 @@ interface RankProps {
   rank: Deck.Rank
 }
 const Rank = ({ rank }: RankProps) =>
-  <RankListItem>{Deck.ranks[rank - 2]}</RankListItem>
+  <RankListItem>{Deck.rankStrings[rank - 2]}</RankListItem>
 
 interface SuitProps {
   suit: Deck.Suit

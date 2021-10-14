@@ -2,7 +2,7 @@ import * as AST from '../parse/hand.peg.g'
 import * as e from 'io-ts/Encoder'
 
 import { Board, directions, ordDirection } from "../model/bridge"
-import { Card, Hand, Rank, RankC, Suit, eqCard, getOrdGroupedHand, groupHandBySuits, ordRankDescending, ranks, suits } from "../model/deck"
+import { Card, Hand, Rank, RankC, Suit, eqCard, getOrdGroupedHand, groupHandBySuits, ordRankDescending, suits } from "../model/deck"
 import { flow, identity, pipe } from "fp-ts/lib/function"
 import { ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlySet, readonlyTuple, string } from "fp-ts"
 
@@ -28,7 +28,7 @@ export const HandE : e.Encoder<string, Hand> = {
     readonlyArray.map(flow(
       readonlyTuple.snd,
       readonlyArray.sort(ordRankDescending),
-      readonlyArray.reduce("", (cur, rank) => cur + ranks[rank - 2]))),
+      readonlyArray.reduce("", (cur, rank) => cur + RankC.encode(rank)))),
     readonlyArray.intersperse("."),
     readonlyArray.foldMap(string.Monoid)(identity))
 }

@@ -11,13 +11,18 @@ export const eqSuit : eq.Eq<Suit> = eq.eqStrict
 export const ordSuitDescending : ord.Ord<Suit> = ordDescending(suits)
 export const ordSuitAscending : ord.Ord<Suit> = ordAscending(suits)
 
-export const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'] as const
+export const rankStrings = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'] as const
 const RankB = t.brand(t.number, (i) : i is t.Branded<number, { readonly Rank: unique symbol }> => i >= 2 && i <= 14, 'Rank')
-export const RankC = new t.Type('Rank', RankB.is, RankB.validate, r => ranks[r - 2])
+export const RankC = new t.Type('Rank', RankB.is, RankB.validate, r => rankStrings[r - 2])
 export type Rank = t.TypeOf<typeof RankC>
 export const eqRank : eq.Eq<Rank> = eq.eqStrict
 export const ordRankAscending : ord.Ord<Rank> = number.Ord
 export const ordRankDescending : ord.Ord<Rank> = pipe(ordRankAscending, ord.reverse)
+export const ranks =
+  pipe(rankStrings,
+    readonlyArray.map(flow(
+      RankC.decode,
+      x => (x as either.Right<Rank>).right)))
 
 export interface Card {
   suit: Suit
@@ -37,7 +42,7 @@ export const ordCardDescending : ord.Ord<Card> = ord.getMonoid<Card>().concat(
 export const cards: RNEA.ReadonlyNonEmptyArray<Card> =
   pipe(52, RNEA.makeBy(i => ({
     suit: suits[Math.floor(i / 13)],
-    rank: (RankC.decode((i % 13) + 2) as either.Right<Rank>).right
+    rank: ranks[Math.floor(i % 13)]
   })))
 
 export type Hand = ReadonlySet<Card>
