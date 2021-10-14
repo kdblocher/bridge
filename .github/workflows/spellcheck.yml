@@ -8,6 +8,7 @@ on:
 jobs:
   spelling:
     name: Spell check
+    runs-on: ubuntu-latest
     steps:
     - name: Check spelling
       uses: check-spelling/check-spelling@main
