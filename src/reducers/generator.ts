@@ -1,9 +1,11 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
-import { readonlyArray, readonlyTuple, task } from "fp-ts"
-import { constant, pipe } from "fp-ts/lib/function"
-import { castDraft } from "immer"
-import { SerializedHand, serializedHandL } from "../model/serialization"
-import makeGenDealsTask from "./worker"
+import { readonlyArray, readonlyTuple, task } from 'fp-ts';
+import { constant, pipe } from 'fp-ts/lib/function';
+import { castDraft } from 'immer';
+
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+
+import { SerializedHand, serializedHandL } from '../model/serialization';
+import makeGenDealsTask from './worker';
 
 const name = 'generator'
 
@@ -21,7 +23,6 @@ const maxProcessors = window.navigator.hardwareConcurrency
 const genDeals = createAsyncThunk(`${name}/genDeals`, async (count: number) => {
   const handsPerWorker = Math.floor(count / maxProcessors)
   const remainder = Math.floor(count % maxProcessors)
-  // return new Worker().genDeals(count)
   return pipe(readonlyArray.makeBy(maxProcessors - 1, constant(makeGenDealsTask(handsPerWorker))),
     readonlyArray.prepend(makeGenDealsTask(handsPerWorker + remainder)),
     task.sequenceArray,

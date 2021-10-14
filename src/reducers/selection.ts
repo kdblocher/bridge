@@ -1,16 +1,16 @@
-import * as D from 'io-ts/Decoder'
+import { either, option } from 'fp-ts';
+import { flow, pipe } from 'fp-ts/lib/function';
+import { castDraft } from 'immer';
+import * as D from 'io-ts/Decoder';
+import { O, U } from 'ts-toolbelt';
 
-import { Constraint, satisfies } from '../model/constraints'
-import { Deal, Direction, deal } from "../model/bridge"
-import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL } from "../model/serialization"
-import { Hand, newDeck } from "../model/deck"
-import { O, U } from 'ts-toolbelt'
-import { PayloadAction, createSlice } from "@reduxjs/toolkit"
-import { either, option } from "fp-ts"
-import { flow, pipe } from "fp-ts/lib/function"
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-import { castDraft } from "immer"
-import { decodeHand } from '../parse'
+import { deal, Deal, Direction } from '../model/bridge';
+import { Constraint, satisfies } from '../model/constraints';
+import { Hand, newDeck } from '../model/deck';
+import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL } from '../model/serialization';
+import { decodeHand } from '../parse';
 
 const name = 'selection'
 

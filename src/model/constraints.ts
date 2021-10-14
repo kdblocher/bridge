@@ -1,11 +1,15 @@
-import { boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyArray, readonlyNonEmptyArray as RNEA, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts'
-import { eqStrict } from 'fp-ts/lib/Eq'
-import { constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib/function'
-import { fromTraversable, lens, Lens, Optional, traversal } from 'monocle-ts'
-import { assertUnreachable } from '../lib'
-import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, makeShape, Shape as AnyShape, SpecificShape } from './bridge'
-import { Card, eqSuit, Hand, ordCard, Suit, suits } from './deck'
-import { BidInfo } from './system'
+import {
+    boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlySet, readonlyTuple, record, state as S,
+    string
+} from 'fp-ts';
+import { eqStrict } from 'fp-ts/lib/Eq';
+import { constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib/function';
+import { fromTraversable, Lens, lens, Optional, traversal } from 'monocle-ts';
+
+import { assertUnreachable } from '../lib';
+import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, makeShape, Shape as AnyShape, SpecificShape } from './bridge';
+import { Card, eqSuit, Hand, ordCardDescending, Suit, suits } from './deck';
+import { BidInfo } from './system';
 
 export interface ConstraintPointRange {
   type: "PointRange"
@@ -148,7 +152,7 @@ export const getCardHcp = (card: Card) =>
 
 export const getHcp =
   flow(
-    readonlySet.toReadonlyArray(ordCard),
+    readonlySet.toReadonlyArray(ordCardDescending),
     RA.foldMap(number.MonoidSum)(getCardHcp))
 
 const rangeCheck = (range: { min: number, max: number }) => ord.between(number.Ord)(range.min, range.max)
@@ -251,7 +255,7 @@ const primarySuitL = contextL('primarySuit')
 const secondarySuitL = contextL('secondarySuit')
 const peersL = contextL('peers')
 const peersT = pipe(peersL,
-  lens.composeTraversal(fromTraversable(readonlyArray.Traversable)<ConstrainedBid>()))
+  lens.composeTraversal(fromTraversable(RA.Traversable)<ConstrainedBid>()))
 const contextO = Optional.fromOptionProp<BidContext>()
 const forceO = contextO('force')
 const primarySuitO = contextO('primarySuit')
@@ -379,8 +383,8 @@ const specialRelayCase = (bid: Bid) => (s: S.State<BidContext, Constraint>) =>
           constraint.type === "Constant" && !constraint.value && force.type === "Relay" && eqBid.equals(force.bid, bid))))),
     S.map(s => s.relay ? constConstraintTrue() : s.constraint))
 
-export const satisfiesPath = (opener: Hand, responder: Hand) => (bids: ReadonlyArray<BidInfo>) =>
-  pipe(
+export const satisfiesPath = (opener: Hand, responder: Hand) => (bids: ReadonlyArray<BidInfo>) => {
+  return pipe(
     Gen.alternate(opener, responder),
     Gen.unfold(bids.length),
     RA.zip(bids),
@@ -394,10 +398,10 @@ export const satisfiesPath = (opener: Hand, responder: Hand) => (bids: ReadonlyA
         S.ap(S.of(hand)),
         S.chain(s => pipe(
           S.modify(pathL.modify(RA.prepend(bid))),
-          // S.chainFirst(() => context => { console.log(JSON.stringify(context)); return [0, context] }),
           S.map(() => s))))),
     S.map(RA.foldMap(boolean.MonoidAll)(identity)),
-    S.evaluate(zeroContext))
+    S.evaluate(zeroContext)) 
+  }
 
 // Only use for one-off checks, as it doesn't descend the entire bid tree
 export const satisfiesPathWithoutSiblingCheck = (opener: Hand, responder: Hand) =>
