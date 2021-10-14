@@ -1,10 +1,21 @@
-import { Deck, Hand, Suit, eqCard, ordCard, suits } from "./deck"
-import { readonlyNonEmptyArray as RNEA, readonlySet as RS, readonlyTuple as RT, apply, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlySet, readonlyTuple, semigroup, string } from "fp-ts"
+import { Deck, Hand, Suit, eqCard, ordCardDescending, suits } from "./deck"
+import { readonlyNonEmptyArray as RNEA, readonlySet as RS, readonlyTuple as RT, apply, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlySet, readonlyTuple, refinement, semigroup, string } from "fp-ts"
 import { flow, pipe } from "fp-ts/lib/function"
+
+import { ordAscending } from "../lib"
 
 export const directions = ['N', 'E', 'S', 'W'] as const
 export type Direction = typeof directions[number]
-export const ordDirection : ord.Ord<Direction> = pipe(number.Ord, ord.contramap(d => directions.indexOf(d)))
+export const eqDirection : eq.Eq<Direction> = string.Eq
+export const ordDirection = ordAscending(directions)
+
+export const partnerships = ["NorthSouth", "EastWest"] as const
+export type Partnership = typeof partnerships[number]
+export const eqPartnership : eq.Eq<Partnership> = string.Eq
+export const ordPartnership = ordAscending(partnerships)
+
+export const getPartnershipByDirection = (d: Direction): Partnership =>
+  (d === 'N' || d === 'S') ? "NorthSouth" : "EastWest"
 
 export type Deal = readonlyRecord.ReadonlyRecord<Direction, Hand>
 export type Player = {
@@ -22,10 +33,14 @@ export const deal = (deck: Deck) : Deal =>
 export const vulnerabilities = ["Neither", "NorthSouth", "EastWest", "Both"] as const
 export type Vulnerability = typeof vulnerabilities[number]
 
+export const getIsVulnerable = (dir: Direction, vul: Vulnerability) =>  
+  !(vul === "Neither") && ((vul === "Both") || getPartnershipByDirection(dir) === vul)
 
 export const strains = [...suits, 'N'] as const
 export type Strain = typeof strains[number]
 export const eqStrain : eq.Eq<Strain> = eq.eqStrict
+export const ordStrain : ord.Ord<Strain> = ordAscending(strains)
+
 export const minors: ReadonlyArray<Strain> = ['C', 'D']
 export const majors: ReadonlyArray<Strain> = ['H', 'S']
 
@@ -66,11 +81,18 @@ export const eqContractBid : eq.Eq<ContractBid> = eq.struct({
   level: number.Eq,
   strain: string.Eq
 })
+export const ordContractBid : ord.Ord<ContractBid> =
+  ord.getMonoid<ContractBid>().concat(
+    pipe(number.Ord, ord.contramap(c => c.level)),
+    pipe(ordStrain, ord.contramap(c => c.strain))
+  )
 export const contractBids : ReadonlyArray<ContractBid> =
-  apply.sequenceS(readonlyArray.Apply)(({
-    level: readonlyArray.makeBy(7, level => level + 1),
-    strain: strains
-  }))
+  pipe(
+    apply.sequenceS(readonlyArray.Apply)(({
+      level: readonlyArray.makeBy(7, level => level + 1),
+      strain: strains
+    })),
+    readonlyArray.sort(ordContractBid))
 
 export type Bid = NonContractBid | ContractBid
 export const isNonContractBid = (b: Bid) : b is NonContractBid => typeof b === "string"
@@ -94,9 +116,15 @@ export const eqContract : eq.Eq<Contract> = eq.struct({
 
 
 export type Auction = RNEA.ReadonlyNonEmptyArray<Bid>
-export type NonPassAuction = Auction & [...Auction, "Pass", "Pass", "Pass"]
-export type PassAuction = Auction & ["Pass", "Pass", "Pass", "Pass"]
+const consecutivePasses = ["Pass", "Pass", "Pass"] as const
+export type NonPassAuction = Auction & [...Auction, ...typeof consecutivePasses]
+const passout = ["Pass", "Pass", "Pass", "Pass"] as const
+export type PassAuction = typeof passout
 export type CompletedAuction = NonPassAuction | PassAuction
+export const eqAuction : eq.Eq<Auction> = readonlyNonEmptyArray.getEq(eqBid)
+export const isCompletedAuction : refinement.Refinement<Auction, CompletedAuction> = (a): a is CompletedAuction =>
+  a.length >= 4 &&
+  (eqAuction.equals(a, passout) || eqAuction.equals(a.slice(a.length - 3) as unknown as Auction, consecutivePasses))
 
 export interface BoardWithAuction extends Board {
   auction: Auction 
@@ -124,7 +152,7 @@ export const zeroSpecificShape = makeSpecificShape(0, 0, 0, 0)
 
 export const getHandSpecificShape = (hand: Hand) : SpecificShape =>
   pipe(hand,
-    readonlySet.toReadonlyArray(ordCard),
+    readonlySet.toReadonlyArray(ordCardDescending),
     readonlyNonEmptyArray.fromReadonlyArray,
     option.fold(() => zeroSpecificShape, flow(
       readonlyNonEmptyArray.groupBy(c => c.suit),

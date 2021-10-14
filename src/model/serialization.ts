@@ -2,7 +2,7 @@ import * as D from 'io-ts/Decoder'
 import * as iso from "monocle-ts/Iso"
 
 import { Board, Deal } from "./bridge"
-import { Card, Hand, eqCard, ordCard } from "./deck"
+import { Card, Hand, eqCard, ordCardDescending } from "./deck"
 import { either, readonlyRecord, readonlySet } from "fp-ts"
 
 import { Either } from 'fp-ts/lib/Either'
@@ -14,7 +14,7 @@ export type SerializedHand = ReadonlyArray<Card>
 export type DecodedSerializedHand = DecodedHand extends Either<infer L, unknown> ? either.Either<L, SerializedHand> : never
 
 export const serializedHandL : iso.Iso<Hand, SerializedHand> = iso.iso(
-  readonlySet.toReadonlyArray(ordCard),
+  readonlySet.toReadonlyArray(ordCardDescending),
   readonlySet.fromReadonlyArray(eqCard)
 )
 export type SerializedDeal = O.Update<Deal, keyof Deal, SerializedHand>

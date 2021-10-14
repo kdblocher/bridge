@@ -5,7 +5,7 @@ import { observeDealsParallel, observeResultsSerial } from "../workers"
 import { option, readonlyArray, readonlyTuple } from "fp-ts"
 import { serializedBoardL, serializedDealL, serializedHandL } from "../model/serialization"
 
-import { DoubleDummyResult } from "../model/analyze"
+import { DoubleDummyResult } from "../workers/dds.worker"
 import { Epic } from "redux-observable"
 import { RootState } from "../app/store"
 import { castDraft } from "immer"

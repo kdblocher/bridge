@@ -1,11 +1,12 @@
-import { boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyArray, readonlyNonEmptyArray as RNEA, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts'
-import { eqStrict } from 'fp-ts/lib/Eq'
-import { constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib/function'
-import { fromTraversable, lens, Lens, Optional, traversal } from 'monocle-ts'
-import { assertUnreachable } from '../lib'
-import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, makeShape, Shape as AnyShape, SpecificShape } from './bridge'
-import { Card, eqSuit, Hand, ordCard, Suit, suits } from './deck'
+import { Shape as AnyShape, Bid, ContractBid, SpecificShape, eqBid, eqShape, getHandShape, getHandSpecificShape, makeShape } from './bridge'
+import { Card, Hand, Suit, eqSuit, ordCardDescending, suits } from './deck'
+import { Lens, Optional, fromTraversable, lens, traversal } from 'monocle-ts'
+import { option as O, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, state as S, boolean, either, eq, hkt, identity as id, number, optionT, ord, readonlyArray, readonlySet, readonlyTuple, record, string } from 'fp-ts'
+import { constFalse, constTrue, constant, flow, identity, pipe } from 'fp-ts/lib/function'
+
 import { BidInfo } from './system'
+import { assertUnreachable } from '../lib'
+import { eqStrict } from 'fp-ts/lib/Eq'
 
 export interface ConstraintPointRange {
   type: "PointRange"
@@ -148,7 +149,7 @@ export const getCardHcp = (card: Card) =>
 
 export const getHcp =
   flow(
-    readonlySet.toReadonlyArray(ordCard),
+    readonlySet.toReadonlyArray(ordCardDescending),
     RA.foldMap(number.MonoidSum)(getCardHcp))
 
 const rangeCheck = (range: { min: number, max: number }) => ord.between(number.Ord)(range.min, range.max)

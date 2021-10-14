@@ -1,8 +1,8 @@
 /// <reference types="emscripten" />
 
-import { DoubleDummyResult, DoubleDummyTable } from "../model/analyze"
-import { SerializedBoard, serializedBoardL } from "../model/serialization"
+import { SerializedBoard, SerializedDeal, serializedBoardL } from "../model/serialization"
 
+import { TrickCountsByStrainThenDirection } from "../model/analyze"
 import { boardE } from "../parse/hand"
 import { pipe } from "fp-ts/lib/function"
 
@@ -19,8 +19,14 @@ importScripts("./libdds.wasm.min.js")
 
 const generateDDTable : ((board: string) => string) =
   Module.cwrap('generateDDTable', 'string', ['string'])
-const solve : ((board: string, trump: string, plays: number, playsPtr: number) => string) =
-  Module.cwrap('solve', 'string', ['string', 'string', 'number', 'number'])
+// const solve : ((board: string, trump: string, plays: number, playsPtr: number) => string) =
+//   Module.cwrap('solve', 'string', ['string', 'string', 'number', 'number'])
+
+export type DoubleDummyTable = TrickCountsByStrainThenDirection
+export interface DoubleDummyResult {
+  deal: SerializedDeal
+  results: DoubleDummyTable
+}
 
 export const getResult = (board: SerializedBoard) =>
   pipe(board,

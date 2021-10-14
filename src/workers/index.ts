@@ -1,14 +1,13 @@
 /* eslint-disable import/no-webpack-loader-syntax */
 
-import { Observable, from, of, repeat, take } from 'rxjs';
-import { constant, flow, pipe } from 'fp-ts/lib/function';
-import { readonlyArray, task } from 'fp-ts';
+import { Observable, from, repeat, take } from 'rxjs';
 
 import DDSWorker from 'comlink-loader!./dds.worker'; // inline loader
 import DealWorker from 'comlink-loader!./deal.worker'; // inline loader
 import { SerializedBoard } from '../model/serialization';
 import { observable } from 'fp-ts-rxjs';
 import { parallelize } from '../lib/concurrency';
+import { pipe } from 'fp-ts/lib/function';
 
 const observeBatchedDealsInfinite = (batchSize: number) => {
   const w = new DealWorker()
