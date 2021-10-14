@@ -1,0 +1,13 @@
+name: spell-check
+
+on:
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  spelling:
+    name: Spell check
+    steps:
+    - name: Check spelling
+      uses: check-spelling/check-spelling@main
