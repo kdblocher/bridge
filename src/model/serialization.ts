@@ -5,7 +5,7 @@ import * as iso from 'monocle-ts/Iso';
 import { O } from 'ts-toolbelt';
 
 import { decodeHand } from '../parse';
-import { Deal } from './bridge';
+import { Board, Deal } from './bridge';
 import { Card, eqCard, Hand, ordCardDescending } from './deck';
 
 export type DecodedHand = ReturnType<typeof decodeHand>

@@ -1,8 +1,9 @@
-import { readonlyArray, readonlyRecord, readonlySet, readonlyTuple, string } from 'fp-ts';
+import { ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlySet, readonlyTuple, string } from 'fp-ts';
 import { Right } from 'fp-ts/lib/Either';
 import { flow, identity, pipe } from 'fp-ts/lib/function';
 import * as e from 'io-ts/Encoder';
 
+import { Board, directions, ordDirection } from '../model/bridge';
 import { Card, eqCard, getOrdGroupedHand, groupHandBySuits, Hand, ordRankDescending, Rank, RankC, Suit, suits } from '../model/deck';
 import * as AST from '../parse/hand.peg.g';
 

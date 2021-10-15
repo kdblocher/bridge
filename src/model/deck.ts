@@ -1,9 +1,7 @@
-import * as t from 'io-ts';
-
-import { readonlyNonEmptyArray as RNEA, either, eq, number, option, ord, readonlyArray, readonlyRecord, readonlySet } from 'fp-ts';
-import { browserCrypto, shuffle } from 'random-js';
+import { either, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
-import { ordAscending, ordDescending } from '../lib';
+import * as t from 'io-ts';
+import { browserCrypto, shuffle } from 'random-js';
 
 import { ordAscending, ordDescending } from '../lib';
 
@@ -44,7 +42,7 @@ export const ordCardDescending : ord.Ord<Card> = ord.getMonoid<Card>().concat(
 export const cards: RNEA.ReadonlyNonEmptyArray<Card> =
   pipe(52, RNEA.makeBy(i => ({
     suit: suits[Math.floor(i / 13)],
-    rank: ranks[Math.floor(i % 13)]
+    rank: (RankC.decode((i % 13) + 2) as either.Right<Rank>).right
   })))
 
 export type Hand = ReadonlySet<Card>
