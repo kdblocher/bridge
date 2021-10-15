@@ -12,6 +12,7 @@
     <PackageReference Include="SqlHydra.Query" Version="0.530.0" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Model.fs" />
     <Compile Include="Database.g.fs" />
     <Compile Include="Query.fs" />
     <Compile Include="Control.fs" />

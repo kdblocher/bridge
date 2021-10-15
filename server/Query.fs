@@ -1,6 +1,7 @@
 module Query
 open Database
 open Database.dbo
+open Model
 open SqlHydra.Query
 open Microsoft.Data.SqlClient
 
@@ -31,18 +32,18 @@ let selectAsync (context: QueryContext) = context.ReadAsync HydraReader.Read
 // Notes about upsert patterns https://sqlperformance.com/2020/09/locking/upsert-anti-pattern
 // For now, try/catch around collisions is fine since it is so unlikely
 
-let getHandEntity id =
-  { Hand = id
+let getHandEntity hand =
+  { Hand = Hand.value hand
   }
 
-let insertHand : Id -> InsertQuery<Hands, int> =
+let insertHand : Hand -> InsertQuery<Hands, int> =
   getHandEntity >> (fun hand ->
     insert {
       into handTable
       entity hand
     })
 
-let insertHands : seq<Id> -> InsertQuery<Hands, int> =
+let insertHands : seq<Hand> -> InsertQuery<Hands, int> =
   Seq.map getHandEntity >> (fun hands ->
     insert {
       into handTable
