@@ -1,7 +1,7 @@
-name: CI/CD
+name: Build
 
 on:
-  push:
+  pull_request:
     branches: [ master ]
   workflow_dispatch:
 
@@ -17,9 +17,4 @@ jobs:
           node-version: '16'
           cache: 'yarn'
       - run: yarn install --frozen-lockfile
-      - run: yarn test
       - run: yarn build
-      - uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
