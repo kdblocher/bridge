@@ -1,0 +1,12 @@
+[general]
+connection = "server=localhost;database=Bridge;Trusted_Connection=true"
+output = "Database.g.fs"
+namespace = "Database"
+cli_mutable = false
+
+[readers]
+reader_type = "Microsoft.Data.SqlClient.SqlDataReader"
+
+[filters]
+include = []
+exclude = []

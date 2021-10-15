@@ -1,18 +1,5 @@
 open Giraffe
 open Microsoft.AspNetCore.Http
-
-let getHands = Successful.ok <| text "Hand Placeholder"
-let addHand = Successful.CREATED ()
-
-let webApp =
-  choose [
-    route "/ping" >=> GET >=> text "pong"
-    route "/hands" >=> choose [
-      GET >=> getHands
-      POST >=> addHand
-    ]
-  ]
-  
 open System.Text.Json
 open System.Text.Json.Serialization
 
@@ -33,6 +20,7 @@ let configureServices (config: IConfiguration) (services : IServiceCollection) =
   ignore <| services
     .AddGiraffe()
     .AddSingleton<Json.ISerializer>(serializer)
+    .AddScoped<SqlHydra.Query.QueryContext>(fun sp -> Query.openContext ())
 
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
@@ -40,7 +28,7 @@ open Microsoft.Extensions.Hosting
 open Microsoft.FSharp.Control
 
 let configureApp (app : IApplicationBuilder) =
-  app.UseGiraffe webApp
+  app.UseGiraffe Handlers.webApp
 
 [<EntryPoint>]
 let main args =
