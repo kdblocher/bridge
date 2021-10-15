@@ -1,4 +1,4 @@
-name: Run Build
+name: Build
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  client:
     runs-on: ubuntu-latest
     env: 
       CI: false
