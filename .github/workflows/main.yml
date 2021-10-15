@@ -31,6 +31,7 @@ jobs:
           cache: 'yarn'
       - run: yarn install --frozen-lockfile
       - run: yarn build
+      - run: yarn test
       
       - uses: peaceiris/actions-gh-pages@v3
         with:
