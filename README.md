@@ -1,3 +1,7 @@
+[![Tests](https://github.com/kdblocher/bridge/actions/workflows/test.yml/badge.svg)](https://github.com/kdblocher/bridge/actions/workflows/test.yml)
+[![Build](https://github.com/kdblocher/bridge/actions/workflows/build.yml/badge.svg)](https://github.com/kdblocher/bridge/actions/workflows/build.yml)
+[![CI/CD](https://github.com/kdblocher/bridge/actions/workflows/main.yml/badge.svg)](https://github.com/kdblocher/bridge/actions/workflows/main.yml)
+
 # Contract Bridge System Analysis Tool
 
 System analysis tool for the game of [Contract Bridge](https://en.wikipedia.org/wiki/Contract_bridge). Build a system book using human-readable syntax, and let the app get to work.
