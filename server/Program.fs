@@ -18,6 +18,7 @@ open Microsoft.Extensions.DependencyInjection
 
 let configureServices (config: IConfiguration) (services : IServiceCollection) =
   ignore <| services
+    .AddCors()
     .AddGiraffe()
     .AddSingleton<Json.ISerializer>(serializer)
     .AddScoped<SqlHydra.Query.QueryContext>(fun sp -> Query.openContext ())
@@ -28,7 +29,13 @@ open Microsoft.Extensions.Hosting
 open Microsoft.FSharp.Control
 
 let configureApp (app : IApplicationBuilder) =
-  app.UseGiraffe Handlers.webApp
+  app
+    .UseCors(fun builder -> 
+      ignore <| builder
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowAnyOrigin())
+    .UseGiraffe Handlers.webApp
 
 [<EntryPoint>]
 let main args =

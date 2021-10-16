@@ -9,7 +9,7 @@ let handTable = table<Hands>
 type Id = System.Guid
 
 let openContext () = 
-  let conn = new SqlConnection "server=localhost;database=Bridge;TrustServerCertificate=True;User ID=bridge;Password=refinance-unweave-unglazed-dizzy-shuffling"
+  let conn = new SqlConnection "server=localhost;database=Bridge;TrustServerCertificate=True;User ID=bridge;Password=refinance-unweave-unglazed-dizzy-shuffling;MultipleActiveResultSets=true"
   conn.Open ()
   new QueryContext(conn, SqlKata.Compilers.SqlServerCompiler ())
 
@@ -43,11 +43,13 @@ let insertHand : Hand -> InsertQuery<Hands, int> =
       entity hand
     })
 
-let insertHands : seq<Hand> -> InsertQuery<Hands, int> =
-  Seq.map getHandEntity >> (fun hands ->
+let insertHands : seq<Hand> -> seq<InsertQuery<Hands, int>> =
+  Seq.toArray
+  >> Array.chunkBySize 1000  // SQL Server only allows 1000 items per INSERT statement
+  >> Seq.map (Seq.map getHandEntity >> (fun hands ->
     insert {
       into handTable
       entities hands
-    })
+    }))
 
 let insertAsync (context: QueryContext) = context.InsertAsync
