@@ -1,27 +1,28 @@
-import { ContractBid, ContractModifier, Direction, Strain, Vulnerability, contractBids, getIsVulnerable, ordContractBid } from "./bridge";
-import { readonlyNonEmptyArray as RNEA, readonlyRecord as RR, either, eitherT, option, readonlyArray, readonlyMap, readonlyNonEmptyArray, readonlyRecord, readonlyTuple, refinement, semigroup } from "fp-ts";
-import { Score, eqScore, making, ordScore, score, zeroScore } from "./score";
-import { constant, flow, pipe } from "fp-ts/lib/function";
-import { ordAscending, ordDescending } from "../lib";
+import { either, eitherT, option, readonlyArray, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlyTuple, refinement, semigroup } from 'fp-ts';
+import { constant, flow, pipe } from 'fp-ts/lib/function';
+
+import { ordAscending, ordDescending } from '../lib';
+import { ContractBid, contractBids, ContractModifier, Direction, getIsVulnerable, ordContractBid, Strain, Vulnerability } from './bridge';
+import { eqScore, making, ordScore, Score, score, zeroScore } from './score';
 
 export type TrickCountsByStrain = RR.ReadonlyRecord<Strain, number>
 export type TrickCountsByDirection = RR.ReadonlyRecord<Direction, number>
 export type TrickCountsByStrainThenDirection = RR.ReadonlyRecord<Strain, TrickCountsByDirection>
 export type TrickCountsByDirectionThenStrain = RR.ReadonlyRecord<Direction, TrickCountsByStrain>
 
-const transpose = <K1 extends string, K2 extends string, T>(table: RR.ReadonlyRecord<K1, RR.ReadonlyRecord<K2, T>>) : RR.ReadonlyRecord<K2, RR.ReadonlyRecord<K1, T>> =>
+export const transpose = <K1 extends string, K2 extends string, T>(table: RR.ReadonlyRecord<K1, RR.ReadonlyRecord<K2, T>>) : RR.ReadonlyRecord<K2, RR.ReadonlyRecord<K1, T>> =>
   pipe(readonlyArray.Do,
-    readonlyArray.apS('inner', pipe(table, readonlyRecord.toReadonlyArray)),
-    readonlyArray.bind('outer', ({ inner }) => pipe(inner[1], readonlyRecord.toReadonlyArray)),
+    readonlyArray.apS('inner', pipe(table, RR.toReadonlyArray)),
+    readonlyArray.bind('outer', ({ inner }) => pipe(inner[1], RR.toReadonlyArray)),
     readonlyArray.map(({ outer, inner }) => ({ outerKey: outer[0], innerKey: inner[0], value: outer[1] })),
-    readonlyNonEmptyArray.fromReadonlyArray,
+    RNEA.fromReadonlyArray,
     option.fold(() => ({}),
-      readonlyNonEmptyArray.groupBy(x => x.outerKey)),
-    readonlyRecord.map(flow(
-      readonlyNonEmptyArray.fromReadonlyArray,
+      RNEA.groupBy(x => x.outerKey)),
+    RR.map(flow(
+      RNEA.fromReadonlyArray,
       option.fold(() => ({}),
-        readonlyNonEmptyArray.groupBy(x => x.innerKey)),
-      readonlyRecord.map(x => x[0].value))))
+        RNEA.groupBy(x => x.innerKey)),
+      RR.map(x => x[0].value))))
 
 
 type OptimalBid = ContractBid | "Pass"
@@ -49,7 +50,7 @@ const getDirectionScores = (counts: TrickCountsByStrain) => (isVulnerable: boole
 
 const getAllScores = (table: TrickCountsByDirectionThenStrain) => (vulnerability: Vulnerability) =>
   pipe(table,
-    readonlyRecord.mapWithIndex((direction, counts) =>
+    RR.mapWithIndex((direction, counts) =>
       getDirectionScores(counts)(getIsVulnerable(direction, vulnerability))))
 
 // const byContractDescending : ord.Ord<ContractScorePair> =
