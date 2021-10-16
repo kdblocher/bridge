@@ -31,18 +31,19 @@ let tryAddHand id : ContextHandlerReader =
       Hand.tryCreate id
       |>> Query.insertHand
       |> traverse queryContext.InsertAsync
-      |>> map (ignore >> (fun _ -> Successful.CREATED ""))
+      |>> map (ignore >> (fun () -> Successful.CREATED ""))
   }
 
 let tryAddHands : ContextHandlerReader = 
   monad {
     let! queryContext = Reader getQueryContext
     let! getBody = Reader (fun ctx -> ctx.BindJsonAsync<seq<System.Guid>>())
-    return
+    let x =
       getBody
       |>> traverse Hand.tryCreate
-      >>= traverse (Query.insertHands >> queryContext.InsertAsync)
-      |>> map (ignore >> (fun _ -> Successful.CREATED ""))
+      >>= (traverse (Query.insertHands >> traverse queryContext.InsertAsync))
+      |>> map (ignore >> (fun () -> Successful.CREATED ""))
+    return x
   }
 
 let (<|>) h1 h2 = choose [ h1; h2 ]
