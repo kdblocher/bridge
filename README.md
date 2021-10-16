@@ -50,32 +50,11 @@ The tool will attempt to parse each line into a [set of] constraints, which it t
 
 - "**&centerdot;**" denotes a syntactic space between the terms in the syntax above. If there is no dot, do not space the terms.)
 - "**...**" denotes terms that can be repeated indefinitely.
-### Sample Bidding System
+### Example Bidding Systems
 
-Here is a sample stub for a 2 over 1-based system. You can copy/paste this tree into the tool and extend it.
+[2/1 starter](two_over_one_example.md)
 
-- ``1C: 11-21 3+C 4-M``
-  - ``1H: 6+ 4+H``
-    - ``1N: 12-14 BAL 3-S``
-  - ``1S: 6+ 4+S``
-    - ``1N: 12-14 BAL``
-- ``1D: 11-21 3+D 4-M``
-  - ``1H: 6+ 4+H``
-    - ``1N: 12-14 BAL``
-  - ``1S: 6+ 4+S``
-    - ``1N: 12-14 BAL``
-- ``1H: 11-21 5+H``
-  - ``1S: 6+ 4+S``
-    - ``1N: 12-14 BAL 3-S``
-- ``1S: 11-21 5+S``
-  - ``1N: 5-12 F1``
-- ``1N: 15-17 BAL``
-- ``2C: 22+``
-  - ``2D: 7-``
-- ``2D: 5-11 6+D``
-- ``2H: 5-11 6+H``
-- ``2S: 5-11 6+S``
-- ``2N: 20-21 semiBAL``
+[Notrump responses](one_notrump_example.md)
 
 ## Hand Syntax
 Hands are entered in PBN syntax (see [3.4.11](http://home.claranet.nl/users/veugent/pbn/pbn_v20.txt) for the full specification). They take the form ``{S}.{H}.{D}.{C}`` where each suit has zero or more single-digit rank identifiers (in any order): `AKQJT98765432`. (There must always be exactly three dots (``.``) so voids are distinguishable.)
