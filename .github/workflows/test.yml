@@ -1,9 +1,6 @@
-name: CI/CD
+name: Tests
 
-on:
-  push:
-    branches: [ master ]
-  workflow_dispatch:
+on: [ push, workflow_dispatch ]
 
 jobs:
   client:
@@ -18,8 +15,3 @@ jobs:
           cache: 'yarn'
       - run: yarn install --frozen-lockfile
       - run: yarn test
-      - run: yarn build
-      - uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
