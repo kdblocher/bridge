@@ -52,9 +52,9 @@ The tool will attempt to parse each line into a [set of] constraints, which it t
 - "**...**" denotes terms that can be repeated indefinitely.
 ### Example Bidding Systems
 
-[2/1 starter](two_over_one_example.md)
+[2/1 starter](Two_over_one_example.md)
 
-[Notrump responses](one_notrump_example.md)
+[Notrump responses](ONE_NT_EXAMPLE.md)
 
 ## Hand Syntax
 Hands are entered in PBN syntax (see [3.4.11](http://home.claranet.nl/users/veugent/pbn/pbn_v20.txt) for the full specification). They take the form ``{S}.{H}.{D}.{C}`` where each suit has zero or more single-digit rank identifiers (in any order): `AKQJT98765432`. (There must always be exactly three dots (``.``) so voids are distinguishable.)
