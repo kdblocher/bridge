@@ -1,4 +1,4 @@
-import { option, readonlyArray, readonlyTuple } from 'fp-ts';
+import { option, readonlyArray } from 'fp-ts';
 import { observable } from 'fp-ts-rxjs';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
@@ -9,7 +9,7 @@ import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { RootState } from '../app/store';
 import { makeBoard } from '../model/bridge';
-import { serializedBoardL, serializedDealL, serializedHandL } from '../model/serialization';
+import { serializedBoardL, serializedDealL } from '../model/serialization';
 import { observeDealsParallel, observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 
@@ -86,6 +86,7 @@ export const analyzeDealsEpic : Epic<AnyAction, AnyAction, RootState> =
     
 export const selectAllDeals = (state: State) =>
   pipe(state.results,
-    readonlyArray.map(r => pipe(
-      [r.deal["N"], r.deal["S"]] as const,
-      readonlyTuple.bimap(serializedHandL.reverseGet, serializedHandL.reverseGet))))
+    readonlyArray.map(flow(
+      r => r.deal,
+      serializedDealL.reverseGet,
+      deal => [deal.N, deal.S] as const)))

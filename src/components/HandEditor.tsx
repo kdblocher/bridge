@@ -1,16 +1,15 @@
-import * as Deck from "../model/deck"
+import { option, readonlyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
+import { constVoid, flow, pipe } from 'fp-ts/lib/function';
+import { useCallback, useEffect, useState } from 'react';
+import styled from 'styled-components';
 
-import { AuctionPositionType, genHands, getResult, selectHand, setHand } from "../reducers/selection"
-import { constVoid, flow, pipe } from "fp-ts/lib/function"
-import { directions, strains } from "../model/bridge"
-import { option, readonlyArray, readonlyRecord, readonlyTuple } from "fp-ts"
-import { useAppDispatch, useAppSelector } from "../app/hooks"
-import { useCallback, useEffect, useState } from "react"
-
-import { Option } from "./core/Monad"
-import { handE } from "../parse/hand"
-import { serializedHandL } from "../model/serialization"
-import styled from "styled-components"
+import { useAppDispatch, useAppSelector } from '../app/hooks';
+import { directions, strains } from '../model/bridge';
+import * as Deck from '../model/deck';
+import { serializedDealL, serializedHandL } from '../model/serialization';
+import { handE } from '../parse/hand';
+import { AuctionPositionType, genHands, getResult, selectHand, setHand } from '../reducers/selection';
+import { Option } from './core/Monad';
 
 interface HandInputProps {
   type: AuctionPositionType
@@ -132,7 +131,7 @@ const DoubleDummyResult = () => {
         {directions.map((d, i) => <tr key={i}>
           <td>{d}</td>
           {strains.map((s, i) => <td key={i}>{result.results[s][d]}</td>)}
-          <td><HandView hand={serializedHandL.reverseGet(result.deal[d])} /></td>
+          <td><HandView hand={serializedDealL.reverseGet(result.deal)[d]} /></td>
         </tr>)}
       </tbody>
     </table>)
