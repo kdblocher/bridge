@@ -32,16 +32,15 @@ export const decodeUuid : D.Decoder<string, Uuid> = {
 }
 
 const MASK = 0b11 as const
-const getUuidQuads = (uuid: UuidLike) => {
-  // debugger;
-  return pipe(new Uuid(uuid.id).toBytes(),
+const getUuidQuads = (uuid: UuidLike) => 
+  pipe(new Uuid(uuid.id).toBytes(),
     readonlyArray.takeLeft(13),
-    readonlyArray.chain(byte =>
+    readonlyArray.chain(flow(byte =>
       readonlyArray.unfold([byte, 4 as number] as const, ([byte, i]) =>
         i === 0
         ? option.none
-        : option.some([byte & MASK, [byte >> 2, i - 1]] as const)))) as ReadonlyNonEmptyArray<number>
-    }
+        : option.some([byte & MASK, [byte >> 2, i - 1]] as const)),
+        readonlyArray.reverse))) as ReadonlyNonEmptyArray<number>
 
 export type SerializedDeal = t.Branded<UuidLike, { readonly Deal: unique symbol }>
 const isDealUuid: refinement.Refinement<UuidLike, SerializedDeal> =
