@@ -1,13 +1,13 @@
-import { selectAllCompleteBidPaths, selectErrors } from "../reducers/system"
-import { useAppDispatch, useAppSelector } from "../app/hooks"
+import { option } from 'fp-ts';
+import { pipe } from 'fp-ts/lib/function';
+import { draw } from 'io-ts/lib/Decoder';
+import { useState } from 'react';
 
-import BidPath from "./core/BidPath"
-import { analyzeDeals } from "../reducers/generator"
-import { draw } from "io-ts/lib/Decoder"
-import { option } from "fp-ts"
-import { pipe } from "fp-ts/lib/function"
-import { selectSatisfyStats } from "../reducers"
-import { useState } from "react"
+import { useAppDispatch, useAppSelector } from '../app/hooks';
+import { selectSatisfyStats } from '../reducers';
+import { analyzeDeals } from '../reducers/generator';
+import { selectAllCompleteBidPaths, selectErrors } from '../reducers/system';
+import BidPath from './core/BidPath';
 
 const Stats = () => {
   const generating = useAppSelector(state => pipe(state.generator.generating, option.toNullable))
@@ -16,7 +16,7 @@ const Stats = () => {
   const errors = useAppSelector(state => selectErrors(state.system))
   const showGenerate = rules !== null && rules.length > 0 && errors.length === 0
   const stats = useAppSelector(selectSatisfyStats)
-  const [count, setCount] = useState<number>(10000)
+  const [count, setCount] = useState<number>(20)
   return (
     <section>
       <h3>Stats</h3>

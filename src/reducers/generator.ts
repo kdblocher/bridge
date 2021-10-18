@@ -2,21 +2,21 @@ import { option, readonlyArray } from 'fp-ts';
 import { observable } from 'fp-ts-rxjs';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
-import { Epic } from 'redux-observable';
+import { Epic, StateObservable } from 'redux-observable';
 import { bufferCount, concatWith, filter } from 'rxjs';
 
 import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { RootState } from '../app/store';
 import { makeBoard } from '../model/bridge';
-import { serializedBoardL, serializedDealL } from '../model/serialization';
+import { serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
 import { observeDealsParallel, observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 
 const name = 'generator'
 
 interface State {
-  results: ReadonlyArray<DoubleDummyResult>
+  results: ReadonlyArray<SerializedDeal>
   generating: option.Option<number>
 }
 const initialState: State = {
@@ -50,7 +50,7 @@ const slice = createSlice({
       state.results = []
       state.generating = option.some(action.payload)
     },
-    reportResults: (state, action: PayloadAction<ReadonlyArray<DoubleDummyResult>>) => {
+    reportResults: (state, action: PayloadAction<State["results"]>) => {
       state.results = pipe(state.results,
         readonlyArray.concat(action.payload),
         castDraft)
@@ -72,14 +72,14 @@ export const analyzeDealsEpic : Epic<AnyAction, AnyAction, RootState> =
     observable.map(a => a.payload),
     observable.chain(flow(
       observeDealsParallel,
-      observable.map(flow(
-        observable.map(flow(
-          serializedDealL.reverseGet,
-          makeBoard(0),
-          serializedBoardL.get)),
-        observeResultsSerial)),
+      // observable.map(flow(
+      //   observable.map(flow(
+      //     serializedDealL.reverseGet,
+      //     makeBoard(0),
+      //     serializedBoardL.get)),
+      //   observeResultsSerial)),
       observable.flatten,
-      bufferCount(5),
+      bufferCount(100),
       observable.map(reportResults),
       concatWith([done()])
       )))
@@ -87,6 +87,6 @@ export const analyzeDealsEpic : Epic<AnyAction, AnyAction, RootState> =
 export const selectAllDeals = (state: State) =>
   pipe(state.results,
     readonlyArray.map(flow(
-      r => r.deal,
+      // r => r.deal,
       serializedDealL.reverseGet,
       deal => [deal.N, deal.S] as const)))
