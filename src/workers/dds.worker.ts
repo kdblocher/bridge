@@ -30,7 +30,6 @@ export interface DoubleDummyResult {
 }
 export const getResult = (board: SerializedBoard): DoubleDummyResult =>
   pipe(board,
-    x => { debugger; return x },
     serializedBoardL.reverseGet,
     boardE.encode,
     generateDDTable,

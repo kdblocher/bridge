@@ -94,10 +94,11 @@ export const analyzeResultsEpic : E = (action$, state$) =>
     observable.chain(a =>
       pipe(
         a.payload.deals,
-        readonlyArray.map(flow(
-          serializedDealL.reverseGet,
-          makeBoard(0),
-          serializedBoardL.get)),
+        readonlyArray.mapWithIndex((i, d) =>
+          pipe(d,
+            serializedDealL.reverseGet,
+            makeBoard(i + 1),
+            serializedBoardL.get)),
         readonlyNonEmptyArray.fromReadonlyArray,
         option.fold(() => from([]),
           boards =>
