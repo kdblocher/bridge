@@ -22,6 +22,7 @@ export type Player = {
   direction: Direction
   hand: Hand
 }
+export const eqHand : eq.Eq<Hand> = RS.getEq(eqCard)
 
 export const deal = (deck: Deck) : Deal =>
   pipe(directions,
@@ -29,6 +30,8 @@ export const deal = (deck: Deck) : Deal =>
     RNEA.groupBy(RT.fst),
     readonlyRecord.map(flow(RNEA.head, RT.snd, RS.fromReadonlyArray(eqCard))),
     (x: readonlyRecord.ReadonlyRecord<Direction, Hand>) => x)
+export const eqDeal : eq.Eq<Deal> =
+  readonlyRecord.getEq<Direction, Hand>(eqHand)
 
 export const vulnerabilities = ["Neither", "NorthSouth", "EastWest", "Both"] as const
 export type Vulnerability = typeof vulnerabilities[number]
@@ -45,9 +48,16 @@ export const minors: ReadonlyArray<Strain> = ['C', 'D']
 export const majors: ReadonlyArray<Strain> = ['H', 'S']
 
 export interface Board {
-  number: number
   dealer: Direction
   deal: Deal
+}
+export const eqBoard : eq.Eq<Board> = eq.struct({
+  dealer: eqDirection,
+  deal: eqDeal
+})
+
+export interface BoardWithDetail extends Board {
+  number: number
   vulnerability: Vulnerability
 }
 
@@ -61,7 +71,7 @@ const boneChart = (boardNumber: number) : Vulnerability => {
   }
 }
 
-export const makeBoard = (number: number) => (deal: Deal) : Board => ({
+export const makeBoard = (number: number) => (deal: Deal) : BoardWithDetail => ({
   number,
   dealer: directions[(number - 1) % directions.length],
   deal,

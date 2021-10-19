@@ -1,16 +1,19 @@
-import { either, option } from 'fp-ts';
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { either, option, readonlyArray, readonlyNonEmptyArray, readonlySet } from 'fp-ts';
+import { observable } from 'fp-ts-rxjs';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import * as D from 'io-ts/Decoder';
-import { O, U } from 'ts-toolbelt';
-
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-
-import { deal, Deal, Direction } from '../model/bridge';
+import { O } from 'ts-toolbelt';
+import { Board, Deal, deal, Direction } from '../model/bridge';
 import { Constraint, satisfies } from '../model/constraints';
-import { Hand, newDeck } from '../model/deck';
-import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL } from '../model/serialization';
+import { eqCard, Hand, newDeck, ordCardDescending } from '../model/deck';
+import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL, serializedBoardL, SerializedHand, serializedHandL } from '../model/serialization';
 import { decodeHand } from '../parse';
+import { observeResultsSerial } from '../workers';
+import { DoubleDummyResult } from '../workers/dds.worker';
+
+
 
 const name = 'selection'
 
@@ -18,8 +21,9 @@ interface State {
   selectedBlockKey: option.Option<string>
   opener?: DecodedSerializedHand
   responder?: DecodedSerializedHand
+  result?: DoubleDummyResult
 }
-export type AuctionPositionType = O.SelectKeys<State, U.Nullable<DecodedHand>>
+export type AuctionPositionType = O.SelectKeys<State, DecodedHand>
 
 const initialState : State = {
   selectedBlockKey: option.none
@@ -27,6 +31,36 @@ const initialState : State = {
 
 const getHandByDirection = (dir: Direction) => (d: Deal) =>
   pipe(d[dir], either.right, decodedSerializedHandL.get, castDraft)
+
+interface Hands {
+  opener: SerializedHand
+  responder: SerializedHand
+}
+
+const getResult = createAsyncThunk('abc', ({ opener, responder}: Hands) =>
+  pipe(
+    genBoardFromHands(serializedHandL.reverseGet(opener), serializedHandL.reverseGet(responder)),
+    serializedBoardL.get,
+    readonlyNonEmptyArray.of,
+    observeResultsSerial,
+    observable.toTask,
+    t => t()))
+
+const genBoardFromHands = (opener: Hand, responder: Hand) =>
+  pipe(newDeck(),
+    readonlyArray.difference(eqCard)(pipe(opener, readonlySet.toReadonlyArray(ordCardDescending))),
+    readonlyArray.difference(eqCard)(pipe(responder, readonlySet.toReadonlyArray(ordCardDescending))),
+    readonlyArray.chunksOf(13),
+    readonlyArray.map(readonlySet.fromReadonlyArray(eqCard)),
+    ([l, r]) : Board => ({
+      dealer: 'N',
+      deal: {
+        N: opener,
+        S: responder,
+        E: l,
+        W: r
+      }
+    }))
 
 const slice = createSlice({
   name,
@@ -45,11 +79,17 @@ const slice = createSlice({
       const d = deal(newDeck())
       state['opener'] = getHandByDirection("N")(d)
       state['responder'] = getHandByDirection("S")(d)
-    }
-  }
-})
+    },
+  },
+  extraReducers: builder => builder
+    .addCase(getResult.fulfilled, (state, action) => {
+      state.result = pipe(action.payload, castDraft)
+    })
+  })
+
 
 export const { setSelectedBlockKey, setHand, genHands } = slice.actions
+export { getResult };
 
 export default slice.reducer
 
