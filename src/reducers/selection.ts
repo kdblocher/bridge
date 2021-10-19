@@ -1,19 +1,22 @@
-import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { either, option, readonlyArray, readonlyNonEmptyArray, readonlySet } from 'fp-ts';
 import { observable } from 'fp-ts-rxjs';
+import { tailRec } from 'fp-ts/lib/ChainRec';
+import { ChainRec } from 'fp-ts/lib/Either';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import * as D from 'io-ts/Decoder';
 import { O } from 'ts-toolbelt';
+
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+
 import { Board, Deal, deal, Direction } from '../model/bridge';
-import { Constraint, satisfies } from '../model/constraints';
+import { Constraint, satisfies, satisfiesPath } from '../model/constraints';
 import { eqCard, Hand, newDeck, ordCardDescending } from '../model/deck';
 import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL, serializedBoardL, SerializedHand, serializedHandL } from '../model/serialization';
+import { BidPath } from '../model/system';
 import { decodeHand } from '../parse';
 import { observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
-
-
 
 const name = 'selection'
 
@@ -80,6 +83,17 @@ const slice = createSlice({
       state['opener'] = getHandByDirection("N")(d)
       state['responder'] = getHandByDirection("S")(d)
     },
+    genHandsUntil: (state, action: PayloadAction<BidPath>) => {
+      const [opener, responder] = tailRec<BidPath, readonly [Hand, Hand]>(action.payload, (path => {
+        const d = deal(newDeck())
+        const hands = [d.N, d.S] as const
+        return satisfiesPath(...hands)(path)
+          ? either.right(hands)
+          : either.left(path)
+      }))
+      state.opener = pipe(opener, either.right, decodedSerializedHandL.get, castDraft)
+      state.responder = pipe(responder, either.right, decodedSerializedHandL.get, castDraft)
+    }
   },
   extraReducers: builder => builder
     .addCase(getResult.fulfilled, (state, action) => {
@@ -88,10 +102,14 @@ const slice = createSlice({
   })
 
 
-export const { setSelectedBlockKey, setHand, genHands } = slice.actions
+export const { setSelectedBlockKey, setHand, genHands, genHandsUntil } = slice.actions
 export { getResult };
 
 export default slice.reducer
+
+export const selectBlockKey = (state: State) =>
+  pipe(state.selectedBlockKey,
+    option.toNullable)
 
 export const selectTestConstraint = (state: State, constraint: Constraint) : boolean =>
   pipe(state.opener,
@@ -104,4 +122,3 @@ export const selectHand = (state: State, type: AuctionPositionType) : option.Opt
   pipe(state[type],
     option.fromNullable,
     option.chain(flow(decodedSerializedHandL.reverseGet, option.fromEither)))
-  

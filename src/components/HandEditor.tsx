@@ -1,15 +1,16 @@
-import { option, readonlyRecord } from 'fp-ts';
+import { either, option, readonlyRecord } from 'fp-ts';
 import { constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { useCallback, useEffect, useState } from 'react';
 import styled from 'styled-components';
+
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { serializedHandL } from '../model/serialization';
 import { handE } from '../parse/hand';
-import { AuctionPositionType, genHands, getResult, selectHand, setHand } from '../reducers/selection';
+import { AuctionPositionType, genHands, genHandsUntil, getResult, selectBlockKey, selectHand, setHand } from '../reducers/selection';
+import { selectBidsByKey, selectCompleteByKey as selectCompleteBidPathByKey } from '../reducers/system';
 import DoubleDummyResultView from './core/DoubleDummyResultView';
 import HandView from './core/HandView';
 import { Option } from './core/Monad';
-
 
 interface HandInputProps {
   type: AuctionPositionType
@@ -39,6 +40,15 @@ const HandInput = ({ type }: HandInputProps) => {
 const HandCol = styled.th `
   width: 15em;
 `
+
+const GenerateUntil = () => {
+  const blockKey = useAppSelector(state => selectBlockKey(state.selection))
+  const bidPath = useAppSelector(state => blockKey !== null ? selectCompleteBidPathByKey(state.system, blockKey) : null)
+  const dispatch = useAppDispatch()
+  return <>
+    {bidPath && <button type="button" onClick={() => dispatch(genHandsUntil(bidPath))}>Generate Match</button>}
+  </>
+}
 
 const HandEditor = () => {
   const dispatch = useAppDispatch()
@@ -78,8 +88,11 @@ const HandEditor = () => {
           </tr>
           <tr>
             <td>
-              <button type="button" onClick={() => dispatch(genHands())}>Generate</button> <br/>
-              <button type="button" onClick={getResultCallback}>Get Results</button> <br/>
+              <button type="button" onClick={() => dispatch(genHands())}>Generate Once</button>
+              <GenerateUntil />
+              {/* <button type="button" onClick={() => dispatch(genHands())}>Generate Non-Match</button> */}
+              <br/>
+              <button type="button" onClick={getResultCallback}>Solution</button> 
             </td>
           </tr>
         </tbody>
