@@ -23,7 +23,7 @@ IF OBJECT_ID('tempdb..#nums','U') IS NOT NULL
 DROP TABLE #nums
 IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[deals]') AND type in (N'U'))
 DROP TABLE [dbo].[deals]
-IF OBJECT_ID('shape_table','U') IS NOT NULL
+IF OBJECT_ID(N'[dbo].[shape_table]','U') IS NOT NULL
 DROP TABLE shape_table
 
 --all temp tables just lower case
@@ -31,7 +31,7 @@ CREATE TABLE #nums (suit_count tinyint)
 INSERT INTO #nums (suit_count)
 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13)
 
-CREATE TABLE shape_table (
+CREATE TABLE dbo.shape_table (
 	id smallint PRIMARY KEY CLUSTERED IDENTITY(1,1),
 	spade_length tinyint,
 	heart_length tinyint,
@@ -39,7 +39,7 @@ CREATE TABLE shape_table (
 	club_length tinyint
 	)
 
-INSERT INTO shape_table
+INSERT INTO dbo.shape_table
 SELECT	
 	d.suit_count as spade_length,
 	c.suit_count as heart_length,
@@ -99,10 +99,10 @@ CREATE TABLE [dbo].[deals](
 	par_west_allvul smallint,
 	when_dealt datetime				-- For an extra 3 btyes, store when the hand was generated
 	CONSTRAINT [PK_deal] PRIMARY KEY CLUSTERED 	([deal] ASC),
-	CONSTRAINT FK_north_shape FOREIGN KEY (shape_north) REFERENCES shape_table(id),
-	CONSTRAINT FK_east_shape FOREIGN KEY (shape_east) REFERENCES shape_table(id),
-	CONSTRAINT FK_south_shape FOREIGN KEY (shape_south) REFERENCES shape_table(id),
-	CONSTRAINT FK_west_shape FOREIGN KEY (shape_west) REFERENCES shape_table(id)
+	CONSTRAINT FK_north_shape FOREIGN KEY (shape_north) REFERENCES dbo.shape_table(id),
+	CONSTRAINT FK_east_shape FOREIGN KEY (shape_east) REFERENCES dbo.shape_table(id),
+	CONSTRAINT FK_south_shape FOREIGN KEY (shape_south) REFERENCES dbo.shape_table(id),
+	CONSTRAINT FK_west_shape FOREIGN KEY (shape_west) REFERENCES dbo.shape_table(id)
 )
 
 --example index to test write speed slowdown and begin analysis of what indexes we will actually want
