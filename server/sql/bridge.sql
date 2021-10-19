@@ -24,7 +24,7 @@ DROP TABLE #nums
 IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[deals]') AND type in (N'U'))
 DROP TABLE [dbo].[deals]
 IF OBJECT_ID(N'[dbo].[shape_table]','U') IS NOT NULL
-DROP TABLE shape_table
+DROP TABLE [dbo].[shape_table]
 
 --all temp tables just lower case
 CREATE TABLE #nums (suit_count tinyint)
