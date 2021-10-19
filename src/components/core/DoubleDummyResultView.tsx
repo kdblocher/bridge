@@ -1,6 +1,8 @@
 import styled from 'styled-components';
 import { directions, strains } from '../../model/bridge';
+import { serializedDealL } from '../../model/serialization';
 import { DoubleDummyResult } from '../../workers/dds.worker';
+import HandView from './HandView';
 
 
 const suitBase = `
@@ -31,7 +33,7 @@ const DoubleDummyResultView = ({ result }: Props) => {
         {directions.map((d, i) => <tr key={i}>
           <td>{d}</td>
           {strains.map((s, i) => <td key={i}>{result.results[s][d]}</td>)}
-          {/* <td><HandView hand={serializedDealL.reverseGet(result.deal)[d]} /></td> */}
+          <td><HandView hand={serializedDealL.reverseGet(result.board.deal)[d]} /></td>
         </tr>)}
       </tbody>
     </table>
