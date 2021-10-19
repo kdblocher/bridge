@@ -13,6 +13,7 @@
     "@types/react-dom": "^16.9.0",
     "@types/react-redux": "^7.1.7",
     "@types/styled-components": "^5.1.14",
+    "arquero": "^4.8.7",
     "comlink-loader": "^2.0.0",
     "draft-js": "^0.11.7",
     "fp-ts": "^2.11.4",

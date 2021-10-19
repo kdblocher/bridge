@@ -5,11 +5,12 @@ import { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { ContractBid } from '../model/bridge';
 import { serializedBidPathL } from '../model/serialization';
+import { average, getStats, stdev } from '../model/stats';
 import { BidPathResult, selectSatisfyStats } from '../reducers';
 import { generate, getResults, selectProgress, selectResultsByPath } from '../reducers/generator';
 import { selectAllCompleteBidPaths, selectErrors } from '../reducers/system';
 import BidPath from './core/BidPath';
-import DoubleDummyResultView from './core/DoubleDummyResultView';
+import { DoubleDummyTableView } from './core/DoubleDummyResultView';
 
 
 interface StatsPathProps {
@@ -18,14 +19,26 @@ interface StatsPathProps {
 const StatsPath = ({ result }: StatsPathProps) => {
   const dispatch = useAppDispatch()
   const dds = useAppSelector(state => selectResultsByPath(state.generator, pipe(result.path, readonlyNonEmptyArray.map(p => p.bid as ContractBid), serializedBidPathL.get)))
+  const stats = dds && getStats(pipe(dds, readonlyNonEmptyArray.map(d => d.results)))
+  const averages = stats && average(stats)
+  const stdevs = stats && stdev(stats)
   return (
     <>
       <BidPath path={result.path} />
       : &nbsp;
       <span>{result.count.toString()}</span>
-      {dds === null
+      {averages !== null && <section>
+        <h4>Average</h4>
+        {averages !== null && <DoubleDummyTableView table={averages} />}
+      </section>}
+      {stdevs !== null && <section>
+        <h4>Std. Dev.</h4>
+        <DoubleDummyTableView table={stdevs} />
+      </section>}
+      {dds === null && <button onClick={e => dispatch(getResults({ path: result.path, deals: result.deals }))}>DDS</button>}
+      {/* {dds === null
         ? <button onClick={e => dispatch(getResults({ path: result.path, deals: result.deals }))}>DDS</button>
-        : <ul>{dds.map((ddr, i) => <li  key={i}><DoubleDummyResultView result={ddr} /></li>)}</ul>}
+        : <ul>{dds.map((ddr, i) => <li  key={i}><DoubleDummyResultView result={ddr} /></li>)}</ul>} */}
     </>)
 }
 
