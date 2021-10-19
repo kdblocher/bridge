@@ -1,8 +1,8 @@
-import { apply, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet as RS, readonlyTuple as RT, refinement, semigroup, string } from 'fp-ts';
+import { apply, eq, number, option, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet as RS, readonlyTuple as RT, refinement, semigroup, string } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 
 import { ordAscending } from '../lib';
-import { Deck, eqCard, Hand, ordCardDescending, Suit, suits } from './deck';
+import { Card, Deck, eqCard, Hand, ordCardDescending, Suit, suits } from './deck';
 
 export const directions = ['N', 'E', 'S', 'W'] as const
 export type Direction = typeof directions[number]
@@ -95,11 +95,11 @@ export const ordContractBid : ord.Ord<ContractBid> =
   )
 export const contractBids : ReadonlyArray<ContractBid> =
   pipe(
-    apply.sequenceS(readonlyArray.Apply)(({
-      level: readonlyArray.makeBy(7, level => level + 1),
+    apply.sequenceS(RA.Apply)(({
+      level: RA.makeBy(7, level => level + 1),
       strain: strains
     })),
-    readonlyArray.sort(ordContractBid))
+    RA.sort(ordContractBid))
 
 export type Bid = NonContractBid | ContractBid
 export const isNonContractBid = (b: Bid) : b is NonContractBid => typeof b === "string"
@@ -139,13 +139,21 @@ export interface BoardWithCompletedAuction extends BoardWithAuction {
   auction: CompletedAuction
 }
 
+export const getCardHcp = (card: Card) =>
+  Math.max(0, card.rank - 10)
+
+export const getHcp =
+  flow(
+    RS.toReadonlyArray(ordCardDescending),
+    RA.foldMap(number.MonoidSum)(getCardHcp))
+
 export type Shape = readonly [number, number, number, number]
 export const zeroShape: Shape = [0, 0, 0, 0]
-export const sortShape = (s: Shape) => pipe(s, readonlyArray.sort(ord.reverse(number.Ord))) as Shape
+export const sortShape = (s: Shape) => pipe(s, RA.sort(ord.reverse(number.Ord))) as Shape
 export const makeShape = (...counts: Shape) =>
   pipe(counts, sortShape)
 export const eqShape : eq.Eq<Shape> =
-  eq.contramap(sortShape)(readonlyArray.getEq(number.Eq))
+  eq.contramap(sortShape)(RA.getEq(number.Eq))
 
 export type SpecificShape = Record<Suit, number>
 export const makeSpecificShape = (s: number, h: number, d: number, c: number) : SpecificShape => ({
@@ -170,6 +178,6 @@ export const getHandShape = (hand: Hand) : Shape =>
   pipe(hand,
     getHandSpecificShape,
     readonlyRecord.toReadonlyArray,
-    readonlyArray.map(RT.snd),
-    suitCounts => readonlyArray.mapWithIndex((idx, _) =>
-      pipe(suitCounts, readonlyArray.lookup(idx), option.getOrElse(() => 0)))(zeroShape)) as Shape
+    RA.map(RT.snd),
+    suitCounts => RA.mapWithIndex((idx, _) =>
+      pipe(suitCounts, RA.lookup(idx), option.getOrElse(() => 0)))(zeroShape)) as Shape

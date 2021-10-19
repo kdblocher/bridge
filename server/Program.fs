@@ -11,6 +11,7 @@ let serializer =
     unionTagNamingPolicy = JsonNamingPolicy.CamelCase)
     |> JsonFSharpConverter
     |> options.Converters.Add
+  options.PropertyNameCaseInsensitive <- true
   options |> SystemTextJson.Serializer
 
 open Microsoft.Extensions.Configuration
