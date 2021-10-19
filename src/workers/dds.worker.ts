@@ -1,10 +1,10 @@
 /// <reference types="emscripten" />
 
-import { SerializedBoard, SerializedDeal, serializedBoardL } from "../model/serialization"
+import { pipe } from 'fp-ts/lib/function';
+import { TrickCountsByStrainThenDirection } from '../model/analyze';
+import { SerializedBoard, serializedBoardL } from '../model/serialization';
+import { boardE } from '../parse/hand';
 
-import { TrickCountsByStrainThenDirection } from "../model/analyze"
-import { boardE } from "../parse/hand"
-import { pipe } from "fp-ts/lib/function"
 
 interface LibDDSModule extends EmscriptenModule {
 	cwrap: typeof cwrap;
@@ -22,16 +22,16 @@ const generateDDTable : ((board: string) => string) =
 // const solve : ((board: string, trump: string, plays: number, playsPtr: number) => string) =
 //   Module.cwrap('solve', 'string', ['string', 'string', 'number', 'number'])
 
+// Do NOT change this, as this is most definitely the return type of generateDDTable
 export type DoubleDummyTable = TrickCountsByStrainThenDirection
 export interface DoubleDummyResult {
-  deal: SerializedDeal
+  board: SerializedBoard
   results: DoubleDummyTable
 }
-
-export const getResult = (board: SerializedBoard) =>
+export const getResult = (board: SerializedBoard): DoubleDummyResult =>
   pipe(board,
     serializedBoardL.reverseGet,
     boardE.encode,
     generateDDTable,
     result => JSON.parse(result) as DoubleDummyTable,
-    (results): DoubleDummyResult => ({ ...board, results }))
+    (results): DoubleDummyResult => ({ board, results }))

@@ -2,14 +2,14 @@ import { option, readonlyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
 import { constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { useCallback, useEffect, useState } from 'react';
 import styled from 'styled-components';
-
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { directions, strains } from '../model/bridge';
 import * as Deck from '../model/deck';
-import { serializedDealL, serializedHandL } from '../model/serialization';
+import { serializedHandL } from '../model/serialization';
 import { handE } from '../parse/hand';
 import { AuctionPositionType, genHands, getResult, selectHand, setHand } from '../reducers/selection';
+import DoubleDummyResultView from './core/DoubleDummyResultView';
 import { Option } from './core/Monad';
+
 
 interface HandInputProps {
   type: AuctionPositionType
@@ -76,11 +76,6 @@ const suitBase = `
   &.C::before { content: "♣"; color: #32CD32 }
 `
 
-const StrainSpan = styled.span `
-  ${suitBase}
-  &.N::before { content: "NT"; color: #000000; font-size: 12px; }
-`
-
 const SuitListItem = styled.li `
   display: inline;
   &::before {
@@ -117,26 +112,6 @@ const HandView = ({ hand }: HandProps) => {
   )
 }
 
-const DoubleDummyResult = () => {
-  const result = useAppSelector(state => state.selection.result)
-  return (!result ? <></> :
-    <table>
-      <thead>
-        <tr>
-          <th></th>
-          {strains.map((s, i) => <th style={{fontWeight: "normal", verticalAlign: "middle"}} key={i}><StrainSpan className={s} /></th>)}
-        </tr>
-      </thead>
-      <tbody>
-        {directions.map((d, i) => <tr key={i}>
-          <td>{d}</td>
-          {strains.map((s, i) => <td key={i}>{result.results[s][d]}</td>)}
-          <td><HandView hand={serializedDealL.reverseGet(result.deal)[d]} /></td>
-        </tr>)}
-      </tbody>
-    </table>)
-}
-
 const HandEditor = () => {
   const dispatch = useAppDispatch()
   const [o, r] = [
@@ -152,34 +127,36 @@ const HandEditor = () => {
       getResult,
       dispatch)),
     constVoid), [dispatch, o, r])
+
+  const result = useAppSelector(state => state.selection.result)
   
   return (
     <>
-    <table>
-      <thead>
-        <tr>
-          <HandCol>Opener</HandCol>
-          <HandCol>Responder</HandCol>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><HandInput type="opener" /></td>
-          <td><HandInput type="responder" /></td>
-        </tr>
-        <tr>
-          <td><Option value={o}>{hand => <HandView hand={hand} />}</Option></td>
-          <td><Option value={r}>{hand => <HandView hand={hand} />}</Option></td>
-        </tr>
-        <tr>
-          <td>
-            <button type="button" onClick={() => dispatch(genHands())}>Generate</button> <br/>
-            <button type="button" onClick={getResultCallback}>Get Results</button> <br/>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <DoubleDummyResult />
+      <table>
+        <thead>
+          <tr>
+            <HandCol>Opener</HandCol>
+            <HandCol>Responder</HandCol>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><HandInput type="opener" /></td>
+            <td><HandInput type="responder" /></td>
+          </tr>
+          <tr>
+            <td><Option value={o}>{hand => <HandView hand={hand} />}</Option></td>
+            <td><Option value={r}>{hand => <HandView hand={hand} />}</Option></td>
+          </tr>
+          <tr>
+            <td>
+              <button type="button" onClick={() => dispatch(genHands())}>Generate</button> <br/>
+              <button type="button" onClick={getResultCallback}>Get Results</button> <br/>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      {result && <DoubleDummyResultView result={result} /> }
     </>
   )
 }

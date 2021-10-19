@@ -1,21 +1,62 @@
-import { option } from 'fp-ts';
+import { readonlyNonEmptyArray } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 import { draw } from 'io-ts/lib/Decoder';
 import { useState } from 'react';
-
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { selectSatisfyStats } from '../reducers';
-import { analyzeDeals } from '../reducers/generator';
+import { ContractBid } from '../model/bridge';
+import { serializedBidPathL } from '../model/serialization';
+import { BidPathResult, selectSatisfyStats } from '../reducers';
+import { generate, getResults, selectProgress, selectResultsByPath } from '../reducers/generator';
 import { selectAllCompleteBidPaths, selectErrors } from '../reducers/system';
 import BidPath from './core/BidPath';
+import DoubleDummyResultView from './core/DoubleDummyResultView';
+
+
+interface StatsPathProps {
+  result: BidPathResult
+}
+const StatsPath = ({ result }: StatsPathProps) => {
+  const dispatch = useAppDispatch()
+  const dds = useAppSelector(state => selectResultsByPath(state.generator, pipe(result.path, readonlyNonEmptyArray.map(p => p.bid as ContractBid), serializedBidPathL.get)))
+  return (
+    <>
+      <BidPath path={result.path} />
+      : &nbsp;
+      <span>{result.count.toString()}</span>
+      {dds === null
+        ? <button onClick={e => dispatch(getResults({ path: result.path, deals: result.deals }))}>DDS</button>
+        : <ul>{dds.map((ddr, i) => <li  key={i}><DoubleDummyResultView result={ddr} /></li>)}</ul>}
+    </>)
+}
+
+const SatisfyStats = () => {
+  const stats = useAppSelector(selectSatisfyStats)
+  return (
+    <>
+      {stats !== null && <div>
+        <h3>Results</h3>
+        <ul>
+          {stats.map((result, i) => <li key={i}><StatsPath result={result} /></li>)}
+        </ul>
+      </div>}
+    </>
+  )
+}
+
+const Progress = () => {
+  const progress = useAppSelector(state => selectProgress(state.generator))
+  return <div>
+    <p>Deals: {progress.deals} remaining</p>
+    <p>Results: {progress.results} remaining</p>
+  </div>
+}
 
 const Stats = () => {
-  const generating = useAppSelector(state => pipe(state.generator.generating, option.toNullable))
+  const generating = useAppSelector(state => pipe(state.generator.working))
   const dispatch = useAppDispatch()
   const rules = useAppSelector(state => selectAllCompleteBidPaths(state.system))
   const errors = useAppSelector(state => selectErrors(state.system))
   const showGenerate = rules !== null && rules.length > 0 && errors.length === 0
-  const stats = useAppSelector(selectSatisfyStats)
   const [count, setCount] = useState<number>(20)
   return (
     <section>
@@ -28,19 +69,11 @@ const Stats = () => {
         </div>}
       </div>}
       {showGenerate && <div>
-        <button type="button" onClick={() => dispatch(analyzeDeals(count))}>Generate deals</button>
+        <button type="button" onClick={() => dispatch(generate(count))}>Generate deals</button>
         <input type="number" value={count} onChange={e => setCount(parseInt(e.target.value))} />
-        {generating === null ? <span>Ready!</span> : <span>Generating... ({generating} deals left)</span>}
-        {stats !== null && <div>
-          <h3>Results</h3>
-          <ul>
-            {stats.map((r, i) => <li key={i}>
-              <BidPath path={r.path} />
-              : &nbsp;
-              <span>{r.count.toString()}</span>
-            </li>)}
-          </ul>
-        </div>}
+        {generating ? <span>Generating...</span> : <span>Ready!</span>}
+        {generating && <Progress />}
+        {!generating && <SatisfyStats />}
       </div>}
     </section>
   )

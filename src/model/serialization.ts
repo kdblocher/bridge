@@ -1,6 +1,6 @@
-import { array, either, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlySet, readonlyTuple, refinement } from 'fp-ts';
+import { array, either, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlySet, readonlyTuple, refinement, string } from 'fp-ts';
 import { Either } from 'fp-ts/lib/Either';
-import { flow, pipe } from 'fp-ts/lib/function';
+import { flow, identity, pipe } from 'fp-ts/lib/function';
 import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
 import * as t from 'io-ts';
 import * as D from 'io-ts/Decoder';
@@ -8,10 +8,10 @@ import * as E from 'io-ts/Encoder';
 import * as iso from 'monocle-ts/Iso';
 import { O } from 'ts-toolbelt';
 import { Uuid, UuidLike, UuidTool } from 'uuid-tool';
-
 import { decodeHand } from '../parse';
-import { Board, Deal, directions } from './bridge';
+import { Board, ContractBid, Deal, directions, Strain } from './bridge';
 import { Card, cards, eqCard, Hand, ordCardDescending } from './deck';
+
 
 export type DecodedHand = ReturnType<typeof decodeHand>
 export type SerializedHand = ReadonlyArray<Card>
@@ -96,3 +96,24 @@ export const serializedBoardL = iso.iso<Board, SerializedBoard>(
     deal: serializedDealL.reverseGet(b.deal),
   })
 )
+
+export type SerializedBidPath = t.Branded<string, { readonly BidPath: unique symbol }>
+export const isBidPath: refinement.Refinement<string, SerializedBidPath> =
+  (s): s is SerializedBidPath =>
+    pipe(s,
+      string.split("."),
+      readonlyArray.every(s => s.length === 2))
+
+const SerializedBidPathB = t.brand(t.string, isBidPath, "BidPath")
+export const serializedBidPathL = iso.iso<readonlyNonEmptyArray.ReadonlyNonEmptyArray<ContractBid>, SerializedBidPath>(
+  flow(
+    readonlyArray.map(b => `${b.level}${b.strain}`),
+    readonlyArray.intersperse("."),
+    readonlyArray.foldMap(string.Monoid)(identity),
+    x => (SerializedBidPathB.decode(x) as either.Right<SerializedBidPath>).right),
+  flow(
+    string.split("."),
+    readonlyNonEmptyArray.map(bid => ({
+      level: parseInt(bid.charAt(0)),
+      strain: bid.charAt(1) as Strain
+    }))))

@@ -1,92 +1,133 @@
-import { option, readonlyArray } from 'fp-ts';
-import { observable } from 'fp-ts-rxjs';
-import { flow, pipe } from 'fp-ts/lib/function';
-import { castDraft } from 'immer';
-import { Epic, StateObservable } from 'redux-observable';
-import { bufferCount, concatWith, filter } from 'rxjs';
-
 import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
-
+import { magma, number, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
+import { observable } from 'fp-ts-rxjs';
+import { constant, flow, pipe } from 'fp-ts/lib/function';
+import { castDraft } from 'immer';
+import { Epic } from 'redux-observable';
+import { bufferCount, concatWith, filter, from } from 'rxjs';
 import { RootState } from '../app/store';
-import { makeBoard } from '../model/bridge';
-import { serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
+import { ContractBid, makeBoard } from '../model/bridge';
+import { SerializedBidPath, serializedBidPathL, serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
+import { BidPath } from '../model/system';
 import { observeDealsParallel, observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 
+
+
 const name = 'generator'
 
+type Deals = ReadonlyArray<SerializedDeal>
+type Results = readonlyRecord.ReadonlyRecord<SerializedBidPath, readonlyNonEmptyArray.ReadonlyNonEmptyArray<DoubleDummyResult>>
+type Progress<T> = readonly [T, number]
+
+const getProgress = <T>(a: T): Progress<T> => [a, 0]
+const updateProgress = <T>(M: magma.Magma<T>) => (decrement: number) => (payload: T) => (progress: Progress<T>): Progress<T> =>
+  pipe(progress,
+    readonlyTuple.bimap(p => p - decrement, current => M.concat(current, payload)))
 interface State {
-  results: ReadonlyArray<SerializedDeal>
-  generating: option.Option<number>
+  deals: Progress<Deals>
+  results: Progress<Results>
+  working: boolean
 }
 const initialState: State = {
-  results: [],
-  generating: option.none
+  deals: getProgress([]),
+  results: getProgress({}),
+  working: false
 }
-
-// const genDeals = createAsyncThunk(`${name}/genDeals`, async (count: number) => {
-//   const handsPerWorker = Math.floor(count / maxProcessors)
-//   const remainder = Math.floor(count % maxProcessors)
-//   // return new Worker().genDeals(count)
-//   const result = await pipe(readonlyArray.makeBy(maxProcessors - 1, constant(makeGenDealsTask(handsPerWorker))),
-//     readonlyArray.prepend(makeGenDealsTask(handsPerWorker + remainder)),
-//     task.sequenceArray,
-//     task.map(flow(
-//       readonlyArray.flatten,
-//       readonlyArray.mapWithIndex((i, d) => pipe(d,
-//         serializedDealL.reverseGet,
-//         makeBoard(i),
-//         serializedBoardL.get)))),
-//     task.chain(makeGetResultsTask),
-//     task => task())
-//   return result
-// })
 
 const slice = createSlice({
   name,
   initialState,
   reducers: {
-    analyzeDeals: (state, action: PayloadAction<number>) => {
-      state.results = []
-      state.generating = option.some(action.payload)
+    generate: (state, action: PayloadAction<number>) => {
+      state.deals = pipe(state.deals, readonlyTuple.mapSnd(constant(action.payload)), castDraft)
+      state.working = true
     },
-    reportResults: (state, action: PayloadAction<State["results"]>) => {
-      state.results = pipe(state.results,
-        readonlyArray.concat(action.payload),
+    getResults: (state, action: PayloadAction<{ path: BidPath, deals: Deals }>) => {
+      state.results = pipe(state.results, readonlyTuple.mapSnd(constant(action.payload.deals.length)), castDraft)
+      state.working = true
+    },
+    reportDeals: (state, action: PayloadAction<Deals>) => {
+      state.deals = pipe(state.deals,
+        updateProgress
+          (readonlyArray.getSemigroup<SerializedDeal>())
+          (action.payload.length)
+          (action.payload),
         castDraft)
-      state.generating = pipe(state.generating,
-        option.map(count => count - action.payload.length))
+    },
+    reportResults: (state, action: PayloadAction<Results>) => {
+      state.results = pipe(state.results,
+        updateProgress
+          (readonlyRecord.getUnionSemigroup(readonlyNonEmptyArray.getSemigroup<DoubleDummyResult>()))
+          (pipe(action.payload,
+            readonlyRecord.toReadonlyArray,
+            readonlyArray.foldMap(number.MonoidSum)(([_, values]) => values.length)))
+          (action.payload),
+        castDraft)
     },
     done: (state) => {
-      state.generating = option.none
+      state.working = false
     }
   }
 })
 
-export const { analyzeDeals, reportResults, done } = slice.actions
+export const { generate, getResults, reportDeals, reportResults, done } = slice.actions
 export default slice.reducer
 
-export const analyzeDealsEpic : Epic<AnyAction, AnyAction, RootState> =
-  (action$, state$) => action$.pipe(
-    filter(analyzeDeals.match),
+type E = Epic<AnyAction, AnyAction, RootState>
+export const analyzeDealsEpic : E = (action$, state$) =>
+  action$.pipe(
+    filter(generate.match),
     observable.map(a => a.payload),
     observable.chain(flow(
       observeDealsParallel,
-      // observable.map(flow(
-      //   observable.map(flow(
-      //     serializedDealL.reverseGet,
-      //     makeBoard(0),
-      //     serializedBoardL.get)),
-      //   observeResultsSerial)),
       observable.flatten,
-      bufferCount(100),
-      observable.map(reportResults),
-      concatWith([done()])
-      )))
-    
+      bufferCount(1000),
+      observable.map(reportDeals),
+      concatWith([done()]))))
+
+export const analyzeResultsEpic : E = (action$, state$) =>
+  action$.pipe(
+    filter(getResults.match),
+    observable.chain(a =>
+      pipe(
+        from(a.payload.deals),
+        observable.map(flow(
+          serializedDealL.reverseGet,
+          makeBoard(0),
+          serializedBoardL.get)),
+        observeResultsSerial,
+        // observeResultsParallel,
+        // observable.flatten,
+        bufferCount(10),
+        observable.map(flow(
+          readonlyNonEmptyArray.fromReadonlyArray,
+          option.fold(
+            () => reportResults({}),
+            results => pipe(
+              a.payload.path,
+              readonlyNonEmptyArray.map(a => a.bid as ContractBid),
+              serializedBidPathL.get,
+              path => reportResults(({ [path]: results })))))),
+        concatWith([done()]))))
+        
 export const selectAllDeals = (state: State) =>
-  pipe(state.results,
+  pipe(state.deals,
+    readonlyTuple.fst)
+
+export const selectAllNorthSouthPairs =
+  flow(
+    selectAllDeals,
     readonlyArray.map(flow(
-      // r => r.deal,
       serializedDealL.reverseGet,
       deal => [deal.N, deal.S] as const)))
+
+export const selectProgress = (state: State) => ({
+  deals: state.deals[1],
+  results: state.results[1],
+})
+
+export const selectResultsByPath = (state: State, path: SerializedBidPath) =>
+  pipe(state.results[0],
+    readonlyRecord.lookup(path),
+    option.toNullable)

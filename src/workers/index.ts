@@ -5,9 +5,10 @@ import DealWorker from 'comlink-loader!./deal.worker'; // inline loader
 import { observable } from 'fp-ts-rxjs';
 import { pipe } from 'fp-ts/lib/function';
 import { from, Observable, repeat, take } from 'rxjs';
-
 import { parallelize } from '../lib/concurrency';
 import { SerializedBoard } from '../model/serialization';
+import { DoubleDummyResult } from './dds.worker';
+
 
 const observeBatchedDealsInfinite = (batchSize: number) => {
   const w = new DealWorker()
@@ -28,10 +29,10 @@ export const observeDealsParallel = (count: number) =>
     return idx => observeDealsSerial(idx === 0 ? handsPerWorker + remainder : handsPerWorker)
   })
 
-export const observeResultsSerial = (boards: Observable<SerializedBoard>) => {
+export const observeResultsSerial = (boards: Observable<SerializedBoard>): Observable<DoubleDummyResult> => {
   const w = new DDSWorker()
   return pipe(boards,
-    observable.chain(b => from(w.getResult(b))))
+    observable.chain(board => from(w.getResult(board))))
 }
 
 export const observeResultsParallel = (boards: Observable<SerializedBoard>) =>
