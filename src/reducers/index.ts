@@ -1,13 +1,17 @@
-import { either, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple, string } from 'fp-ts'
-import { flow, pipe } from 'fp-ts/lib/function'
-import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray'
-import { RootState } from '../app/store'
-import { ContractBid } from '../model/bridge'
-import { satisfiesPath, satisfiesPathWithoutSiblingCheck } from '../model/constraints'
-import { BidInfo } from '../model/system'
-import generator, { selectAllDeals } from './generator'
-import selection, { selectHand } from './selection'
-import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system'
+import { AnyAction } from '@reduxjs/toolkit';
+import { either, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
+import { flow, pipe } from 'fp-ts/lib/function';
+import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
+import { combineEpics } from 'redux-observable';
+import { RootState } from '../app/store';
+import { ContractBid } from '../model/bridge';
+import { satisfiesPath, satisfiesPathWithoutSiblingCheck } from '../model/constraints';
+import { serializedBidPathL, SerializedDeal, serializedDealL } from '../model/serialization';
+import { BidInfo } from '../model/system';
+import generator, { analyzeDealsEpic, analyzeResultsEpic, saveToApiEpic, selectAllDeals } from './generator';
+import selection, { selectHand } from './selection';
+import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system';
+
 
 
 const reducers = {
@@ -16,6 +20,11 @@ const reducers = {
   generator
 }
 export default reducers
+
+export const rootEpic = combineEpics<AnyAction, AnyAction, RootState>(
+  analyzeDealsEpic,
+  analyzeResultsEpic,
+  saveToApiEpic)
 
 export const selectHandsSatisfySelectedPath = (state: RootState) =>
   pipe(option.Do,
@@ -44,34 +53,39 @@ export const selectPathsSatisfyHands = (state: RootState) : ReadonlyArray<BidRes
       })))),
     option.toNullable)
 
-interface BidCountResult {
+export interface BidPathResult {
   path: ReadonlyNonEmptyArray<BidInfo>
   count: number
+  deals: ReadonlyNonEmptyArray<SerializedDeal>
 }
 const ordStats = pipe(
   number.Ord,
   ord.reverse,
-  ord.contramap<number, BidCountResult>(r => r.count))
+  ord.contramap<number, BidPathResult>(r => r.count))
 
-export const selectSatisfyStats = (state: RootState) : ReadonlyArray<BidCountResult> | null =>
+export const selectSatisfyStats = (state: RootState) : ReadonlyArray<BidPathResult> | null =>
   pipe(readonlyArray.Do,
     readonlyArray.apS('deal', selectAllDeals(state.generator)),
     readonlyArray.apS('path', selectAllCompleteBidPaths(state.system)),
     readonlyArray.map(ra => ({
+      deal: ra.deal,
       path: ra.path,
-      result: satisfiesPath(ra.deal[0], ra.deal[1])(ra.path)
+      result: pipe(ra.deal, serializedDealL.reverseGet, d => satisfiesPath(d["N"], d["S"]))(ra.path)
     })),
     readonlyNonEmptyArray.fromReadonlyArray,
     option.map(
       flow(
         readonlyNonEmptyArray.groupBy(x =>
           pipe(x.path,
-            readonlyArray.map(p => p.bid as ContractBid),
-            readonlyArray.foldMap(string.Monoid)(b => `${b.level}${b.strain}`))),
-        readonlyRecord.map(r => ({
-          path: r[0].path,
-          count: pipe(r, readonlyArray.filter(a => a.result)).length
-        })),
+            readonlyNonEmptyArray.map(p => p.bid as ContractBid),
+            serializedBidPathL.get)),
+        readonlyRecord.filterMap(flow(
+          readonlyNonEmptyArray.filter(a => a.result),
+          option.map(r => ({
+            path: r[0].path,
+            count: r.length,
+            deals: pipe(r, readonlyNonEmptyArray.map(x => x.deal)),
+          })))),
         readonlyRecord.toReadonlyArray,
         readonlyArray.map(readonlyTuple.snd),
         readonlyArray.sort(ordStats))),

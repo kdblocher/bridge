@@ -1,10 +1,9 @@
-import * as t from 'io-ts'
+import { either, eq, number, option, ord, readonlyArray, readonlyRecord, writer } from 'fp-ts';
+import { constant, flow, identity, pipe } from 'fp-ts/lib/function';
+import * as t from 'io-ts';
+import { assertUnreachable } from '../lib';
+import { Contract, ContractModifier, eqStrain, minors, Strain } from './bridge';
 
-import { Contract, ContractModifier, Strain, eqStrain, minors } from "./bridge";
-import { constant, flow, identity, pipe } from "fp-ts/lib/function";
-import { writer, either, eq, number, option, ord, readonlyArray, readonlyRecord, writerT, readonlyTuple, tuple } from "fp-ts";
-
-import { assertUnreachable } from "../lib";
 
 export interface ScoreInfo {
   contract: Contract

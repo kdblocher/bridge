@@ -1,7 +1,4 @@
-import {
-    boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlySet, readonlyTuple, record, state as S,
-    string
-} from 'fp-ts';
+import { boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
 import { constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib/function';
 import { fromTraversable, Lens, lens, Optional, traversal } from 'monocle-ts';
