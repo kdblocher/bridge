@@ -6,10 +6,11 @@ import { castDraft } from 'immer';
 import { Epic } from 'redux-observable';
 import { bufferCount, concatWith, filter, from } from 'rxjs';
 import { RootState } from '../app/store';
+import { maxProcessors } from '../lib/concurrency';
 import { ContractBid, makeBoard } from '../model/bridge';
 import { SerializedBidPath, serializedBidPathL, serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
 import { BidPath } from '../model/system';
-import { observeDealsParallel, observeResultsSerial } from '../workers';
+import { observeDealsParallel, observeDealsSerial, observeResultsParallel, observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 
 
@@ -80,8 +81,9 @@ export const analyzeDealsEpic : E = (action$, state$) =>
     filter(generate.match),
     observable.map(a => a.payload),
     observable.chain(flow(
-      observeDealsParallel,
-      observable.flatten,
+      count => count > maxProcessors
+        ? pipe(observeDealsParallel(count), observable.flatten)
+        : observeDealsSerial(count),
       bufferCount(1000),
       observable.map(reportDeals),
       concatWith([done()]))))
@@ -91,15 +93,18 @@ export const analyzeResultsEpic : E = (action$, state$) =>
     filter(getResults.match),
     observable.chain(a =>
       pipe(
-        from(a.payload.deals),
-        observable.map(flow(
+        a.payload.deals,
+        readonlyArray.map(flow(
           serializedDealL.reverseGet,
           makeBoard(0),
           serializedBoardL.get)),
-        observeResultsSerial,
-        // observeResultsParallel,
-        // observable.flatten,
-        bufferCount(10),
+        readonlyNonEmptyArray.fromReadonlyArray,
+        option.fold(() => from([]),
+          boards =>
+            a.payload.deals.length > maxProcessors
+            ? pipe(boards, observeResultsParallel, observable.flatten)
+            : pipe(boards, observeResultsSerial)),
+        bufferCount(5),
         observable.map(flow(
           readonlyNonEmptyArray.fromReadonlyArray,
           option.fold(

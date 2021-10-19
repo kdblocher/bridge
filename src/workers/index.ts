@@ -2,6 +2,7 @@
 
 import DDSWorker from 'comlink-loader!./dds.worker'; // inline loader
 import DealWorker from 'comlink-loader!./deal.worker'; // inline loader
+import { readonlyArray, readonlyNonEmptyArray } from 'fp-ts';
 import { observable } from 'fp-ts-rxjs';
 import { pipe } from 'fp-ts/lib/function';
 import { from, Observable, repeat, take } from 'rxjs';
@@ -24,16 +25,24 @@ export const observeDealsSerial = (count: number) => pipe(
 
 export const observeDealsParallel = (count: number) =>
   parallelize(concurrency => {
-    const handsPerWorker = Math.floor(count / concurrency)
+    const perWorker = Math.floor(count / concurrency)
     const remainder = Math.floor(count % concurrency)
-    return idx => observeDealsSerial(idx === 0 ? handsPerWorker + remainder : handsPerWorker)
+    return idx => observeDealsSerial(idx === 0
+      ? perWorker + remainder
+      : perWorker)
   })
 
-export const observeResultsSerial = (boards: Observable<SerializedBoard>): Observable<DoubleDummyResult> => {
+export const observeResultsSerial = (boards: ReadonlyArray<SerializedBoard>): Observable<DoubleDummyResult> => {
   const w = new DDSWorker()
-  return pipe(boards,
+  return pipe(from(boards),
     observable.chain(board => from(w.getResult(board))))
 }
 
-export const observeResultsParallel = (boards: Observable<SerializedBoard>) =>
-  parallelize(_ => _ => observeResultsSerial(boards))
+export const observeResultsParallel = (boards: readonlyNonEmptyArray.ReadonlyNonEmptyArray<SerializedBoard>) =>
+  parallelize(concurrency => {
+    const perWorker = Math.floor(boards.length / concurrency)
+    const remainder = Math.floor(boards.length % concurrency)
+    return idx => observeResultsSerial(idx === concurrency - 1
+      ? pipe(boards, readonlyArray.takeRight(perWorker + remainder))
+      : pipe(boards.slice(idx * perWorker, (idx + 1) * perWorker)))
+    })

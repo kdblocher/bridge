@@ -1,12 +1,10 @@
-import { either, option, readonlyArray, readonlySet } from 'fp-ts';
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { either, option, readonlyArray, readonlyNonEmptyArray, readonlySet } from 'fp-ts';
 import { observable } from 'fp-ts-rxjs';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import * as D from 'io-ts/Decoder';
 import { O } from 'ts-toolbelt';
-
-import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-
 import { Board, Deal, deal, Direction } from '../model/bridge';
 import { Constraint, satisfies } from '../model/constraints';
 import { eqCard, Hand, newDeck, ordCardDescending } from '../model/deck';
@@ -14,6 +12,8 @@ import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL, serializedB
 import { decodeHand } from '../parse';
 import { observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
+
+
 
 const name = 'selection'
 
@@ -41,7 +41,7 @@ const getResult = createAsyncThunk('abc', ({ opener, responder}: Hands) =>
   pipe(
     genBoardFromHands(serializedHandL.reverseGet(opener), serializedHandL.reverseGet(responder)),
     serializedBoardL.get,
-    observable.of,
+    readonlyNonEmptyArray.of,
     observeResultsSerial,
     observable.toTask,
     t => t()))

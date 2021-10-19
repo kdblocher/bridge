@@ -1,9 +1,8 @@
-import { Observable, from } from 'rxjs';
-
-import { pipe } from 'fp-ts/lib/function';
 import { readonlyArray } from 'fp-ts';
+import { pipe } from 'fp-ts/lib/function';
+import { from, Observable } from 'rxjs';
 
-const maxProcessors = Math.max(window.navigator.hardwareConcurrency - 2, 1)
+export const maxProcessors = Math.max(window.navigator.hardwareConcurrency - 2, 1)
 
 export const parallelize = <T>(make: (concurrency: number) => (idx: number) => Observable<T>) : Observable<Observable<T>> =>
   pipe(
