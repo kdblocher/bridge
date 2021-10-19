@@ -3,20 +3,23 @@
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Giraffe" Version="5.0.0" />
-    <PackageReference Include="FsToolkit.ErrorHandling" Version="2.7.0" />
-    <PackageReference Include="FsToolkit.ErrorHandling.TaskResult" Version="2.7.0" />
-    <PackageReference Include="FSharpPlus" Version="1.2.2" />
-    <PackageReference Include="FSharp.SystemTextJson" Version="0.17.4" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="4.0.0-preview2.21264.2" />
-    <PackageReference Include="SqlHydra.Query" Version="0.530.0" />
+    <PackageReference Include="Giraffe" Version="5.0.0"/>
+    <PackageReference Include="FsToolkit.ErrorHandling" Version="2.7.0"/>
+    <PackageReference Include="FsToolkit.ErrorHandling.TaskResult" Version="2.7.0"/>
+    <PackageReference Include="FSharpPlus" Version="1.2.2"/>
+    <PackageReference Include="FSharp.SystemTextJson" Version="0.17.4"/>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="4.0.0-preview2.21264.2"/>
+    <PackageReference Include="SqlHydra.Query" Version="0.530.0"/>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Model.fs" />
-    <Compile Include="Database.g.fs" />
-    <Compile Include="Query.fs" />
-    <Compile Include="Control.fs" />
-    <Compile Include="Handlers.fs" />
-    <Compile Include="Program.fs" />
+    <Compile Include="Model.fs"/>
+    <Compile Include="Database.g.fs"/>
+    <Compile Include="Query.fs"/>
+    <Compile Include="Control.fs"/>
+    <Compile Include="Handlers.fs"/>
+    <Compile Include="Program.fs"/>
   </ItemGroup>
+  <Target Name="SqlHydra" BeforeTargets="Clean">
+    <Exec Command="dotnet sqlhydra-mssql" />
+  </Target>
 </Project>

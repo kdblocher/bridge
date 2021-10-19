@@ -1,14 +1,11 @@
-import {
-    boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlySet, readonlyTuple, record, state as S,
-    string
-} from 'fp-ts';
+import { boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyTuple, record, state as S, string } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
 import { constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib/function';
 import { fromTraversable, Lens, lens, Optional, traversal } from 'monocle-ts';
 
 import { assertUnreachable } from '../lib';
-import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, makeShape, Shape as AnyShape, SpecificShape } from './bridge';
-import { Card, eqSuit, Hand, ordCardDescending, Suit, suits } from './deck';
+import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, makeShape, Shape as AnyShape, SpecificShape } from './bridge';
+import { eqSuit, Hand, Suit, suits } from './deck';
 import { BidInfo } from './system';
 
 export interface ConstraintPointRange {
@@ -146,14 +143,6 @@ const constraintTrue : P.Predicate<Hand> = constTrue
 const exists = pipe(anyP, RA.foldMap)
 const forall = pipe(allP, RA.foldMap)
 /* eslint-enable @typescript-eslint/no-unused-vars */
-
-export const getCardHcp = (card: Card) =>
-  Math.max(0, card.rank - 10)
-
-export const getHcp =
-  flow(
-    readonlySet.toReadonlyArray(ordCardDescending),
-    RA.foldMap(number.MonoidSum)(getCardHcp))
 
 const rangeCheck = (range: { min: number, max: number }) => ord.between(number.Ord)(range.min, range.max)
 

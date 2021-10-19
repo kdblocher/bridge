@@ -1,9 +1,9 @@
-import { either, ord, readonlyArray, readonlyRecord, readonlySet, readonlyTuple, task, taskEither } from 'fp-ts';
+import { either, ord, readonlyArray, readonlyRecord, readonlySet, readonlyTuple, semigroup, task, taskEither } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { Encoder } from 'io-ts/lib/Encoder';
 import { Uuid } from 'uuid-tool';
 
-import { Deal, directions } from '../model/bridge';
+import { Deal, Direction, directions, getHandSpecificShape, getHcp, SpecificShape } from '../model/bridge';
 import { Card, ordCardDescending } from '../model/deck';
 
 // const Uuid = t.brand(t.string, (s: string): s is t.Branded<string, { readonly Uuid: unique symbol }> => validate(s), 'Uuid')
@@ -34,15 +34,24 @@ export const ping =
     taskEither.chainTaskK(response => () => response.text()),
     taskEither.filterOrElse(response => response === "pong", () => new Error("'pong' was not received")))
 
+interface DirectionMetadata {
+  hcp: number
+  shape: SpecificShape
+}
+type Detail = readonlyRecord.ReadonlyRecord<Direction, DirectionMetadata>
 export const postDeals = (deals: ReadonlyArray<Deal>) =>
   pipe(deals,
-    readonlyArray.map(flow(
-      encode.encode,
-      x => x.toString())),
+    readonlyArray.foldMap(readonlyRecord.getUnionMonoid(semigroup.first<Detail>()))(deal => ({
+      [encode.encode(deal).toString()]: pipe(deal,
+        readonlyRecord.map(h => ({
+          hcp: getHcp(h),
+          shape: getHandSpecificShape(h)
+        })))
+      })),
     JSON.stringify,
     task.of,
     task.chain(body => () =>
-      fetch("http://localhost:5000/hands", {
+      fetch("http://localhost:5000/deals", {
         method: "POST",
         body
       })),

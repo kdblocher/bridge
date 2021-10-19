@@ -5,63 +5,87 @@ open Microsoft.AspNetCore.Http
 open FSharpPlus
 open FSharpPlus.Data
 open Giraffe
+open System.Collections.Generic
+open System.Threading.Tasks
 
 let getQueryContext (context: HttpContext) = context.GetService<SqlHydra.Query.QueryContext> ()
 
-let getHands : ContextHandlerReader =
+let mutable shapes: Map<Shape, int16> option = None
+let getShapes (context: HttpContext) =
+  match shapes with
+  | Some s -> s
+  | None -> 
+    Query.selectAllShapes
+    |> (getQueryContext context).Read Database.HydraReader.Read
+    |>> fun (s: Database.dbo.shape_table) ->
+        { S = s.spade_length.Value
+          H = s.heart_length.Value
+          D = s.diamond_length.Value
+          C = s.club_length.Value },
+        s.id
+    |> Map
+    |> (fun v -> shapes <- Some v; v)
+
+let getDeals : ContextHandlerReader =
   monad {
     let! queryContext = Reader getQueryContext
-    return Query.selectAsync queryContext Query.selectAllHands
-      |>> (Seq.map (fun hand -> hand.Hand) >> Seq.toArray >> Successful.OK >> Some)
+    return Query.selectAsync queryContext Query.selectAllDeals
+      |>> (Seq.map (fun deal -> deal.deal) >> Seq.toArray >> Successful.OK >> Some)
   }
 
-let tryGetHand id : ContextHandlerReader = 
+let tryGetDeal id : ContextHandlerReader = 
   monad {
     let! queryContext = Reader getQueryContext
-    return Query.selectSingleHand id
+    return Query.selectSingleDeal id
       |> queryContext.ReadAsync Database.HydraReader.Read
       |>> (Seq.tryHead
-        >> Option.map ((fun hand -> hand.Hand) >> Successful.OK))
+        >> Option.map ((fun deal -> deal.deal) >> Successful.OK))
   }
 
-let tryAddHand id : ContextHandlerReader =
+let tryAddDeal id : ContextHandlerReader =
   monad {
     let! queryContext = Reader getQueryContext
-    return
-      Hand.tryCreate id
-      |>> Query.insertHand
-      |> traverse queryContext.InsertAsync
-      |>> map (ignore >> (fun () -> Successful.CREATED ""))
-  }
-
-let tryAddHands : ContextHandlerReader = 
-  monad {
-    let! queryContext = Reader getQueryContext
-    let! getBody = Reader (fun ctx -> ctx.BindJsonAsync<seq<System.Guid>>())
+    let! shapes = Reader getShapes
+    let! getBody = Reader (fun ctx -> ctx.BindJsonAsync<DealDetails>())
     let x =
       getBody
-      |>> traverse Hand.tryCreate
-      >>= (traverse (Query.insertHands >> traverse queryContext.InsertAsync))
+      |>> (fun details -> makeDeal details id)
+      |>> map (Query.insertDeal shapes)
+      >>= traverse queryContext.InsertAsync
+      |>> map (ignore >> (fun () -> Successful.CREATED ""))
+    return x
+  }
+
+let tryAddDeals : ContextHandlerReader = 
+  monad {
+    let! queryContext = Reader getQueryContext
+    let! shapes = Reader getShapes
+    let! getBody = Reader (fun ctx -> ctx.BindJsonAsync<Dictionary<System.Guid, DealDetails>>())
+    let x =
+      getBody
+      |>> Seq.map (|KeyValue|)
+      |>> traverse (fun (id, details) -> makeDeal details id)
+      >>= (traverse (Query.insertDeals shapes >> traverse queryContext.InsertAsync))
       |>> map (ignore >> (fun () -> Successful.CREATED ""))
     return x
   }
 
 let (<|>) h1 h2 = choose [ h1; h2 ]
 
-let hGetHand id = (runWithContext <| tryGetHand id) <|> RequestErrors.NOT_FOUND ""
-let hAddHand id = (runWithContext <| tryAddHand id) <|> RequestErrors.UNPROCESSABLE_ENTITY ""
-let hGetHands = runWithContext getHands
-let hAddHands : HttpHandler = runWithContext tryAddHands <|> RequestErrors.UNPROCESSABLE_ENTITY ""
+let hGetDeal id = (runWithContext <| tryGetDeal id) <|> RequestErrors.NOT_FOUND ""
+let hAddDeal id = (runWithContext <| tryAddDeal id) <|> RequestErrors.UNPROCESSABLE_ENTITY ""
+let hGetDeals = runWithContext getDeals
+let hAddDeals : HttpHandler = runWithContext tryAddDeals <|> RequestErrors.UNPROCESSABLE_ENTITY ""
 
 let public webApp : HttpHandler =
   choose [
     route "/ping" >=> GET >=> text "pong"
-    routef "/hands/%O" (fun id -> choose [
-      GET >=> hGetHand id
-      POST >=> hAddHand id
+    routef "/deals/%O" (fun id -> choose [
+      GET >=> hGetDeal id
+      POST >=> hAddDeal id
     ])
-    route "/hands" >=> choose [
-      GET >=> hGetHands
-      POST >=> hAddHands
+    route "/deals" >=> choose [
+      GET >=> hGetDeals
+      POST >=> hAddDeals
     ]
   ]

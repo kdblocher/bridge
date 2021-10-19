@@ -1,8 +1,8 @@
-import { Deck, Hand, Suit, eqCard, ordCardDescending, suits } from "./deck"
-import { readonlyNonEmptyArray as RNEA, readonlySet as RS, readonlyTuple as RT, apply, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlySet, readonlyTuple, refinement, semigroup, string } from "fp-ts"
-import { flow, pipe } from "fp-ts/lib/function"
+import { apply, eq, number, option, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet as RS, readonlyTuple as RT, refinement, semigroup, string } from 'fp-ts';
+import { flow, pipe } from 'fp-ts/lib/function';
 
-import { ordAscending } from "../lib"
+import { ordAscending } from '../lib';
+import { Card, Deck, eqCard, Hand, ordCardDescending, Suit, suits } from './deck';
 
 export const directions = ['N', 'E', 'S', 'W'] as const
 export type Direction = typeof directions[number]
@@ -26,7 +26,7 @@ export type Player = {
 export const deal = (deck: Deck) : Deal =>
   pipe(directions,
     RNEA.zip(RNEA.chunksOf(13)(deck)),
-    readonlyNonEmptyArray.groupBy(RT.fst),
+    RNEA.groupBy(RT.fst),
     readonlyRecord.map(flow(RNEA.head, RT.snd, RS.fromReadonlyArray(eqCard))),
     (x: readonlyRecord.ReadonlyRecord<Direction, Hand>) => x)
 
@@ -85,11 +85,11 @@ export const ordContractBid : ord.Ord<ContractBid> =
   )
 export const contractBids : ReadonlyArray<ContractBid> =
   pipe(
-    apply.sequenceS(readonlyArray.Apply)(({
-      level: readonlyArray.makeBy(7, level => level + 1),
+    apply.sequenceS(RA.Apply)(({
+      level: RA.makeBy(7, level => level + 1),
       strain: strains
     })),
-    readonlyArray.sort(ordContractBid))
+    RA.sort(ordContractBid))
 
 export type Bid = NonContractBid | ContractBid
 export const isNonContractBid = (b: Bid) : b is NonContractBid => typeof b === "string"
@@ -117,7 +117,7 @@ export type NonPassAuction = Auction & [...Auction, ...typeof consecutivePasses]
 const passout = ["Pass", "Pass", "Pass", "Pass"] as const
 export type PassAuction = typeof passout
 export type CompletedAuction = NonPassAuction | PassAuction
-export const eqAuction : eq.Eq<Auction> = readonlyNonEmptyArray.getEq(eqBid)
+export const eqAuction : eq.Eq<Auction> = RNEA.getEq(eqBid)
 export const isCompletedAuction : refinement.Refinement<Auction, CompletedAuction> = (a): a is CompletedAuction =>
   a.length >= 4 &&
   (eqAuction.equals(a, passout) || eqAuction.equals(a.slice(a.length - 3) as unknown as Auction, consecutivePasses))
@@ -129,13 +129,21 @@ export interface BoardWithCompletedAuction extends BoardWithAuction {
   auction: CompletedAuction
 }
 
+export const getCardHcp = (card: Card) =>
+  Math.max(0, card.rank - 10)
+
+export const getHcp =
+  flow(
+    RS.toReadonlyArray(ordCardDescending),
+    RA.foldMap(number.MonoidSum)(getCardHcp))
+
 export type Shape = readonly [number, number, number, number]
 export const zeroShape: Shape = [0, 0, 0, 0]
-export const sortShape = (s: Shape) => pipe(s, readonlyArray.sort(ord.reverse(number.Ord))) as Shape
+export const sortShape = (s: Shape) => pipe(s, RA.sort(ord.reverse(number.Ord))) as Shape
 export const makeShape = (...counts: Shape) =>
   pipe(counts, sortShape)
 export const eqShape : eq.Eq<Shape> =
-  eq.contramap(sortShape)(readonlyArray.getEq(number.Eq))
+  eq.contramap(sortShape)(RA.getEq(number.Eq))
 
 export type SpecificShape = Record<Suit, number>
 export const makeSpecificShape = (s: number, h: number, d: number, c: number) : SpecificShape => ({
@@ -148,10 +156,10 @@ export const zeroSpecificShape = makeSpecificShape(0, 0, 0, 0)
 
 export const getHandSpecificShape = (hand: Hand) : SpecificShape =>
   pipe(hand,
-    readonlySet.toReadonlyArray(ordCardDescending),
-    readonlyNonEmptyArray.fromReadonlyArray,
+    RS.toReadonlyArray(ordCardDescending),
+    RNEA.fromReadonlyArray,
     option.fold(() => zeroSpecificShape, flow(
-      readonlyNonEmptyArray.groupBy(c => c.suit),
+      RNEA.groupBy(c => c.suit),
       readonlyRecord.map(x => x.length),
       readonlyRecord.union(semigroup.first<number>())(zeroSpecificShape),
       (suits: readonlyRecord.ReadonlyRecord<Suit, number>) => suits)))
@@ -160,6 +168,6 @@ export const getHandShape = (hand: Hand) : Shape =>
   pipe(hand,
     getHandSpecificShape,
     readonlyRecord.toReadonlyArray,
-    readonlyArray.map(readonlyTuple.snd),
-    suitCounts => readonlyArray.mapWithIndex((idx, _) =>
-      pipe(suitCounts, readonlyArray.lookup(idx), option.getOrElse(() => 0)))(zeroShape)) as Shape
+    RA.map(RT.snd),
+    suitCounts => RA.mapWithIndex((idx, _) =>
+      pipe(suitCounts, RA.lookup(idx), option.getOrElse(() => 0)))(zeroShape)) as Shape
