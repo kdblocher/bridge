@@ -1,15 +1,16 @@
 import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { magma, number, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
-import { observable } from 'fp-ts-rxjs';
+import { observable, observableEither } from 'fp-ts-rxjs';
 import { constant, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import { Epic } from 'redux-observable';
-import { bufferCount, concatWith, filter, from } from 'rxjs';
+import { bufferCount, concatWith, EMPTY, filter, from } from 'rxjs';
 import { RootState } from '../app/store';
 import { maxProcessors } from '../lib/concurrency';
 import { ContractBid, makeBoard } from '../model/bridge';
 import { SerializedBidPath, serializedBidPathL, serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
 import { BidPath } from '../model/system';
+import { ping, postDeals } from '../services/server';
 import { observeDealsParallel, observeDealsSerial, observeResultsParallel, observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 
@@ -116,6 +117,18 @@ export const analyzeResultsEpic : E = (action$, state$) =>
               serializedBidPathL.get,
               path => reportResults(({ [path]: results })))))),
         concatWith([done()]))))
+
+export const saveToApiEpic: Epic<AnyAction> = (action$, state$) =>
+  action$.pipe(
+    filter(reportDeals.match),
+    observable.map(a => a.payload),
+    observableEither.fromObservable,
+    observableEither.chainFirst(() => pipe(ping, observableEither.fromTaskEither)),
+    observableEither.chainFirst(flow(
+      readonlyArray.map(serializedDealL.reverseGet),
+      postDeals,
+      observableEither.fromTaskEither)),
+    observable.chain(_ => EMPTY))
         
 export const selectAllDeals = (state: State) =>
   pipe(state.deals,

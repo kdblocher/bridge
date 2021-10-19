@@ -8,7 +8,7 @@ import { ContractBid } from '../model/bridge';
 import { satisfiesPath, satisfiesPathWithoutSiblingCheck } from '../model/constraints';
 import { serializedBidPathL, SerializedDeal, serializedDealL } from '../model/serialization';
 import { BidInfo } from '../model/system';
-import generator, { analyzeDealsEpic, analyzeResultsEpic, selectAllDeals } from './generator';
+import generator, { analyzeDealsEpic, analyzeResultsEpic, saveToApiEpic, selectAllDeals } from './generator';
 import selection, { selectHand } from './selection';
 import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system';
 
@@ -23,7 +23,8 @@ export default reducers
 
 export const rootEpic = combineEpics<AnyAction, AnyAction, RootState>(
   analyzeDealsEpic,
-  analyzeResultsEpic)
+  analyzeResultsEpic,
+  saveToApiEpic)
 
 export const selectHandsSatisfySelectedPath = (state: RootState) =>
   pipe(option.Do,
