@@ -1,26 +1,29 @@
 {
   "files": {
     "main.css": "/bridge/static/css/main.e8e5c3ac.chunk.css",
-    "main.js": "/bridge/static/js/main.8f42ff55.chunk.js",
-    "main.js.map": "/bridge/static/js/main.8f42ff55.chunk.js.map",
+    "main.js": "/bridge/static/js/main.a57687f7.chunk.js",
+    "main.js.map": "/bridge/static/js/main.a57687f7.chunk.js.map",
     "runtime-main.js": "/bridge/static/js/runtime-main.da676aa4.js",
     "runtime-main.js.map": "/bridge/static/js/runtime-main.da676aa4.js.map",
     "static/css/2.e426f036.chunk.css": "/bridge/static/css/2.e426f036.chunk.css",
-    "static/js/2.ea6100e2.chunk.js": "/bridge/static/js/2.ea6100e2.chunk.js",
-    "static/js/2.ea6100e2.chunk.js.map": "/bridge/static/js/2.ea6100e2.chunk.js.map",
-    "2dc03e40798e89f182e5.worker.js": "/bridge/2dc03e40798e89f182e5.worker.js",
-    "2dc03e40798e89f182e5.worker.js.LICENSE.txt": "/bridge/2dc03e40798e89f182e5.worker.js.LICENSE.txt",
-    "2dc03e40798e89f182e5.worker.js.map": "/bridge/2dc03e40798e89f182e5.worker.js.map",
+    "static/js/2.79c9727f.chunk.js": "/bridge/static/js/2.79c9727f.chunk.js",
+    "static/js/2.79c9727f.chunk.js.map": "/bridge/static/js/2.79c9727f.chunk.js.map",
+    "40c2128085af808c41e3.worker.js": "/bridge/40c2128085af808c41e3.worker.js",
+    "40c2128085af808c41e3.worker.js.LICENSE.txt": "/bridge/40c2128085af808c41e3.worker.js.LICENSE.txt",
+    "40c2128085af808c41e3.worker.js.map": "/bridge/40c2128085af808c41e3.worker.js.map",
+    "59c5ff5e61420fa428ce.worker.js": "/bridge/59c5ff5e61420fa428ce.worker.js",
+    "59c5ff5e61420fa428ce.worker.js.LICENSE.txt": "/bridge/59c5ff5e61420fa428ce.worker.js.LICENSE.txt",
+    "59c5ff5e61420fa428ce.worker.js.map": "/bridge/59c5ff5e61420fa428ce.worker.js.map",
     "index.html": "/bridge/index.html",
     "static/css/2.e426f036.chunk.css.map": "/bridge/static/css/2.e426f036.chunk.css.map",
     "static/css/main.e8e5c3ac.chunk.css.map": "/bridge/static/css/main.e8e5c3ac.chunk.css.map",
-    "static/js/2.ea6100e2.chunk.js.LICENSE.txt": "/bridge/static/js/2.ea6100e2.chunk.js.LICENSE.txt"
+    "static/js/2.79c9727f.chunk.js.LICENSE.txt": "/bridge/static/js/2.79c9727f.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
     "static/js/runtime-main.da676aa4.js",
     "static/css/2.e426f036.chunk.css",
-    "static/js/2.ea6100e2.chunk.js",
+    "static/js/2.79c9727f.chunk.js",
     "static/css/main.e8e5c3ac.chunk.css",
-    "static/js/main.8f42ff55.chunk.js"
+    "static/js/main.a57687f7.chunk.js"
   ]
 }
