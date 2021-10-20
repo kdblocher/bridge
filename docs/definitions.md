@@ -1,16 +1,16 @@
 Incomplete list of terms
 
-- **Suit**: Any element _s_ &in; {&clubs;, &diams;, &hearts;, &spades;} = _S_. The ordinal relation &lt; over _S_ forms a totally ordered set.
-- **Rank**: Any element _r_ &in; {`2`, `3`, `4`, `5`, `6`, `7`, `8`, `9`, `T`, `J`, `Q`, `K`, `A`} = _R_. The ordinal relation &lt; over _R_ forms a totally ordered set.
+- **Suits**: The totally ordered set (_S_, &lt;) such that _S_ = {&clubs;, &diams;, &hearts;, &spades;}.
+- **Ranks**: The totally ordered set (_R_, &lt;) such that _R_ = {`2`, `3`, `4`, `5`, `6`, `7`, `8`, `9`, `T`, `J`, `Q`, `K`, `A`}.
 - **Deck**: The unordered set _C_ = _S_ &times; _R_, so |_C_| = 52.
 - **Card**: Any element _c_ &in; _C_.
-- **Hand**: Any subset _H_ &subne; _C_ such that |_H_| = 13.
-- **Partnership**: Any element _p_ &in; {(N, S), (E, W)} = _P_.
-- **Vulnerability**: Any element _vul_ &in; &Pscr;(_P_) = _V_ (abbreviating &empty; as &bottom; and _P_ as &top;).
-- **Strain**: Any element _st_ &in; _S_ &cup; {`NT`} = _St_. The ordinal relation &lt; over _St_ forms a totally ordered set (where `NT` = max(_St_)).
-- **Direction**: Any element _dir_ &in; {`N`, `E`, `S`, `W`}. The (lexical) cyclic order _dir_<sup>3</sup> over this set forms a cycle _Dir_.
-    - Any direct correspondence of _dir_<sup>3</sup> is termed **clockwise**; its opposite correspondence is **counterclockwise**.
-- **Deal**: The set (_dir_<sub>_i_</sub>, _h_<sub>_i_</sub> &in; _H_) &in; (_Dir_ &times; _D_<sub>_h_</sub>) = _D_ such that |_D_| = 4 and _D_<sub>_h_</sub> = _D_ partitioned into _h_ &in; _H_.
+- **Hands**: The set _H_ = {_h_ | _h_ &in; &Pscr;(_C_) and |_h_| = 13}.
+- **Vulnerabilities**: The power set _V_ = &Pscr;(_P_) (abbreviating &empty; as &bottom; and _P_ as &top;).
+- **Strains**: The totally ordered set (_St_, &lt;) such that _St_ = _S_ &cup; {`NT`} and max(_St_) = `NT`.
+- **Directions**: The set _Dir_ = {`N`, `E`, `S`, `W`} and its permutation &sigma; = (`N`, `E`, `S`, `W`).
+- **Partnerships**: The set _P_ = {(`N`, `S`), (`E`, `W`)}, which satisfies _P_ &sub; _Dir_<sup>2</sup>.
+- **Deals**: The set _D_ = {(_h_<sub>`N`</sub>, _h_<sub>`E`</sub>, _h_<sub>`S`</sub>, _h_<sub>`W`</sub>) | _h_ &in; _H_}.
+---
 - **Board**: Any element _bd_ &in; _D_ &times; _Dir_ &times; _V_.
     - Board Number: In actual play, a [relation](https://en.wikipedia.org/wiki/Board_(bridge)#Set_of_boards) _BONE_ &sube; (_i_ &in; _&Iopf;_, _dir_, _vul_) such that _i_ &in; _&Zopf;_<sub>1&le;_k_&le;16</sub> infers direction and vulnerability. Board 17 cycles back to board 1.
 - **Level**: Any element _l_ &in; _&Zopf;_<sub>1&le;_k_&le;7</sub> = _L_.
