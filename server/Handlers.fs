@@ -18,10 +18,10 @@ let getShapes (context: HttpContext) =
     Query.selectAllShapes
     |> (getQueryContext context).Read Database.HydraReader.Read
     |>> fun (s: Database.dbo.shape_table) ->
-        { S = s.spade_length.Value
-          H = s.heart_length.Value
-          D = s.diamond_length.Value
-          C = s.club_length.Value },
+        { S = s.spade_length
+          H = s.heart_length
+          D = s.diamond_length
+          C = s.club_length },
         s.id
     |> Map
     |> (fun v -> shapes <- Some v; v)
