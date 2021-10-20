@@ -9,7 +9,7 @@ Incomplete list of terms
 - **Strains**: The totally ordered set (_St_, &lt;) such that _St_ = _S_ &cup; {`NT`} and max(_St_) = `NT`.
 - **Directions**: The set _Dir_ = {`N`, `E`, `S`, `W`} and its permutation &sigma; = (`N`, `E`, `S`, `W`).
 - **Partnerships**: The set _P_ = {(`N`, `S`), (`E`, `W`)}, which satisfies _P_ &sub; _Dir_<sup>2</sup>.
-- **Deals**: The set _D_ = {(_h_<sub>`N`</sub>, _h_<sub>`E`</sub>, _h_<sub>`S`</sub>, _h_<sub>`W`</sub>) | _h_ &in; _H_}.
+- **Deals**: The set _D_ = {(_h_<sub>`N`</sub>, _h_<sub>`E`</sub>, _h_<sub>`S`</sub>, _h_<sub>`W`</sub>) | _h_<sub>Dir</sub> &in; _H_ and &bigcup;_h_<sub>Dir</sub> = _C_}.
 ---
 - **Board**: Any element _bd_ &in; _D_ &times; _Dir_ &times; _V_.
     - Board Number: In actual play, a [relation](https://en.wikipedia.org/wiki/Board_(bridge)#Set_of_boards) _BONE_ &sube; (_i_ &in; _&Iopf;_, _dir_, _vul_) such that _i_ &in; _&Zopf;_<sub>1&le;_k_&le;16</sub> infers direction and vulnerability. Board 17 cycles back to board 1.
