@@ -177,17 +177,17 @@ module dbo =
 
     type shape_table =
         { id: int16
-          spade_length: Option<byte>
-          heart_length: Option<byte>
-          diamond_length: Option<byte>
-          club_length: Option<byte> }
+          spade_length: byte
+          heart_length: byte
+          diamond_length: byte
+          club_length: byte }
 
     type shape_tableReader(reader: Microsoft.Data.SqlClient.SqlDataReader, getOrdinal) =
         member __.id = RequiredColumn(reader, getOrdinal, reader.GetInt16, "id")
-        member __.spade_length = OptionalColumn(reader, getOrdinal, reader.GetByte, "spade_length")
-        member __.heart_length = OptionalColumn(reader, getOrdinal, reader.GetByte, "heart_length")
-        member __.diamond_length = OptionalColumn(reader, getOrdinal, reader.GetByte, "diamond_length")
-        member __.club_length = OptionalColumn(reader, getOrdinal, reader.GetByte, "club_length")
+        member __.spade_length = RequiredColumn(reader, getOrdinal, reader.GetByte, "spade_length")
+        member __.heart_length = RequiredColumn(reader, getOrdinal, reader.GetByte, "heart_length")
+        member __.diamond_length = RequiredColumn(reader, getOrdinal, reader.GetByte, "diamond_length")
+        member __.club_length = RequiredColumn(reader, getOrdinal, reader.GetByte, "club_length")
         member __.Read() =
             { id = __.id.Read()
               spade_length = __.spade_length.Read()

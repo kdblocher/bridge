@@ -33,10 +33,10 @@ VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13)
 
 CREATE TABLE dbo.shape_table (
 	id smallint PRIMARY KEY CLUSTERED IDENTITY(1,1),
-	spade_length tinyint,
-	heart_length tinyint,
-	diamond_length tinyint,
-	club_length tinyint
+	spade_length tinyint NOT NULL,
+	heart_length tinyint NOT NULL,
+	diamond_length tinyint NOT NULL,
+	club_length tinyint NOT NULL
 	)
 
 INSERT INTO dbo.shape_table
