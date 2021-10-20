@@ -1,15 +1,13 @@
-import { either, option, readonlyArray, readonlyNonEmptyArray, readonlySet } from 'fp-ts';
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { either, option, predicate, readonlyArray, readonlyNonEmptyArray, readonlySet, separated } from 'fp-ts';
 import { observable } from 'fp-ts-rxjs';
 import { tailRec } from 'fp-ts/lib/ChainRec';
-import { ChainRec } from 'fp-ts/lib/Either';
-import { flow, pipe } from 'fp-ts/lib/function';
+import { constFalse, constTrue, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
+import { WritableDraft } from 'immer/dist/internal';
 import * as D from 'io-ts/Decoder';
 import { O } from 'ts-toolbelt';
-
-import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-
-import { Board, Deal, deal, Direction } from '../model/bridge';
+import { Board, deal, getHcp } from '../model/bridge';
 import { Constraint, satisfies, satisfiesPath } from '../model/constraints';
 import { eqCard, Hand, newDeck, ordCardDescending } from '../model/deck';
 import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL, serializedBoardL, SerializedHand, serializedHandL } from '../model/serialization';
@@ -17,6 +15,8 @@ import { BidPath } from '../model/system';
 import { decodeHand } from '../parse';
 import { observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
+
+
 
 const name = 'selection'
 
@@ -32,22 +32,16 @@ const initialState : State = {
   selectedBlockKey: option.none
 }
 
-const getHandByDirection = (dir: Direction) => (d: Deal) =>
-  pipe(d[dir], either.right, decodedSerializedHandL.get, castDraft)
-
 interface Hands {
   opener: SerializedHand
   responder: SerializedHand
 }
 
-const getResult = createAsyncThunk('abc', ({ opener, responder}: Hands) =>
-  pipe(
-    genBoardFromHands(serializedHandL.reverseGet(opener), serializedHandL.reverseGet(responder)),
-    serializedBoardL.get,
-    readonlyNonEmptyArray.of,
-    observeResultsSerial,
-    observable.toTask,
-    t => t()))
+const setHands = (state: WritableDraft<State>) => (hands: readonly [Hand, Hand]) => {
+  const [opener, responder] = hands
+  state.opener = pipe(opener, either.right, decodedSerializedHandL.get, castDraft)
+  state.responder = pipe(responder, either.right, decodedSerializedHandL.get, castDraft)
+}
 
 const genBoardFromHands = (opener: Hand, responder: Hand) =>
   pipe(newDeck(),
@@ -65,6 +59,36 @@ const genBoardFromHands = (opener: Hand, responder: Hand) =>
       }
     }))
 
+const getResult = createAsyncThunk('abc', ({ opener, responder}: Hands) =>
+  pipe(
+    genBoardFromHands(serializedHandL.reverseGet(opener), serializedHandL.reverseGet(responder)),
+    serializedBoardL.get,
+    readonlyNonEmptyArray.of,
+    observeResultsSerial,
+    observable.toTask,
+    t => t()))
+
+const genUntilCondition = (limit: option.Option<number>) => (condition: predicate.Predicate<readonly [Hand, Hand]>) =>
+  tailRec(limit, l => {
+    if (pipe(l, option.fold(constFalse, i => i === 0))) {
+      return either.right(option.none)
+    } else {
+      const d = deal(newDeck())
+      const hands = [d.N, d.S] as const
+      const result = condition(hands)
+      return result
+        ? either.right(option.some(hands))
+        : either.left(pipe(l, option.map(i => i - 1)))
+    }
+  })
+
+const genMatchingOf = (length: predicate.Predicate<number>) => (paths: readonlyNonEmptyArray.ReadonlyNonEmptyArray<BidPath>) =>
+  genUntilCondition(option.some(10000))(hands =>
+    pipe(paths,
+      readonlyArray.partition(satisfiesPath(...hands)),
+      separated.right,
+      x => length(x.length)))
+
 const slice = createSlice({
   name,
   initialState,
@@ -78,21 +102,37 @@ const slice = createSlice({
       },
       prepare: (payload, meta) => ({ payload, meta })
     },
-    genHands: (state) => {
-      const d = deal(newDeck())
-      state['opener'] = getHandByDirection("N")(d)
-      state['responder'] = getHandByDirection("S")(d)
+    genOnce: (state) => {
+      pipe(
+        genUntilCondition(option.none)(constTrue),
+        option.map(setHands(state)))
     },
-    genHandsUntil: (state, action: PayloadAction<BidPath>) => {
-      const [opener, responder] = tailRec<BidPath, readonly [Hand, Hand]>(action.payload, (path => {
-        const d = deal(newDeck())
-        const hands = [d.N, d.S] as const
-        return satisfiesPath(...hands)(path)
-          ? either.right(hands)
-          : either.left(path)
-      }))
-      state.opener = pipe(opener, either.right, decodedSerializedHandL.get, castDraft)
-      state.responder = pipe(responder, either.right, decodedSerializedHandL.get, castDraft)
+    getHandsMatchingPath: (state, action: PayloadAction<BidPath>) => {
+      pipe(
+        genUntilCondition(option.some(1000))(hands =>
+          satisfiesPath(...hands)(action.payload)),
+        option.map(setHands(state)))
+    },
+    genHandsNotMatchingAnyOf: {
+      reducer: (state, action: PayloadAction<readonlyNonEmptyArray.ReadonlyNonEmptyArray<BidPath>, string, number>) => {
+        pipe(
+          genUntilCondition(option.some(10000))(hands =>
+            getHcp(hands[0]) >= action.meta
+            && pipe(action.payload, readonlyArray.every(predicate.not(satisfiesPath(...hands))))),
+          option.map(setHands(state)))
+      },
+      prepare: (payload: readonlyNonEmptyArray.ReadonlyNonEmptyArray<BidPath>, openerMinHcp: number) =>
+        ({ payload, meta: openerMinHcp })
+    },
+    genHandsMatchingExactlyOneOf: (state, action: PayloadAction<readonlyNonEmptyArray.ReadonlyNonEmptyArray<BidPath>>) => {
+      pipe(
+        genMatchingOf(l => l === 1)(action.payload),
+        option.map(setHands(state)))
+    },
+    genHandsMatchingMoreThanOneOf: (state, action: PayloadAction<readonlyNonEmptyArray.ReadonlyNonEmptyArray<BidPath>>) => {
+      pipe(
+        genMatchingOf(l => l > 1)(action.payload),
+        option.map(setHands(state)))
     }
   },
   extraReducers: builder => builder
@@ -102,7 +142,7 @@ const slice = createSlice({
   })
 
 
-export const { setSelectedBlockKey, setHand, genHands, genHandsUntil } = slice.actions
+export const { setSelectedBlockKey, setHand, genOnce, getHandsMatchingPath, genHandsNotMatchingAnyOf, genHandsMatchingExactlyOneOf, genHandsMatchingMoreThanOneOf } = slice.actions
 export { getResult };
 
 export default slice.reducer
