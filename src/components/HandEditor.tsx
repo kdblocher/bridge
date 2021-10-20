@@ -5,10 +5,11 @@ import styled from 'styled-components';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { serializedHandL } from '../model/serialization';
 import { handE } from '../parse/hand';
-import { AuctionPositionType, genHands, getResult, selectHand, setHand } from '../reducers/selection';
+import { AuctionPositionType, getResult, selectHand, setHand } from '../reducers/selection';
 import DoubleDummyResultView from './core/DoubleDummyResultView';
 import HandView from './core/HandView';
 import { Option } from './core/Monad';
+import SelectionGenerators from './SelectionGenerators';
 
 
 interface HandInputProps {
@@ -76,15 +77,13 @@ const HandEditor = () => {
             <td><Option value={o}>{hand => <HandView hand={hand} />}</Option></td>
             <td><Option value={r}>{hand => <HandView hand={hand} />}</Option></td>
           </tr>
-          <tr>
-            <td>
-              <button type="button" onClick={() => dispatch(genHands())}>Generate</button> <br/>
-              <button type="button" onClick={getResultCallback}>Get Results</button> <br/>
-            </td>
-          </tr>
         </tbody>
       </table>
-      {result && <DoubleDummyResultView result={result} /> }
+      <SelectionGenerators />
+      <p>
+        <button type="button" onClick={getResultCallback}>Solution</button> 
+        {result && <DoubleDummyResultView result={result} /> }
+      </p>
     </>
   )
 }

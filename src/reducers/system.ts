@@ -1,11 +1,12 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit"
-import { either, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, separated, tree } from 'fp-ts'
-import { flow, pipe } from "fp-ts/lib/function"
-import { castDraft } from "immer"
-import { Bid, eqBid } from "../model/bridge"
-import { ConstrainedBid } from "../model/constraints"
-import { extendWithSiblings, filterIncomplete, getAllLeafPaths, pathsWithoutRoot } from "../model/system"
-import { decodeBid } from "../parse"
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { either, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, separated, tree } from 'fp-ts';
+import { flow, pipe } from 'fp-ts/lib/function';
+import { castDraft } from 'immer';
+import { Bid, eqBid } from '../model/bridge';
+import { ConstrainedBid } from '../model/constraints';
+import { extendWithSiblings, filterIncomplete, getAllLeafPaths, pathsWithoutRoot } from '../model/system';
+import { decodeBid } from '../parse';
+
 
 
 export type DecodedBid = ReturnType<typeof decodeBid>
@@ -107,15 +108,31 @@ export const selectErrors =
     RA.separate,
     separated.left)
 
-const getComplete = (state: State) =>
-  pipe(
-    state.system,
-    tree.map(n => n.bid),
+const getCompleteByTree =
+  flow(
+    tree.map((n: Node) => n.bid),
     filterIncomplete)
+
+const getCompleteTree = (state: State) =>
+  getCompleteByTree(state.system)
+
+export const selectCompleteByKey = (state: State, blockKey: string) =>
+  pipe(selectPathByKey(state, blockKey),
+    O.fromNullable,
+    O.chain(nodes => pipe(
+      tree.unfoldTree([getRoot().value, ...nodes], ([n0, ...ns]) => {
+        // debugger
+        return [n0, ns.length === 0 ? [] : [ns]]
+      }),
+      getCompleteByTree,
+      extendWithSiblings(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid)),
+      getAllLeafPaths,
+      RA.head)),
+    O.toNullable)
 
 export const selectAllCompleteBidPaths =
   flow(
-    getComplete,
+    getCompleteTree,
     extendWithSiblings(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid)),
     getAllLeafPaths)
 
