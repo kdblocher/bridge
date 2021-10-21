@@ -1,9 +1,9 @@
-import { either, eitherT, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, string } from 'fp-ts'
-import { constant, flow, identity, pipe } from 'fp-ts/lib/function'
-import { Strain, zeroSpecificShape } from '../model/bridge'
-import { constConstraintFalse, constConstraintTrue, ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints'
-import { Suit } from '../model/deck'
-import * as AST from '../parse/bid.peg.g'
+import { either, eitherT, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, string } from 'fp-ts';
+import { constant, flow, identity, pipe } from 'fp-ts/lib/function';
+import { Strain, zeroSpecificShape } from '../model/bridge';
+import { constConstraintFalse, constConstraintTrue, ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints';
+import { rankFromString, Suit } from '../model/deck';
+import * as AST from '../parse/bid.peg.g';
 
 
 const getConnectiveItems = (items: ReadonlyArray<AST.Constraint>) =>
@@ -32,8 +32,8 @@ const strainFromAST = (s: AST.Strain) : Strain =>
   suitFromAST(s)
 
 const suitSpecifierFromAST = (s: AST.SuitRangeSpecifier) : SuitRangeSpecifier =>
-  s.kind === AST.ASTKinds.Major ? "Major" :
-  s.kind === AST.ASTKinds.Minor ? "Minor" :
+  // s.kind === AST.ASTKinds.Major ? "Major" :
+  // s.kind === AST.ASTKinds.Minor ? "Minor" :
   suitFromAST(s)
 
 const bindValueFromASTQualifier = (s: AST.BoundQualifier, value: number) => (type: 'min' | 'max') =>
@@ -130,6 +130,16 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
         min: pipe(bindValueFromASTQualifier(c.qualifier, c.value.value)('min'), option.getOrElse(constant(0))),
         max: pipe(bindValueFromASTQualifier(c.qualifier, c.value.value)('max'), option.getOrElse(constant(13))),
         suit: suitSpecifierFromAST(c.suit)
+      }
+
+    case AST.ASTKinds.SuitHonors:
+      return {
+        type: "SuitHonors",
+        suit: suitFromAST(c.suit),
+        honors: pipe(c.honors,
+          readonlyArray.fromArray,
+          readonlyArray.traverse(option.Applicative)(flow(h => h.v, rankFromString)),
+          option.getOrElseW(() => []))
       }
 
     case AST.ASTKinds.AnyShape:

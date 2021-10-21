@@ -1,13 +1,13 @@
 import * as fc from 'fast-check';
-import { eq, predicate } from 'fp-ts';
-import { pipe } from 'fp-ts/lib/function';
+import { eq, predicate, readonlyArray, readonlyNonEmptyArray } from 'fp-ts';
+import { flow, pipe } from 'fp-ts/lib/function';
 import { iso } from 'monocle-ts';
 import { Iso } from 'monocle-ts/Iso';
 import { O } from 'ts-toolbelt';
-
-import { Board, deal, Deal, eqBoard, eqDeal, eqHand, makeBoard } from './bridge';
+import { Board, ContractBid, deal, Deal, eqBoard, eqContractBid, eqDeal, eqHand, makeBoard, ordContractBid, Strain, strains } from './bridge';
 import { deckA, handA } from './deck.spec';
 import * as serializers from './serialization';
+
 
 /**
 * Every serializer is modeled as an Iso<D, S(D)>, and as such, should fulfill the Iso laws:
@@ -19,7 +19,7 @@ type Getters = O.P.Pick<Serializers, [string, "get"]>
 type GetArbitraries<T> = {
   [P in keyof T]: T[P] extends { get: (x: infer U) => unknown } ? U : never
 }
-type SerializerTypes = O.Omit<GetArbitraries<Getters>, "decodedSerializedHandL">
+type SerializerTypes = O.Omit<GetArbitraries<Getters>, "decodedSerializedHandL" | "isBidPath">
 interface Metadata<T> { arb: fc.Arbitrary<T>, eq: eq.Eq<T> }
 type SerializerMetadata = { [P in keyof SerializerTypes]: Metadata<SerializerTypes[P]> }
 
@@ -29,10 +29,23 @@ const boardA: fc.Arbitrary<Board> =
   fc.tuple(fc.integer({ min: 1 }), dealA)
     .map(([num, deal]) => makeBoard(num)(deal))
 
+const levelA = fc.integer({ min: 1, max: 7 })
+const strainA : fc.Arbitrary<Strain> = fc.constantFrom(...strains)
+const contractBidA: fc.Arbitrary<ContractBid> =
+  fc.tuple(levelA, strainA)
+    .map(([level , strain ]) =>
+         ({level , strain }))
+const bidPathA: fc.Arbitrary<readonlyNonEmptyArray.ReadonlyNonEmptyArray<ContractBid>> =
+  fc.set(contractBidA, { minLength: 1 }).map(flow(
+    readonlyArray.fromArray,
+    x => x as readonlyNonEmptyArray.ReadonlyNonEmptyArray<ContractBid>,
+    readonlyNonEmptyArray.sort(ordContractBid)))
+
 const metadata: SerializerMetadata = {
-  serializedHandL:  { arb: handA,  eq: eqHand },
-  serializedDealL:  { arb: dealA,  eq: eqDeal },
-  serializedBoardL: { arb: boardA, eq: eqBoard }
+  serializedHandL:    { arb: handA,    eq: eqHand },
+  serializedDealL:    { arb: dealA,    eq: eqDeal },
+  serializedBoardL:   { arb: boardA,   eq: eqBoard },
+  serializedBidPathL: { arb: bidPathA, eq: readonlyNonEmptyArray.getEq(eqContractBid) }
 }
 
 const getPredicate = <T, U>(serializer: iso.Iso<T, U>, eq: eq.Eq<T>): predicate.Predicate<T> =>
