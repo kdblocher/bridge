@@ -1,19 +1,19 @@
 {
   "files": {
     "main.css": "/bridge/static/css/main.e8e5c3ac.chunk.css",
-    "main.js": "/bridge/static/js/main.56bbdc58.chunk.js",
-    "main.js.map": "/bridge/static/js/main.56bbdc58.chunk.js.map",
+    "main.js": "/bridge/static/js/main.ef2c6333.chunk.js",
+    "main.js.map": "/bridge/static/js/main.ef2c6333.chunk.js.map",
     "runtime-main.js": "/bridge/static/js/runtime-main.da676aa4.js",
     "runtime-main.js.map": "/bridge/static/js/runtime-main.da676aa4.js.map",
     "static/css/2.e426f036.chunk.css": "/bridge/static/css/2.e426f036.chunk.css",
     "static/js/2.264ade55.chunk.js": "/bridge/static/js/2.264ade55.chunk.js",
     "static/js/2.264ade55.chunk.js.map": "/bridge/static/js/2.264ade55.chunk.js.map",
-    "23e5527c84b8a6425324.worker.js": "/bridge/23e5527c84b8a6425324.worker.js",
-    "23e5527c84b8a6425324.worker.js.LICENSE.txt": "/bridge/23e5527c84b8a6425324.worker.js.LICENSE.txt",
-    "23e5527c84b8a6425324.worker.js.map": "/bridge/23e5527c84b8a6425324.worker.js.map",
-    "2b73f4a7c2dff0040aeb.worker.js": "/bridge/2b73f4a7c2dff0040aeb.worker.js",
-    "2b73f4a7c2dff0040aeb.worker.js.LICENSE.txt": "/bridge/2b73f4a7c2dff0040aeb.worker.js.LICENSE.txt",
-    "2b73f4a7c2dff0040aeb.worker.js.map": "/bridge/2b73f4a7c2dff0040aeb.worker.js.map",
+    "84ded1a0b833bb13f6ea.worker.js": "/bridge/84ded1a0b833bb13f6ea.worker.js",
+    "84ded1a0b833bb13f6ea.worker.js.LICENSE.txt": "/bridge/84ded1a0b833bb13f6ea.worker.js.LICENSE.txt",
+    "84ded1a0b833bb13f6ea.worker.js.map": "/bridge/84ded1a0b833bb13f6ea.worker.js.map",
+    "e908885a6969b2c7ab4c.worker.js": "/bridge/e908885a6969b2c7ab4c.worker.js",
+    "e908885a6969b2c7ab4c.worker.js.LICENSE.txt": "/bridge/e908885a6969b2c7ab4c.worker.js.LICENSE.txt",
+    "e908885a6969b2c7ab4c.worker.js.map": "/bridge/e908885a6969b2c7ab4c.worker.js.map",
     "index.html": "/bridge/index.html",
     "static/css/2.e426f036.chunk.css.map": "/bridge/static/css/2.e426f036.chunk.css.map",
     "static/css/main.e8e5c3ac.chunk.css.map": "/bridge/static/css/main.e8e5c3ac.chunk.css.map",
@@ -24,6 +24,6 @@
     "static/css/2.e426f036.chunk.css",
     "static/js/2.264ade55.chunk.js",
     "static/css/main.e8e5c3ac.chunk.css",
-    "static/js/main.56bbdc58.chunk.js"
+    "static/js/main.ef2c6333.chunk.js"
   ]
 }
