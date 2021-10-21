@@ -38,7 +38,8 @@ The tool will attempt to parse each line into a [set of] constraints, which it t
 | Distribution | `BAL` <br /> `semiBAL` <br /> `unBAL` | Holds if the [hand distribution](https://en.wikipedia.org/wiki/Balanced_hand) is balanced, semi-balanced (includes balanced), or **unbalanced** (not balanced or semi-balanced), respectively. |
 | Primary | _s_ `1` | Holds if _s_ is 5+ cards, longer than higher-ranking suits and at least as long as lower-ranking suits. | `H1` |
 | Secondary | _s_ `2` | Holds if _s_ is 4+ cards, up to the length of the primary suit, but longer than the remaining two suits. | `C2` |
-| Honors | _s_ _h_... | Holds if the suit has all of the specific honor(s) _h_ (any of `AKQJT`). | `SAK`
+| Honors | _s_ _h_... | Holds if _s__ has all of the specific honor(s) _h_ (any of `AKQJT`). | `SAK` |
+| Top X of Y | _s_ _x_ `/` _y_ | Holds if _s_ contains the top _x_ ranking cards out of the top _y_. | `S2/3` (AK/AQ/KQ) |
 | Shape | _n<sub>&spades;</sub>_ _n<sub>&hearts;</sub>_ _n<sub>&diams;</sub>_ _n<sub>&clubs;</sub>_ <br /> _n<sub>1</sub>_ _n<sub>2</sub>_ _n<sub>3</sub>_ _n<sub>4</sub>_ `*` | Holds if the hand distribution is **exactly** _n_ (for each suit). <br /> Holds if the hand distribution is _n_ for **any** order of suits. | `4522` (3&hearts; rebid after [Flannery](https://www.bridgebum.com/flannery_2d.php)) <br /> `4441*` ([Multi 2&diams;](https://www.bridgebum.com/multi_2d.php)) |
 | Response | `F1` <br /> `FG` <br /> `FS` | Marks the bid as [forcing](https://en.wikipedia.org/wiki/Forcing_bid) for one round, to game, or to slam (respectively). |
 | Relay | `->` _b_ | Marks the bid as a [relay](https://en.wikipedia.org/wiki/Relay_bid) to bid _b_. <br/> Bids accepting the relay may simply name the bid without `:` ... to automatically accept the relay. | `2N: ->3C` <br/> &nbsp;&nbsp;&nbsp;`3C` (accepts relay) |
