@@ -79,7 +79,7 @@ let tryUpsertDeals : ContextHandlerReader =
       getBody
       |>> Seq.map (|KeyValue|)
       |>> traverse (fun (id, details) -> makeDeal details id)
-      >>= (traverse (Query.updateDeals shapes >> traverse queryContext.UpdateAsync))
+      >>= (traverse (Query.updateDeals shapes >> Seq.iter (queryContext.Update >> ignore) >> Task.FromResult))
       |>> map (ignore >> (fun () -> Successful.OK ""))
     return x
   }
