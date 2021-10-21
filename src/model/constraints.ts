@@ -4,7 +4,7 @@ import { constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib
 import { fromTraversable, Lens, lens, Optional, traversal } from 'monocle-ts';
 import { assertUnreachable } from '../lib';
 import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, makeShape, Shape as AnyShape, SpecificShape } from './bridge';
-import { eqRank, eqSuit, Hand, honors, Rank, Suit, suits } from './deck';
+import { eqRank, eqSuit, Hand, honors, ordRankAscending, Rank, Suit, suits } from './deck';
 import { BidInfo } from './system';
 
 
@@ -30,11 +30,17 @@ export interface ConstraintSuitComparison {
   op: SuitComparisonOperator
 }
 
-export type SuitHonorsQualifier = "+" | "-" | "="
 export interface ConstraintSuitHonors {
   type: "SuitHonors",
   suit: Suit,
   honors: ReadonlyArray<Rank>
+}
+
+export interface ConstraintSuitTop {
+  type: "SuitTop",
+  suit: Suit,
+  count: number,
+  minRank: Rank
 }
 
 export interface ConstraintSuitPrimary {
@@ -110,6 +116,7 @@ export type Constraint =
   | ConstraintSuitComparison
   | ConstraintSuitRank
   | ConstraintSuitHonors
+  | ConstraintSuitTop
   | ConstraintDistribution
   | ConstraintAnyShape
   | ConstraintSpecificShape
@@ -208,19 +215,28 @@ export const suitSecondary = (secondarySuit: Suit) => (primarySuit: Suit) =>
     ]),
     forall(identity))
 
+const toRankSet = readonlySet.fromReadonlyArray(eqRank)
+
 const suitHonors = (suitHonors: ConstraintSuitHonors) =>
   flow(
     groupHandBySuit,
     readonlyRecord.lookup(suitHonors.suit),
     O.fold(constFalse, cards => {
-      const setFromArray = readonlySet.fromReadonlyArray(eqRank)
       const cardSet = pipe(cards,
         RA.map(c => c.rank),
-        setFromArray,
-        readonlySet.intersection(eqRank)(setFromArray(honors)))
-      const honorSet = pipe(suitHonors.honors, setFromArray)
+        toRankSet,
+        readonlySet.intersection(eqRank)(toRankSet(honors)))
+      const honorSet = pipe(suitHonors.honors, toRankSet)
       return pipe(honorSet, readonlySet.isSubset(eqRank)(cardSet))
     }))
+
+const suitTop = (suitTop: ConstraintSuitTop) =>
+  flow(groupHandBySuit,
+    readonlyRecord.lookup(suitTop.suit),
+    O.fold(constFalse, flow(
+      RA.map(c => c.rank),
+      RA.filter(r => ordRankAscending.compare(r, suitTop.minRank) >= 0),
+      cards => cards.length >= suitTop.count)))
 
 export const isShape = (shape: AnyShape) =>
   flow(getHandShape, handShape =>
@@ -300,6 +316,8 @@ const satisfiesBasic : ReturnType<SatisfiesT1<id.URI, BasicConstraint>> = c => {
       return suitCompare(c.op)(c.left, c.right)
     case "SuitHonors":
       return suitHonors(c)
+    case "SuitTop":
+      return suitTop(c)
     case "Balanced":
       return isBalanced
     case "SemiBalanced":

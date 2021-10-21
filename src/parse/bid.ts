@@ -2,7 +2,7 @@ import { either, eitherT, option, readonlyArray, readonlyNonEmptyArray, readonly
 import { constant, flow, identity, pipe } from 'fp-ts/lib/function';
 import { Strain, zeroSpecificShape } from '../model/bridge';
 import { constConstraintFalse, constConstraintTrue, ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints';
-import { rankFromString, Suit } from '../model/deck';
+import { rankFromString, ranks, Suit } from '../model/deck';
 import * as AST from '../parse/bid.peg.g';
 
 
@@ -140,6 +140,14 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
           readonlyArray.fromArray,
           readonlyArray.traverse(option.Applicative)(flow(h => h.v, rankFromString)),
           option.getOrElseW(() => []))
+      }
+
+    case AST.ASTKinds.SuitTop:
+      return {
+        type: "SuitTop",
+        suit: suitFromAST(c.suit),
+        count: parseInt(c.x),
+        minRank: ranks[ranks.length - parseInt(c.y)]
       }
 
     case AST.ASTKinds.AnyShape:
