@@ -30,8 +30,9 @@ Constraint :=
   | SuitRange
   | SuitBound
   | SuitComparison
-  | SuitRank
   | SuitHonors
+  | SuitTop
+  | SuitRank
   | PointRange
   | PointBound
   | Bid
@@ -57,6 +58,7 @@ SuitComparison := left=Suit op=SuitComparisonOperator right=Suit
 SuitComparisonOperator := v='<' | v='<=' | v='=' | v='>=' | v='>'
 
 SuitHonors := suit=Suit honors=Honor+
+SuitTop := suit=Suit x='[0-5]' '/' y='[1-5]'
 
 BoundQualifier := Plus | Minus | Equals
 Plus := v='\+'
