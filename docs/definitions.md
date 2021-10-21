@@ -9,16 +9,16 @@ Incomplete list of terms
 - **Strains**: The totally ordered set (_St_, &lt;) such that _St_ = _S_ &cup; {`NT`} and max(_St_) = `NT`.
 - **Directions**: The set _Dir_ = {`N`, `E`, `S`, `W`} and its permutation &sigma; = (`N`, `E`, `S`, `W`).
 - **Partnerships**: The set _P_ = {(`N`, `S`), (`E`, `W`)}, which satisfies _P_ &sub; _Dir_<sup>2</sup>.
-- **Deals**: The set _D_ = {(_h_<sub>`N`</sub>, _h_<sub>`E`</sub>, _h_<sub>`S`</sub>, _h_<sub>`W`</sub>) | _h_<sub>Dir</sub> &in; _H_ and &bigcup;_h_<sub>Dir</sub> = _C_}.
+- **Deals**: The set _D_ = {(_h_<sub>`N`</sub>, _h_<sub>`E`</sub>, _h_<sub>`S`</sub>, _h_<sub>`W`</sub>) | &forall;<sub>_d_&in;Dir</sub> _h_<sub>_d_</sub> &in; _H_ and &bigcup;<sub>_d_&in;Dir</sub> _h_<sub>_d_</sub> = _C_}.
+- **Boards**: The set _Bd_ = _D_ &times; _Dir_ &times; _V_.
+- **Levels**: The set _L_ = {`1`, `2`, `3`, `4`, `5`, `6`, `7`}.
+- **Contract Bids**: The totally ordered set (_B_<sub>_c_</sub>, &lt;) such that _B_<sub>_c_</sub> = _L_ &times; _St_.
+- **Non-Contract Bids**: The set _B_<sub>_n_</sub> = {&bottom;, `X`, `XX`}.
 ---
-- **Board**: Any element _bd_ &in; _D_ &times; _Dir_ &times; _V_.
-    - Board Number: In actual play, a [relation](https://en.wikipedia.org/wiki/Board_(bridge)#Set_of_boards) _BONE_ &sube; (_i_ &in; _&Iopf;_, _dir_, _vul_) such that _i_ &in; _&Zopf;_<sub>1&le;_k_&le;16</sub> infers direction and vulnerability. Board 17 cycles back to board 1.
-- **Level**: Any element _l_ &in; _&Zopf;_<sub>1&le;_k_&le;7</sub> = _L_.
-- **Contract Bid**: Any element _cb_ &in;  _L_ &times;  _St_. = _CB_. The lexicographic relation &lt; over _CB_ forms a totally ordered set.
-- **Bid**: Any element _b_ in _CB_ &cup; {&bottom;, `X`, `XX`} = _B_. &le;<sub>_B_</sub> = &lt;<sub>_CB_</sub> forms a partially ordered set, in addition to the specific rules below:
+- **Bids**: The partially ordered set (_B_, &le;) such that _B_ = _B_<sub>_c_</sub> &cup; _B_<sub>_n_</sub>. &le;<sub>_B_</sub> = &lt;<sub>_B_<sub>_c_</sub></sub> forms a partially ordered set, in addition to the specific rules below:
    - &forall;<sub>_b_&in;_B_</sub> _b_ &lEg; &bottom; (&bottom; can occur anywhere)
-   - &forall;<sub>_b_&in;_CB_</sub> _b_ &lt; `X` (`X` can occur after a contract bid)
-   - &forall;<sub>_b_&in;_CB_</sub> _b_ &gt; `XX` (`XX` cannot occur after a contract bid)
+   - &forall;<sub>_b_&in;_B_<sub>_c_</sub></sub> _b_ &lt; `X` (`X` can occur after a contract bid)
+   - &forall;<sub>_b_&in;_B_<sub>_c_</sub></sub> _b_ &gt; `XX` (`XX` cannot occur after a contract bid)
    - `X` &lt; `XX` (redouble can occur after a double)
 - **Auction**: Any finite sequence (_a_<sub>_i_</sub> ...)<sub>_i_&in;&Zopf;</sub> &in; _A_ such that _a_<sub>_i_</sub> &in; _Dir_ &times; _B_ and the following rules hold:
     - _dir_<sub>_i_</sub>+1 = _dir_<sub>_i+1_</sub> (directions must rotate)
@@ -28,5 +28,5 @@ Incomplete list of terms
 - **Complete Auction**: Any finite sequence (_a_<sub>_i_</sub> ...)<sub>_i_&in;&Zopf;</sub> &in; _A_<sup>&star;</sup> such that one of the following rules hold:
     - |(_a_...)| = 4 &and; &forall;<sub>_b_&in;(_a_...)</sub> = _b_ = &bottom; (all pass)
     - |(_a_...)| > 4 &and; (..., &bottom;, &bottom;, &bottom;) &sub; (_a_...) (three consecutive passes at the end)
-- **Contract**: _cb_<sub>MAX</sub>, _m_, _dir_ = &star; in the auction (tbd)
+- **Contract**: _B_<sub>_c_</sub><sub>MAX</sub>, _m_, _dir_ = &star; in the auction (tbd)
 - **Score**: score(&star;, _bd_) &in; &Zopf;
