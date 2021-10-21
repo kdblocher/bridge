@@ -1,10 +1,10 @@
 import { either, eitherT, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, string } from 'fp-ts';
 import { constant, flow, identity, pipe } from 'fp-ts/lib/function';
-
 import { Strain, zeroSpecificShape } from '../model/bridge';
 import { constConstraintFalse, constConstraintTrue, ConstrainedBid, Constraint, SuitComparisonOperator, SuitHonorsQualifier, SuitRangeSpecifier } from '../model/constraints';
-import { Rank, RankC, Suit } from '../model/deck';
+import { rankFromString, Suit } from '../model/deck';
 import * as AST from '../parse/bid.peg.g';
+
 
 const getConnectiveItems = (items: ReadonlyArray<AST.Constraint>) =>
   pipe(items,
@@ -136,7 +136,10 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
       return {
         type: "SuitHonors",
         suit: suitFromAST(c.suit),
-        honors: pipe(c.honors, readonlyArray.fromArray, readonlyArray.map(h => (RankC.decode(h.v) as either.Right<Rank>).right)) as readonlyNonEmptyArray.ReadonlyNonEmptyArray<Rank>, 
+        honors: pipe(c.honors,
+          readonlyArray.fromArray,
+          readonlyArray.traverse(option.Applicative)(flow(h => h.v, rankFromString)),
+          option.getOrElseW(() => [])),
         qualifier: (c.qualifier?.v ?? "=") as SuitHonorsQualifier
       }
 

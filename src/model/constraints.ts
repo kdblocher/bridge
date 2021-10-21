@@ -1,12 +1,12 @@
-import { boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyTuple, record, state as S, string } from 'fp-ts';
+import { boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
 import { constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib/function';
 import { fromTraversable, Lens, lens, Optional, traversal } from 'monocle-ts';
-
 import { assertUnreachable } from '../lib';
-import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, makeShape, Shape as AnyShape, SpecificShape } from './bridge';
-import { eqSuit, Hand, Rank, Suit, suits } from './deck';
+import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, makeShape, Shape as AnyShape, SpecificShape } from './bridge';
+import { eqRank, eqSuit, Hand, honors, Rank, Suit, suits } from './deck';
 import { BidInfo } from './system';
+
 
 export interface ConstraintPointRange {
   type: "PointRange"
@@ -34,7 +34,7 @@ export type SuitHonorsQualifier = "+" | "-" | "="
 export interface ConstraintSuitHonors {
   type: "SuitHonors",
   suit: Suit,
-  honors: RNEA.ReadonlyNonEmptyArray<Rank>,
+  honors: ReadonlyArray<Rank>,
   qualifier: SuitHonorsQualifier
 }
 
@@ -209,6 +209,25 @@ export const suitSecondary = (secondarySuit: Suit) => (primarySuit: Suit) =>
     ]),
     forall(identity))
 
+const suitHonors = (suitHonors: ConstraintSuitHonors) =>
+  flow(
+    groupHandBySuit,
+    readonlyRecord.lookup(suitHonors.suit),
+    O.fold(constFalse, cards => {
+      const setFromArray = readonlySet.fromReadonlyArray(eqRank)
+      const cardSet = pipe(cards,
+        RA.map(c => c.rank),
+        setFromArray,
+        readonlySet.intersection(eqRank)(setFromArray(honors)))
+      const honorSet = pipe(suitHonors.honors, setFromArray)
+      switch (suitHonors.qualifier) {
+        case "=": return readonlySet.getEq(eqRank).equals(cardSet, honorSet)
+        case "-": return pipe(cardSet, readonlySet.isSubset(eqRank)(honorSet))
+        case "+": return pipe(honorSet, readonlySet.isSubset(eqRank)(cardSet))
+        default: return assertUnreachable(suitHonors.qualifier)
+      }
+    }))
+
 export const isShape = (shape: AnyShape) =>
   flow(getHandShape, handShape =>
     eqShape.equals(shape, handShape))
@@ -286,7 +305,7 @@ const satisfiesBasic : ReturnType<SatisfiesT1<id.URI, BasicConstraint>> = c => {
     case "SuitComparison":
       return suitCompare(c.op)(c.left, c.right)
     case "SuitHonors":
-      return constFalse
+      return suitHonors(c)
     case "Balanced":
       return isBalanced
     case "SemiBalanced":
