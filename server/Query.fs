@@ -42,6 +42,7 @@ let selectAsync (context: QueryContext) = context.ReadAsync HydraReader.Read
 // Notes about upsert patterns https://sqlperformance.com/2020/09/locking/upsert-anti-pattern
 // For now, try/catch around collisions is fine since it is so unlikely
 
+open FSharpPlus
 let getDealEntity (shapes: Map<Shape, int16>) (deal: Deal) =
   { deal                  = DealId.value deal.Id |> getByteArray
     when_dealt            = Some System.DateTime.UtcNow
@@ -53,26 +54,26 @@ let getDealEntity (shapes: Map<Shape, int16>) (deal: Deal) =
     hcp_east              = deal.Details.E.HCP
     hcp_south             = deal.Details.S.HCP
     hcp_west              = deal.Details.W.HCP
-    tricks_north_clubs    = None
-    tricks_north_diamonds = None
-    tricks_north_hearts   = None
-    tricks_north_spades   = None
-    tricks_north_notrump  = None
-    tricks_east_clubs     = None
-    tricks_east_diamonds  = None
-    tricks_east_hearts    = None
-    tricks_east_spades    = None
-    tricks_east_notrump   = None
-    tricks_south_clubs    = None
-    tricks_south_diamonds = None
-    tricks_south_hearts   = None
-    tricks_south_spades   = None
-    tricks_south_notrump  = None
-    tricks_west_clubs     = None
-    tricks_west_diamonds  = None
-    tricks_west_hearts    = None
-    tricks_west_spades    = None
-    tricks_west_notrump   = None
+    tricks_north_clubs    = C <!> deal.Details.N.Tricks
+    tricks_north_diamonds = D <!> deal.Details.N.Tricks
+    tricks_north_hearts   = H <!> deal.Details.N.Tricks
+    tricks_north_spades   = S <!> deal.Details.N.Tricks
+    tricks_north_notrump  = N <!> deal.Details.N.Tricks
+    tricks_east_clubs     = C <!> deal.Details.E.Tricks
+    tricks_east_diamonds  = D <!> deal.Details.E.Tricks
+    tricks_east_hearts    = H <!> deal.Details.E.Tricks
+    tricks_east_spades    = S <!> deal.Details.E.Tricks
+    tricks_east_notrump   = N <!> deal.Details.E.Tricks
+    tricks_south_clubs    = C <!> deal.Details.S.Tricks
+    tricks_south_diamonds = D <!> deal.Details.S.Tricks
+    tricks_south_hearts   = H <!> deal.Details.S.Tricks
+    tricks_south_spades   = S <!> deal.Details.S.Tricks
+    tricks_south_notrump  = N <!> deal.Details.S.Tricks
+    tricks_west_clubs     = C <!> deal.Details.W.Tricks
+    tricks_west_diamonds  = D <!> deal.Details.W.Tricks
+    tricks_west_hearts    = H <!> deal.Details.W.Tricks
+    tricks_west_spades    = S <!> deal.Details.W.Tricks
+    tricks_west_notrump   = N <!> deal.Details.W.Tricks
     par_north_nonevul     = None
     par_east_nonevul      = None
     par_south_nonevul     = None
@@ -105,6 +106,15 @@ let insertDeals shapes : seq<Deal> -> seq<InsertQuery<deals, int>> =
     insert {
       into dealTable
       entities deals
-    }))  
+    }))
+
+let updateDeals shapes : seq<Deal> -> _ =
+  Seq.toArray
+  >> Seq.map (getDealEntity shapes >> fun deal ->
+    update {
+      for a in dealTable do
+      entity deal
+      where (a.deal = deal.deal)
+    })
 
 let insertAsync (context: QueryContext) = context.InsertAsync

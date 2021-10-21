@@ -70,12 +70,27 @@ let tryAddDeals : ContextHandlerReader =
     return x
   }
 
+let tryUpsertDeals : ContextHandlerReader =
+  monad {
+    let! queryContext = Reader getQueryContext
+    let! shapes = Reader getShapes
+    let! getBody = Reader (fun ctx -> ctx.BindJsonAsync<Dictionary<System.Guid, DealDetails>>())
+    let x =
+      getBody
+      |>> Seq.map (|KeyValue|)
+      |>> traverse (fun (id, details) -> makeDeal details id)
+      >>= (traverse (Query.updateDeals shapes >> traverse queryContext.UpdateAsync))
+      |>> map (ignore >> (fun () -> Successful.OK ""))
+    return x
+  }
+
 let (<|>) h1 h2 = choose [ h1; h2 ]
 
 let hGetDeal id = (runWithContext <| tryGetDeal id) <|> RequestErrors.NOT_FOUND ""
 let hAddDeal id = (runWithContext <| tryAddDeal id) <|> RequestErrors.UNPROCESSABLE_ENTITY ""
 let hGetDeals = runWithContext getDeals
 let hAddDeals : HttpHandler = runWithContext tryAddDeals <|> RequestErrors.UNPROCESSABLE_ENTITY ""
+let hUpsertDeals = runWithContext tryUpsertDeals <|> RequestErrors.UNPROCESSABLE_ENTITY ""
 
 let public webApp : HttpHandler =
   choose [
@@ -87,5 +102,6 @@ let public webApp : HttpHandler =
     route "/deals" >=> choose [
       GET >=> hGetDeals
       POST >=> hAddDeals
+      PUT >=> hUpsertDeals
     ]
   ]

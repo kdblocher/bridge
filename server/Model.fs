@@ -23,16 +23,32 @@ module DealId =
 
 [<CLIMutable>]
 type Shape = {
-  S: byte
-  H: byte
-  D: byte
   C: byte
+  D: byte
+  H: byte
+  S: byte
 }
+
+type Tricks = {
+  C: byte
+  D: byte
+  H: byte
+  S: byte
+  N: byte
+}
+
+let inline C (x: ^a) = (^a: (member C: byte) x)
+let inline D (x: ^a) = (^a: (member D: byte) x)
+let inline H (x: ^a) = (^a: (member H: byte) x)
+let inline S (x: ^a) = (^a: (member S: byte) x)
+let inline N (x: ^a) = (^a: (member N: byte) x)
+
 
 [<CLIMutable>]
 type DealDirectionMetadata = {
   HCP: byte
   Shape: Shape
+  Tricks: Tricks option
 }
 
 [<CLIMutable>]
