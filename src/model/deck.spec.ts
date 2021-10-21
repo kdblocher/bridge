@@ -4,9 +4,9 @@ import { flow } from 'fp-ts/lib/function';
 import { Card, cards, Deck, eqCard, Hand, ordCardDescending, Rank, ranks, Suit, suits } from './deck';
 
 
-const suitA: fc.Arbitrary<Suit> =
+export const suitA: fc.Arbitrary<Suit> =
   fc.constantFrom(...suits)
-const rankA: fc.Arbitrary<Rank> = 
+export const rankA: fc.Arbitrary<Rank> = 
   fc.constantFrom(...ranks)
 export const cardA: fc.Arbitrary<Card> =
   fc.tuple(suitA, rankA)
