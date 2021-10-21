@@ -94,7 +94,7 @@ let hUpsertDeals = runWithContext tryUpsertDeals <|> RequestErrors.UNPROCESSABLE
 
 let public webApp : HttpHandler =
   choose [
-    route "/ping" >=> GET >=> text "pong"
+    route "/ping" >=> GET >=> publicResponseCaching 60 None >=> text "pong"
     routef "/deals/%O" (fun id -> choose [
       GET >=> hGetDeal id
       POST >=> hAddDeal id
