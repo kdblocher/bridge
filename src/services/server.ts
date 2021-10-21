@@ -1,10 +1,11 @@
-import { either, ord, readonlyArray, readonlyRecord, readonlySet, readonlyTuple, semigroup, task, taskEither } from 'fp-ts';
+import { either, option, ord, readonlyArray, readonlyRecord, readonlySet, readonlyTuple, semigroup, task, taskEither } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { Encoder } from 'io-ts/lib/Encoder';
 import { Uuid } from 'uuid-tool';
-
+import { TrickCountsByDirectionThenStrain, TrickCountsByStrain } from '../model/analyze';
 import { Deal, Direction, directions, getHandSpecificShape, getHcp, SpecificShape } from '../model/bridge';
 import { Card, ordCardDescending } from '../model/deck';
+
 
 // const Uuid = t.brand(t.string, (s: string): s is t.Branded<string, { readonly Uuid: unique symbol }> => validate(s), 'Uuid')
 // type Uuid = t.TypeOf<typeof Uuid>
@@ -37,22 +38,47 @@ export const ping =
 interface DirectionMetadata {
   hcp: number
   shape: SpecificShape
+  tricks?: TrickCountsByStrain
 }
+
+type DealWithSolution = readonly [Deal, option.Option<TrickCountsByDirectionThenStrain>]
+
+const getRequestBody =
+  readonlyArray.foldMap(readonlyRecord.getUnionMonoid(semigroup.first<Detail>()))(([deal, table]: DealWithSolution) => ({
+    [encode.encode(deal).toString()]: pipe(deal,
+      readonlyRecord.mapWithIndex((d, h): DirectionMetadata => ({
+        hcp: getHcp(h),
+        shape: getHandSpecificShape(h),
+        tricks: pipe(table, option.map(t => t[d]), option.toUndefined)
+      })))
+    }))
+
+const getRequestBodyWithoutSolution =
+  flow(
+    readonlyArray.map((deal: Deal) => ([deal, option.none] as const)),
+    getRequestBody)
+
 type Detail = readonlyRecord.ReadonlyRecord<Direction, DirectionMetadata>
 export const postDeals = (deals: ReadonlyArray<Deal>) =>
   pipe(deals,
-    readonlyArray.foldMap(readonlyRecord.getUnionMonoid(semigroup.first<Detail>()))(deal => ({
-      [encode.encode(deal).toString()]: pipe(deal,
-        readonlyRecord.map(h => ({
-          hcp: getHcp(h),
-          shape: getHandSpecificShape(h)
-        })))
-      })),
+    getRequestBodyWithoutSolution,
     JSON.stringify,
     task.of,
     task.chain(body => () =>
       fetch("http://localhost:5000/deals", {
         method: "POST",
+        body
+      })),
+    safeFetch)
+
+export const putDeals = (deals: ReadonlyArray<DealWithSolution>) =>
+  pipe(deals,
+    getRequestBody,
+    JSON.stringify,
+    task.of,
+    task.chain(body => () =>
+      fetch("http://localhost:5000/deals", {
+        method: "PUT",
         body
       })),
     safeFetch)

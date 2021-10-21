@@ -20,6 +20,7 @@ open Microsoft.Extensions.DependencyInjection
 let configureServices (config: IConfiguration) (services : IServiceCollection) =
   ignore <| services
     .AddCors()
+    .AddResponseCaching()
     .AddGiraffe()
     .AddSingleton<Json.ISerializer>(serializer)
     .AddScoped<SqlHydra.Query.QueryContext>(fun sp -> Query.openContext ())
@@ -36,6 +37,7 @@ let configureApp (app : IApplicationBuilder) =
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowAnyOrigin())
+    .UseResponseCaching()
     .UseGiraffe Handlers.webApp
 
 [<EntryPoint>]
