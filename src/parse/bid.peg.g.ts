@@ -48,7 +48,7 @@
 * // OtherMinor := v='om'
 * SuitComparison := left=Suit op=SuitComparisonOperator right=Suit
 * SuitComparisonOperator := v='<' | v='<=' | v='=' | v='>=' | v='>'
-* SuitHonors := suit=Suit honors=Honor+ qualifier=BoundQualifier?
+* SuitHonors := suit=Suit honors=Honor+
 * BoundQualifier := Plus | Minus | Equals
 * Plus := v='\+'
 * Minus := v='\-'
@@ -338,7 +338,6 @@ export interface SuitHonors {
     kind: ASTKinds.SuitHonors;
     suit: Suit;
     honors: Honor[];
-    qualifier: Nullable<BoundQualifier>;
 }
 export type BoundQualifier = BoundQualifier_1 | BoundQualifier_2 | BoundQualifier_3;
 export type BoundQualifier_1 = Plus;
@@ -1050,14 +1049,12 @@ export class Parser {
             () => {
                 let $scope$suit: Nullable<Suit>;
                 let $scope$honors: Nullable<Honor[]>;
-                let $scope$qualifier: Nullable<Nullable<BoundQualifier>>;
                 let $$res: Nullable<SuitHonors> = null;
                 if (true
                     && ($scope$suit = this.matchSuit($$dpth + 1, $$cr)) !== null
                     && ($scope$honors = this.loop<Honor>(() => this.matchHonor($$dpth + 1, $$cr), false)) !== null
-                    && (($scope$qualifier = this.matchBoundQualifier($$dpth + 1, $$cr)) || true)
                 ) {
-                    $$res = {kind: ASTKinds.SuitHonors, suit: $scope$suit, honors: $scope$honors, qualifier: $scope$qualifier};
+                    $$res = {kind: ASTKinds.SuitHonors, suit: $scope$suit, honors: $scope$honors};
                 }
                 return $$res;
             });

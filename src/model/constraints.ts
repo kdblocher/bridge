@@ -34,8 +34,7 @@ export type SuitHonorsQualifier = "+" | "-" | "="
 export interface ConstraintSuitHonors {
   type: "SuitHonors",
   suit: Suit,
-  honors: ReadonlyArray<Rank>,
-  qualifier: SuitHonorsQualifier
+  honors: ReadonlyArray<Rank>
 }
 
 export interface ConstraintSuitPrimary {
@@ -220,12 +219,7 @@ const suitHonors = (suitHonors: ConstraintSuitHonors) =>
         setFromArray,
         readonlySet.intersection(eqRank)(setFromArray(honors)))
       const honorSet = pipe(suitHonors.honors, setFromArray)
-      switch (suitHonors.qualifier) {
-        case "=": return readonlySet.getEq(eqRank).equals(cardSet, honorSet)
-        case "-": return pipe(cardSet, readonlySet.isSubset(eqRank)(honorSet))
-        case "+": return pipe(honorSet, readonlySet.isSubset(eqRank)(cardSet))
-        default: return assertUnreachable(suitHonors.qualifier)
-      }
+      return pipe(honorSet, readonlySet.isSubset(eqRank)(cardSet))
     }))
 
 export const isShape = (shape: AnyShape) =>

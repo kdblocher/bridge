@@ -56,7 +56,7 @@ SuitRangeSpecifier := Suit //| Major | Minor | OtherMajor | OtherMinor
 SuitComparison := left=Suit op=SuitComparisonOperator right=Suit
 SuitComparisonOperator := v='<' | v='<=' | v='=' | v='>=' | v='>'
 
-SuitHonors := suit=Suit honors=Honor+ qualifier=BoundQualifier?
+SuitHonors := suit=Suit honors=Honor+
 
 BoundQualifier := Plus | Minus | Equals
 Plus := v='\+'
