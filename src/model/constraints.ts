@@ -5,7 +5,7 @@ import { fromTraversable, Lens, lens, Optional, traversal } from 'monocle-ts';
 
 import { assertUnreachable } from '../lib';
 import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, makeShape, Shape as AnyShape, SpecificShape } from './bridge';
-import { eqSuit, Hand, Suit, suits } from './deck';
+import { eqSuit, Hand, Rank, Suit, suits } from './deck';
 import { BidInfo } from './system';
 
 export interface ConstraintPointRange {
@@ -30,6 +30,14 @@ export interface ConstraintSuitComparison {
   op: SuitComparisonOperator
 }
 
+export type SuitHonorsQualifier = "+" | "-" | "="
+export interface ConstraintSuitHonors {
+  type: "SuitHonors",
+  suit: Suit,
+  honors: RNEA.ReadonlyNonEmptyArray<Rank>,
+  qualifier: SuitHonorsQualifier
+}
+
 export interface ConstraintSuitPrimary {
   type: "SuitPrimary",
   suit: Suit
@@ -38,7 +46,7 @@ export interface ConstraintSuitSecondary {
   type: "SuitSecondary",
   suit: Suit
 }
-export type CosntraintSuitRank = ConstraintSuitPrimary | ConstraintSuitSecondary
+export type ConstraintSuitRank = ConstraintSuitPrimary | ConstraintSuitSecondary
 
 export interface ConstraintConst {
   type: "Constant",
@@ -101,7 +109,8 @@ export type Constraint =
   | ConstraintPointRange
   | ConstraintSuitRange
   | ConstraintSuitComparison
-  | CosntraintSuitRank
+  | ConstraintSuitRank
+  | ConstraintSuitHonors
   | ConstraintDistribution
   | ConstraintAnyShape
   | ConstraintSpecificShape
@@ -276,6 +285,8 @@ const satisfiesBasic : ReturnType<SatisfiesT1<id.URI, BasicConstraint>> = c => {
       return isSuitRange(c)
     case "SuitComparison":
       return suitCompare(c.op)(c.left, c.right)
+    case "SuitHonors":
+      return constFalse
     case "Balanced":
       return isBalanced
     case "SemiBalanced":

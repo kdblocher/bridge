@@ -16,6 +16,8 @@ Heart := v='[Hh♥♡]'
 Spade := v='[Ss♠♤]'
 Notrump := v='[Nn]' '[Tt]'?
 
+Honor := v='[AKQJT]'
+
 ConstraintList := ConstraintListItem+
 ConstraintListItem := constraint=Constraint ' '?
 Constraint :=
@@ -26,9 +28,10 @@ Constraint :=
   | Distribution
   | Response
   | SuitRange
-  | SuitComparison
   | SuitBound
+  | SuitComparison
   | SuitRank
+  | SuitHonors
   | PointRange
   | PointBound
   | Bid
@@ -46,12 +49,14 @@ PointBound := value=Number qualifier=BoundQualifier
 
 SuitRange := lower=Digit '-' upper=Digit suit=SuitRangeSpecifier
 SuitBound := value=Number qualifier=BoundQualifier suit=SuitRangeSpecifier
-SuitRangeSpecifier := Major | Minor | Suit //| OtherMajor | OtherMinor
-OtherMajor := v='oM'
-OtherMinor := v='om'
+SuitRangeSpecifier := Suit //| Major | Minor | OtherMajor | OtherMinor
+// OtherMajor := v='oM'
+// OtherMinor := v='om'
 
 SuitComparison := left=Suit op=SuitComparisonOperator right=Suit
 SuitComparisonOperator := v='<' | v='<=' | v='=' | v='>=' | v='>'
+
+SuitHonors := suit=Suit honors=Honor+ qualifier=BoundQualifier?
 
 BoundQualifier := Plus | Minus | Equals
 Plus := v='\+'
