@@ -1,9 +1,8 @@
 import * as fc from 'fast-check';
 import { readonlyArray, readonlySet } from 'fp-ts';
 import { flow } from 'fp-ts/lib/function';
-import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
-
 import { Card, cards, Deck, eqCard, Hand, ordCardDescending, Rank, ranks, Suit, suits } from './deck';
+
 
 const suitA: fc.Arbitrary<Suit> =
   fc.constantFrom(...suits)
@@ -20,8 +19,8 @@ export const handA : fc.Arbitrary<Hand> =
   fc.array(cardA, { minLength: 13, maxLength: 13 })
     .map(readonlySet.fromReadonlyArray(eqCard))
 
-const spadeAce: Card = { suit: "S", rank: ranks[0] }
-const clubTwo: Card = { suit: "C", rank: ranks[ranks.length - 1] }
+const spadeAce: Card = { suit: "S", rank: ranks[ranks.length - 1] }
+const clubTwo: Card = { suit: "C", rank: ranks[0] }
 const cardsWithSAandC2_A =
   cardsA.map(readonlyArray.union(eqCard)([spadeAce, clubTwo]))
 
