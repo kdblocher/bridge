@@ -16,7 +16,7 @@ export const flattenNestedCounts = <K1 extends string, K2 extends string, T>(tab
     readonlyArray.bind('outer', ({ inner }) => pipe(inner[1], RR.toReadonlyArray)),
     readonlyArray.map(({ outer, inner }) => ({ outerKey: outer[0], innerKey: inner[0], value: outer[1] })))
 
-const transpose = <K1 extends string, K2 extends string, T>(table: RR.ReadonlyRecord<K1, RR.ReadonlyRecord<K2, T>>) : RR.ReadonlyRecord<K2, RR.ReadonlyRecord<K1, T>> =>
+export const transpose = <K1 extends string, K2 extends string, T>(table: RR.ReadonlyRecord<K1, RR.ReadonlyRecord<K2, T>>) : RR.ReadonlyRecord<K2, RR.ReadonlyRecord<K1, T>> =>
   pipe(table,
     flattenNestedCounts,
     RNEA.fromReadonlyArray,
