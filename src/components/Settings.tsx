@@ -13,10 +13,8 @@ interface SettingsValueProps<K, V> {
 }
 const SettingsItem = <K extends keyof SettingsState>({ label, prop, parse, onChanged, children }: SettingsValueProps<K, SettingsState[K]>) => {
   const value = useAppSelector(state => state.settings[prop])
-  // const [value, setValue] = useState(initialValue)
   const dispatch = useAppDispatch()
   const onChange = useCallback((newValue: typeof value) => {
-    // setValue(newValue)
     dispatch(setSettingsProperty(prop, newValue))
     onChanged && onChanged(newValue)
   }, [dispatch, onChanged, prop])
@@ -25,7 +23,7 @@ const SettingsItem = <K extends keyof SettingsState>({ label, prop, parse, onCha
       <span>{label ?? prop}</span>
       <span>{children
         ? children({ value, onChange: flow(parse, onChange, constVoid) })
-        : <input type="text" value={value.toString()} onChange={e => pipe(e.target.value, parse, onChange)} />
+        : <input type="text" value={value.toString()} onChange={e => pipe(e.target.value, parse, onChange)} style={{width: "100px"}} />
       }</span>
     </p>
   )
@@ -52,6 +50,7 @@ const Settings = () => {
         {({ value, onChange}) =>
           <input type="checkbox" checked={value} onChange={e => onChange(e.target.checked.toString())} />
       }</SettingsItem>
+      <SettingsItem label="Generate Count" prop="generateCount" parse={parseInt} onChanged={v => onChanged("generateCount", v)} />
     </section>
   )
 }

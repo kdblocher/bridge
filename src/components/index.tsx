@@ -11,7 +11,7 @@ const App = () => {
         <div style={{float: "left"}}>
           <Editor />
         </div>
-        <div style={{float: "right", width: "150px"}}>
+        <div style={{float: "right", width: "300px"}}>
           <Settings />
         </div>
         <div style={{clear: "both"}}>
