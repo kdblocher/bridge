@@ -78,7 +78,7 @@ export const makeBoard = (number: number) => (deal: Deal) : BoardWithDetail => (
   vulnerability: boneChart(number)
 })
 
-const nonContractBids = ["Pass", "Double", "Redouble"] as const
+export const nonContractBids = ["Pass", "Double", "Redouble"] as const
 export type NonContractBid = typeof nonContractBids[number]
 export const eqNonContractBid : eq.Eq<NonContractBid> = string.Eq
 export const isNonContractBid = (b: unknown) : b is NonContractBid =>
