@@ -11,12 +11,14 @@ import { serializedBidPathL, SerializedDeal, serializedDealL } from '../model/se
 import { BidInfo } from '../model/system';
 import generator, { analyzeDealsEpic, analyzeResultsEpic, saveDealsToApiEpic, saveSolutionsToApiEpic, selectAllDeals } from './generator';
 import selection, { selectHand } from './selection';
+import settings from './settings';
 import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system';
 
 const reducers = {
   system,
   selection,
-  generator
+  generator,
+  settings
 }
 export default reducers
 
