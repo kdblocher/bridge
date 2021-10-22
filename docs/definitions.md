@@ -13,13 +13,16 @@ Incomplete list of terms
 - **Boards**: The set _Bd_ = _D_ &times; _Dir_ &times; _V_.
 - **Levels**: The set _L_ = {`1`, `2`, `3`, `4`, `5`, `6`, `7`}.
 - **Contract Bids**: The totally ordered set (_B_<sub>_c_</sub>, &lt;) such that _B_<sub>_c_</sub> = _L_ &times; _St_.
-- **Non-Contract Bids**: The set _B_<sub>_n_</sub> = {&bottom;, `X`, `XX`}.
----
-- **Bids**: The partially ordered set (_B_, &le;) such that _B_ = _B_<sub>_c_</sub> &cup; _B_<sub>_n_</sub>. &le;<sub>_B_</sub> = &lt;<sub>_B_<sub>_c_</sub></sub> forms a partially ordered set, in addition to the specific rules below:
-   - &forall;<sub>_b_&in;_B_</sub> _b_ &lEg; &bottom; (&bottom; can occur anywhere)
-   - &forall;<sub>_b_&in;_B_<sub>_c_</sub></sub> _b_ &lt; `X` (`X` can occur after a contract bid)
-   - &forall;<sub>_b_&in;_B_<sub>_c_</sub></sub> _b_ &gt; `XX` (`XX` cannot occur after a contract bid)
-   - `X` &lt; `XX` (redouble can occur after a double)
+- **Special Bids**: The totally ordered set (_B_<sub>_s_</sub>, &lt;) such that _B_<sub>_s_</sub> = {&empty;, `X`, `XX`}.
+- **Non-Pass Bids**: The totally ordered set (_B_<sub>_c_&times;_s_</sub>, &lt;) such that _B_<sub>_c_&times;_s_</sub> = _B_<sub>_c_</sub> &times; _B_<sub>_s_</sub>.
+- **Pass Bids**: The set _B_<sub>_p_</sub> = {&bottom;}.
+- **Bids**: The set _B_ = _B_<sub>_c_&times;_s_</sub> &cup; _B_<sub>_p_</sub>.
+- **Complete Auctions**: The set _A_ = {(_b_<sub>1</sub>, _b_<sub>2</sub>,..., _b_<sub>n</sub>)} such that:
+    - _i_, _j_ &in; &Zopf;<sup>+</sup>
+    - (_b_<sub>_i_</sub>, _b_<sub>_j_</sub> &in; _B_<sub>_c_&times;_s_</sub> &and; _i_ &lt; _j_) ⇒ _b_<sub>_i_</sub> &lt; _b_<sub>_j_</sub>
+    - _b_<sub>_i_</sub> = (&star;, `X`)
+    - &nexist;<sub>_b_&in;{`X`, `XX`}</sub> (..., _a_<sub>_i_</sub>, &bottom;, (_dir_, _b_), ...)<sub>_i_&in;&Zopf;</sub> 
+
 - **Auction**: Any finite sequence (_a_<sub>_i_</sub> ...)<sub>_i_&in;&Zopf;</sub> &in; _A_ such that _a_<sub>_i_</sub> &in; _Dir_ &times; _B_ and the following rules hold:
     - _dir_<sub>_i_</sub>+1 = _dir_<sub>_i+1_</sub> (directions must rotate)
     - _b_<sub>_i_</sub> &le; _b_<sub>_i+1_</sub> (bids must increase)
