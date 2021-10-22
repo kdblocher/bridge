@@ -8,10 +8,10 @@ import * as E from 'io-ts/Encoder';
 import * as iso from 'monocle-ts/Iso';
 import { O } from 'ts-toolbelt';
 import { Uuid, UuidLike, UuidTool } from 'uuid-tool';
-import { decodeHand } from '../parse';
-import { Board, ContractBid, Deal, directions, Strain } from './bridge';
-import { Card, cards, eqCard, Hand, ordCardDescending } from './deck';
 
+import { decodeHand } from '../parse';
+import { Bid, Board, ContractBid, Deal, directions, isNonContractBid, Strain } from './bridge';
+import { Card, cards, eqCard, Hand, ordCardDescending } from './deck';
 
 export type DecodedHand = ReturnType<typeof decodeHand>
 export type SerializedHand = ReadonlyArray<Card>
@@ -102,18 +102,28 @@ export const isBidPath: refinement.Refinement<string, SerializedBidPath> =
   (s): s is SerializedBidPath =>
     pipe(s,
       string.split("."),
-      readonlyArray.every(s => s.length === 2))
+      readonlyArray.every(s => s.length === 2 || isNonContractBid(s)))
+
+export const serializedContractBidL: iso.Iso<ContractBid, string> = iso.iso(
+  bid => `${bid.level}${bid.strain}`,
+  bid => ({
+    level: parseInt(bid.charAt(0)),
+    strain: bid.charAt(1) as Strain
+  })
+)
+
+export const serializedBidL : iso.Iso<Bid, string> = iso.iso(
+  bid => isNonContractBid(bid) ? bid : serializedContractBidL.get(bid),
+  bid => isNonContractBid(bid) ? bid : serializedContractBidL.reverseGet(bid)
+)
 
 const SerializedBidPathB = t.brand(t.string, isBidPath, "BidPath")
-export const serializedBidPathL = iso.iso<readonlyNonEmptyArray.ReadonlyNonEmptyArray<ContractBid>, SerializedBidPath>(
+export const serializedBidPathL = iso.iso<readonlyNonEmptyArray.ReadonlyNonEmptyArray<Bid>, SerializedBidPath>(
   flow(
-    readonlyArray.map(b => `${b.level}${b.strain}`),
+    readonlyArray.map(serializedBidL.get),
     readonlyArray.intersperse("."),
     readonlyArray.foldMap(string.Monoid)(identity),
     x => (SerializedBidPathB.decode(x) as either.Right<SerializedBidPath>).right),
   flow(
     string.split("."),
-    readonlyNonEmptyArray.map(bid => ({
-      level: parseInt(bid.charAt(0)),
-      strain: bid.charAt(1) as Strain
-    }))))
+    readonlyNonEmptyArray.map(serializedBidL.reverseGet)))

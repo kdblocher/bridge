@@ -1,18 +1,17 @@
-import { AnyAction } from '@reduxjs/toolkit';
 import { either, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
 import { combineEpics } from 'redux-observable';
+
+import { AnyAction } from '@reduxjs/toolkit';
+
 import { RootState } from '../app/store';
-import { ContractBid } from '../model/bridge';
 import { satisfiesPath, satisfiesPathWithoutSiblingCheck } from '../model/constraints';
 import { serializedBidPathL, SerializedDeal, serializedDealL } from '../model/serialization';
 import { BidInfo } from '../model/system';
 import generator, { analyzeDealsEpic, analyzeResultsEpic, saveDealsToApiEpic, saveSolutionsToApiEpic, selectAllDeals } from './generator';
 import selection, { selectHand } from './selection';
 import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system';
-
-
 
 const reducers = {
   system,
@@ -78,7 +77,7 @@ export const selectSatisfyStats = (state: RootState) : ReadonlyArray<BidPathResu
       flow(
         readonlyNonEmptyArray.groupBy(x =>
           pipe(x.path,
-            readonlyNonEmptyArray.map(p => p.bid as ContractBid),
+            readonlyNonEmptyArray.map(p => p.bid),
             serializedBidPathL.get)),
         readonlyRecord.filterMap(flow(
           readonlyNonEmptyArray.filter(a => a.result),

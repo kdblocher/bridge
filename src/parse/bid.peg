@@ -1,12 +1,17 @@
 Start := spec=BidSpec $
-BidSpec := level=Digit bid=BidSpecifier constraints=BidSpecConstraintList?
-BidSpecifier := Wildcard | SuitSpecifier
+BidSpec := bid=Bid constraints=BidSpecConstraintList?
 BidSpecConstraintList := ': ' constraints=ConstraintList
+Bid := ContractBid | NonContractBid
 
+ContractBid := level=Digit specifier=BidSpecifier
+BidSpecifier := Wildcard | SuitSpecifier
 Wildcard := v='x'
 SuitSpecifier := Major | Minor | Strain
 Major := v='M'
 Minor := v='m'
+
+NonContractBid := Pass
+Pass := v='P'
 
 Strain := Suit | Notrump
 Suit := Club | Diamond | Heart | Spade
@@ -35,7 +40,7 @@ Constraint :=
   | SuitRank
   | PointRange
   | PointBound
-  | Bid
+  | OtherBid
 
 Const := True | False
 True := v='true'
@@ -65,7 +70,7 @@ Plus := v='\+'
 Minus := v='\-'
 Equals := v='='
 
-Bid := level=Number strain=Strain
+OtherBid := level=Number strain=Strain
 
 Distribution := Balanced | SemiBalanced | Unbalanced | AnyShape | SpecificShape
 Balanced := v='BAL'
@@ -82,7 +87,7 @@ Response := ForceOneRound | ForceGame | ForceSlam | Relay
 ForceOneRound := v='F1'
 ForceGame := v='FG'
 ForceSlam := v='FS'
-Relay := '->' bid=Bid
+Relay := '->' bid=OtherBid
 
 Digit := literal='[0-9]'
   .value = number { return parseInt(literal) }

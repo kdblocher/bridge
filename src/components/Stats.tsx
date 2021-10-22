@@ -2,8 +2,8 @@ import { readonlyNonEmptyArray } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 import { draw } from 'io-ts/lib/Decoder';
 import { useState } from 'react';
+
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { ContractBid } from '../model/bridge';
 import { serializedBidPathL } from '../model/serialization';
 import { average, getStats, stdev } from '../model/stats';
 import { BidPathResult, selectSatisfyStats } from '../reducers';
@@ -12,13 +12,12 @@ import { selectAllCompleteBidPaths, selectErrors } from '../reducers/system';
 import BidPath from './core/BidPath';
 import { DoubleDummyTableView } from './core/DoubleDummyResultView';
 
-
 interface StatsPathProps {
   result: BidPathResult
 }
 const StatsPath = ({ result }: StatsPathProps) => {
   const dispatch = useAppDispatch()
-  const dds = useAppSelector(state => selectResultsByPath(state.generator, pipe(result.path, readonlyNonEmptyArray.map(p => p.bid as ContractBid), serializedBidPathL.get)))
+  const dds = useAppSelector(state => selectResultsByPath(state.generator, pipe(result.path, readonlyNonEmptyArray.map(p => p.bid), serializedBidPathL.get)))
   const stats = dds && getStats(pipe(dds, readonlyNonEmptyArray.map(d => d.results)))
   const averages = stats && average(stats)
   const stdevs = stats && stdev(stats)

@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import styled from 'styled-components';
 
-import { ContractBid } from '../../model/bridge';
+import { ContractBid, NonContractBid } from '../../model/bridge';
 import { ConstrainedBid } from '../../model/constraints';
 
 const SuitSpan = styled.span `
@@ -12,15 +12,25 @@ const SuitSpan = styled.span `
   &.N::after { content: "NT" }
 `
 
+const ContractBidView = (bid: ContractBid) =>
+  <>
+    <span>{bid.level}</span>
+    <SuitSpan className={bid.strain}></SuitSpan>
+  </>
+
+const NonContractBidView = ({ bid }: { bid: NonContractBid }) =>
+  <span>{bid}</span>
+
 interface Props {
   path: ReadonlyArray<ConstrainedBid>
 }
-const BidPath = ({ path }: Props) =>
-  <>{path.map(b => b.bid as ContractBid).map((bid, i) =>
+const BidPath = ({ path }: Props) => 
+  <>{path.map(b => b.bid ).map((bid, i) =>
     <Fragment key={i}>
       &nbsp;
-      <span>{bid.level}</span>
-      <SuitSpan className={bid.strain}></SuitSpan>
+      {typeof bid === "string"
+        ? <NonContractBidView bid={bid} />
+        : <ContractBidView {...bid} />}
     </Fragment>)
   }</>
 
