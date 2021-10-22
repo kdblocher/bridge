@@ -11,12 +11,14 @@ import { serializedBidPathL, SerializedDeal, serializedDealL } from '../model/se
 import { BidInfo } from '../model/system';
 import generator, { analyzeDealsEpic, analyzeResultsEpic, saveDealsToApiEpic, saveSolutionsToApiEpic, selectAllDeals } from './generator';
 import selection, { selectHand } from './selection';
+import settings from './settings';
 import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system';
 
 const reducers = {
   system,
   selection,
-  generator
+  generator,
+  settings
 }
 export default reducers
 
@@ -46,7 +48,7 @@ export const selectPathsSatisfyHands = (state: RootState) : ReadonlyArray<BidRes
     option.apS('opener', selectHand(state.selection, 'opener')),
     option.apS('responder', selectHand(state.selection, 'responder')),
     option.map(o => pipe(
-      selectAllCompleteBidPaths(state.system),
+      selectAllCompleteBidPaths(state.system, state.settings),
       readonlyArray.map(path => ({
         path,
         result: satisfiesPath(o.opener, o.responder)(path)
@@ -66,7 +68,7 @@ const ordStats = pipe(
 export const selectSatisfyStats = (state: RootState) : ReadonlyArray<BidPathResult> | null =>
   pipe(readonlyArray.Do,
     readonlyArray.apS('deal', selectAllDeals(state.generator)),
-    readonlyArray.apS('path', selectAllCompleteBidPaths(state.system)),
+    readonlyArray.apS('path', selectAllCompleteBidPaths(state.system, state.settings)),
     readonlyArray.map(ra => ({
       deal: ra.deal,
       path: ra.path,

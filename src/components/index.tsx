@@ -1,5 +1,6 @@
 import Editor from './Editor';
 import SelectionDetails from './SelectionDetails';
+import Settings from './Settings';
 import Stats from './Stats';
 import TestHands from './TestHands';
 
@@ -7,9 +8,15 @@ const App = () => {
   return (
     <div className="App">
       <div style={{display: "inline-block", width: '50%'}}>
-        <Editor />
-        ---
-        <Stats />
+        <div style={{float: "left"}}>
+          <Editor />
+        </div>
+        <div style={{float: "right", width: "300px"}}>
+          <Settings />
+        </div>
+        <div style={{clear: "both"}}>
+          <Stats />
+        </div>
       </div>
       <div style={{display: "inline-block", width: '50%', float: "right"}}>
         <div style={{display: "inline-block", float: 'right'}}>

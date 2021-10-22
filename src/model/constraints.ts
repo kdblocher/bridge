@@ -1,12 +1,12 @@
 import { boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
 import { constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib/function';
-import { fromTraversable, Lens, lens, Optional, traversal } from 'monocle-ts';
+import { fromTraversable, Lens, lens, Optional } from 'monocle-ts';
+
 import { assertUnreachable } from '../lib';
 import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, makeShape, Shape as AnyShape, SpecificShape } from './bridge';
 import { eqRank, eqSuit, Hand, honors, ordRankAscending, Rank, Suit, suits } from './deck';
 import { BidInfo } from './system';
-
 
 export interface ConstraintPointRange {
   type: "PointRange"
@@ -91,6 +91,10 @@ export interface ConstraintResponse {
   type: "ForceOneRound" | "ForceGame" | "ForceSlam"
 }
 
+export interface ConstraintOtherwise {
+  type: "Otherwise"
+}
+
 export interface ConstraintRelayResponse {
   type: "Relay",
   bid: ContractBid
@@ -110,6 +114,7 @@ export type Constraint =
   | ConstraintConjunction
   | ConstraintDisjunction
   | ConstraintNegation
+  | ConstraintOtherwise
   | ConstraintOtherBid
   | ConstraintPointRange
   | ConstraintSuitRange
@@ -126,6 +131,7 @@ const contextualConstraintTypes = [
   "Conjunction",
   "Disjunction",
   "Negation",
+  "Otherwise",
   "OtherBid",
   "ForceOneRound",
   "ForceGame",
@@ -342,14 +348,23 @@ const satisfiesContextual : SatisfiesT2<S.URI, ContextualConstraint> = recur =>
         return pipe(c.constraints, RNEA.map(c => S.of(c)), existsT(recur))
       case "Negation": 
         return pipe(c.constraint, S.of, recur, S.map(P.not))
-      case "OtherBid":
+      case "Otherwise":
         return pipe(
           S.gets((context: BidContext) =>
-            pipe(
-              peersT,
-              traversal.filter((b: ConstrainedBid) => eqBid.equals(b.bid, c.bid)),
-              traversal.getAll(context),
-              RA.head)),
+            pipe(context,
+              peersL.get,
+              // stops cycles, since bids can only check upwards
+              RA.takeLeftWhile(b => !eqBid.equals(b.bid, context.bid)))),
+          S.chain(flow(
+            RA.map(cb => pipe(
+              S.modify(bidL.set(cb.bid)),
+              S.map(() => cb.constraint))),
+            forallT(flow(recur, S.map(P.not))))))
+      case "OtherBid":
+        return pipe(
+          S.gets(flow(
+            peersL.get,
+            RA.findFirst(b => eqBid.equals(b.bid, c.bid)))),
           S.chain(O.fold(
             () => S.of(constraintFalse),
             otherBid => pipe(

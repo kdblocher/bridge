@@ -1,13 +1,13 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { either, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, separated, tree } from 'fp-ts';
-import { flow, pipe } from 'fp-ts/lib/function';
+import { flow, identity, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
+
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+
 import { Bid, eqBid } from '../model/bridge';
 import { ConstrainedBid } from '../model/constraints';
-import { extendWithSiblings, filterIncomplete, getAllLeafPaths, pathsWithoutRoot } from '../model/system';
+import { BidPath, extendWithSiblings, filterIncomplete, getAllLeafPaths, pathsWithoutRoot } from '../model/system';
 import { decodeBid } from '../parse';
-
-
 
 export type DecodedBid = ReturnType<typeof decodeBid>
 interface Node {
@@ -130,9 +130,18 @@ export const selectCompleteByKey = (state: State, blockKey: string) =>
       RA.head)),
     O.toNullable)
 
-export const selectAllCompleteBidPaths =
-  flow(
+const withImplicitPasses =
+  tree.fold((a: ConstrainedBid, bs: tree.Forest<ConstrainedBid>) =>
+    bs.length === 0 || pipe(bs, RA.exists(t => t.value.bid === "Pass"))
+    ? tree.make(a, bs)
+    : tree.make(a, pipe(bs,
+      RA.append(tree.make<ConstrainedBid>({ bid: "Pass", constraint: { type: "Otherwise" }})),
+      RA.toArray)))
+
+export const selectAllCompleteBidPaths = (state: State, options?: { implicitPass: boolean }) : ReadonlyArray<BidPath> =>
+  pipe(state,
     getCompleteTree,
+    options?.implicitPass ? withImplicitPasses : identity,
     extendWithSiblings(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid)),
     getAllLeafPaths)
 

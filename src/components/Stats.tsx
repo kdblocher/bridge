@@ -1,7 +1,6 @@
 import { readonlyNonEmptyArray } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 import { draw } from 'io-ts/lib/Decoder';
-import { useState } from 'react';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { serializedBidPathL } from '../model/serialization';
@@ -65,11 +64,11 @@ const Progress = () => {
 
 const Stats = () => {
   const generating = useAppSelector(state => pipe(state.generator.working))
+  const count = useAppSelector(state => state.settings.generateCount)
   const dispatch = useAppDispatch()
-  const rules = useAppSelector(state => selectAllCompleteBidPaths(state.system))
+  const rules = useAppSelector(state => selectAllCompleteBidPaths(state.system, state.settings))
   const errors = useAppSelector(state => selectErrors(state.system))
   const showGenerate = rules !== null && rules.length > 0 && errors.length === 0
-  const [count, setCount] = useState<number>(20)
   return (
     <section>
       <h3>Stats</h3>
@@ -82,7 +81,6 @@ const Stats = () => {
       </div>}
       {showGenerate && <div>
         <button type="button" onClick={() => dispatch(generate(count))}>Generate deals</button>
-        <input type="number" value={count} onChange={e => setCount(parseInt(e.target.value))} />
         {generating ? <span>Generating...</span> : <span>Ready!</span>}
         {generating && <Progress />}
         {!generating && <SatisfyStats />}

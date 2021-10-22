@@ -30,6 +30,7 @@ Constraint :=
   | Or
   | And
   | Not
+  | Otherwise
   | Distribution
   | Response
   | SuitRange
@@ -49,6 +50,7 @@ False := v='false'
 Or := left=Constraint ' or ' right=Constraint
 And := '\(' constraints=ConstraintList '\)'
 Not := {'not' | '!'} ' '? constraint=Constraint
+Otherwise := v='else'
 
 PointRange := lower=Number '-' upper=Number
 PointBound := value=Number qualifier=BoundQualifier
