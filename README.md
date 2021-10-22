@@ -28,6 +28,11 @@ Each line should be of the following form:
 
 The tool will attempt to parse each line into a [set of] constraints, which it then uses to match hands against it.
 
+### Basic Examples
+- ``1C: 11-21 3+C`` (Bid 1&clubs; with 11-21 HCP and 3 or more clubs)
+- ``1N: 15-17 BAL`` (Bid 1NT with 15-17 HCP and a balanced hand)
+- ``P: 0-5`` (Pass with 0-5 HCP)
+
 ### Constraint Options
 
 | Name | Syntax | Description | Examples |
@@ -44,6 +49,7 @@ The tool will attempt to parse each line into a [set of] constraints, which it t
 | Response | `F1` <br /> `FG` <br /> `FS` | Marks the bid as [forcing](https://en.wikipedia.org/wiki/Forcing_bid) for one round, to game, or to slam (respectively). |
 | Relay | `->` _b_ | Marks the bid as a [relay](https://en.wikipedia.org/wiki/Relay_bid) to bid _b_. <br/> Bids accepting the relay may simply name the bid without `:` ... to automatically accept the relay. | `2N: ->3C` <br/> &nbsp;&nbsp;&nbsp;`3C` (accepts relay) |
 | Other Bid | _b_ | Holds when an alternative bid _b_ at the same level holds. (This is useful combined with the `not` / `!` operator.) | `1H: 5+H !1N` (don't bid 1&hearts; when 1NT is available) |
+| Otherwise | `else` | Holds when all other bids _above_ it do not. | `1N: else 5-12 F1` (forcing NT response) |
 | Conjunction | _c_<sub>1</sub> &centerdot; _c_<sub>2</sub> ... | Holds if all constraints hold. | `11-15 4S 5H` |
 | Disjunction | _c_<sub>1</sub> &centerdot; ``or`` &centerdot; _c_<sub>2</sub> ... |  Holds if any constraint holds. | `4414 or 4405 or 4315 or 3415` |
 | Negation | `not` &centerdot; _c_ <br/> `!` &centerdot; _c_ | Holds when _c_ does not. | `not (14-15 BAL)`
