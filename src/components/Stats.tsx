@@ -66,7 +66,7 @@ const Stats = () => {
   const generating = useAppSelector(state => pipe(state.generator.working))
   const count = useAppSelector(state => state.settings.generateCount)
   const dispatch = useAppDispatch()
-  const rules = useAppSelector(state => selectAllCompleteBidPaths(state.system))
+  const rules = useAppSelector(state => selectAllCompleteBidPaths(state.system, state.settings))
   const errors = useAppSelector(state => selectErrors(state.system))
   const showGenerate = rules !== null && rules.length > 0 && errors.length === 0
   return (

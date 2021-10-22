@@ -1,10 +1,11 @@
 import { option, readonlyNonEmptyArray } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 import { useState } from 'react';
+
 import { useAppDispatch, useAppSelector } from '../app/hooks';
+import { BidPaths } from '../model/system';
 import { genHandsMatchingExactlyOneOf, genHandsMatchingMoreThanOneOf, genHandsNotMatchingAnyOf, genOnce, getHandsMatchingPath, selectBlockKey } from '../reducers/selection';
 import { selectAllCompleteBidPaths, selectCompleteByKey } from '../reducers/system';
-
 
 const GenerateOnce = () => {
   const dispatch = useAppDispatch()
@@ -13,11 +14,11 @@ const GenerateOnce = () => {
   )
 }
 
-const GenerateMatchZero = () => {
-  const bidPaths = useAppSelector(state =>
-    pipe(selectAllCompleteBidPaths(state.system),
-      readonlyNonEmptyArray.fromReadonlyArray,
-      option.toNullable))
+interface GenerateSystemProps {
+  bidPaths: BidPaths | null
+}
+
+const GenerateMatchZero = ({ bidPaths }: GenerateSystemProps) => {
   const dispatch = useAppDispatch()
   const [minHcp, setMinHcp] = useState<number>(11)
   return <>
@@ -29,11 +30,7 @@ const GenerateMatchZero = () => {
   </>
 }
 
-const GenerateMatchOne = () => {
-  const bidPaths = useAppSelector(state =>
-    pipe(selectAllCompleteBidPaths(state.system),
-      readonlyNonEmptyArray.fromReadonlyArray,
-      option.toNullable))
+const GenerateMatchOne = ({ bidPaths }: GenerateSystemProps) => {
   const dispatch = useAppDispatch()
   return <>
     {bidPaths && <span>
@@ -42,11 +39,7 @@ const GenerateMatchOne = () => {
   </>
 }
 
-const GenerateMatchMany = () => {
-  const bidPaths = useAppSelector(state =>
-    pipe(selectAllCompleteBidPaths(state.system),
-      readonlyNonEmptyArray.fromReadonlyArray,
-      option.toNullable))
+const GenerateMatchMany = ({ bidPaths }: GenerateSystemProps) => {
   const dispatch = useAppDispatch()
   return <>
     {bidPaths && <span>
@@ -64,14 +57,20 @@ const GenerateMatchSelected = () => {
   </>
 }
 
-const SelectionGenerators = () =>
-  <section>
-    <h4>Generate Hands</h4>
-    <GenerateOnce />
-    <GenerateMatchSelected />
-    <GenerateMatchZero />
-    <GenerateMatchOne />
-    <GenerateMatchMany />
-  </section>
+const SelectionGenerators = () => {
+  const bidPaths = useAppSelector(state =>
+    pipe(selectAllCompleteBidPaths(state.system, state.settings),
+      readonlyNonEmptyArray.fromReadonlyArray,
+      option.toNullable)) 
+  return (
+    <section>
+      <h4>Generate Hands</h4>
+      <GenerateOnce />
+      <GenerateMatchSelected />
+      <GenerateMatchZero bidPaths={bidPaths} />
+      <GenerateMatchOne bidPaths={bidPaths} />
+      <GenerateMatchMany bidPaths={bidPaths} />
+    </section>)
+}
 
 export default SelectionGenerators
