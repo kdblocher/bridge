@@ -1,4 +1,3 @@
-import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { either, option, predicate, readonlyArray, readonlyNonEmptyArray, readonlySet, separated } from 'fp-ts';
 import { observable } from 'fp-ts-rxjs';
 import { tailRec } from 'fp-ts/lib/ChainRec';
@@ -7,6 +6,9 @@ import { castDraft } from 'immer';
 import { WritableDraft } from 'immer/dist/internal';
 import * as D from 'io-ts/Decoder';
 import { O } from 'ts-toolbelt';
+
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+
 import { Board, deal, getHcp } from '../model/bridge';
 import { Constraint, satisfies, satisfiesPath } from '../model/constraints';
 import { eqCard, Hand, newDeck, ordCardDescending } from '../model/deck';
@@ -15,8 +17,6 @@ import { BidPath } from '../model/system';
 import { decodeHand } from '../parse';
 import { observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
-
-
 
 const name = 'selection'
 
@@ -109,7 +109,7 @@ const slice = createSlice({
     },
     getHandsMatchingPath: (state, action: PayloadAction<BidPath>) => {
       pipe(
-        genUntilCondition(option.some(1000))(hands =>
+        genUntilCondition(option.some(10000))(hands =>
           satisfiesPath(...hands)(action.payload)),
         option.map(setHands(state)))
     },

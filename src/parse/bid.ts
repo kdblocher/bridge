@@ -60,6 +60,9 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
         readonlyArray.map(c => c.constraint),
         connectiveFromAST("Conjunction", constConstraintTrue))
 
+    case AST.ASTKinds.Otherwise:
+      return { type: "Otherwise" }
+
     case AST.ASTKinds.Or:
       const flatten = (head: AST.Constraint, ...items: ReadonlyArray<AST.Constraint>) : readonlyNonEmptyArray.ReadonlyNonEmptyArray<AST.Constraint> =>
         head.kind === AST.ASTKinds.Or
