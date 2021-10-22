@@ -4,10 +4,10 @@ import { flow, pipe } from 'fp-ts/lib/function';
 import { iso } from 'monocle-ts';
 import { Iso } from 'monocle-ts/Iso';
 import { O } from 'ts-toolbelt';
-import { Board, ContractBid, deal, Deal, eqBoard, eqContractBid, eqDeal, eqHand, makeBoard, ordContractBid, Strain, strains } from './bridge';
+
+import { Board, ContractBid, deal, Deal, eqBid, eqBoard, eqDeal, eqHand, makeBoard, ordContractBid, Strain, strains } from './bridge';
 import { deckA, handA } from './deck.spec';
 import * as serializers from './serialization';
-
 
 /**
 * Every serializer is modeled as an Iso<D, S(D)>, and as such, should fulfill the Iso laws:
@@ -40,12 +40,14 @@ const bidPathA: fc.Arbitrary<readonlyNonEmptyArray.ReadonlyNonEmptyArray<Contrac
     readonlyArray.fromArray,
     x => x as readonlyNonEmptyArray.ReadonlyNonEmptyArray<ContractBid>,
     readonlyNonEmptyArray.sort(ordContractBid)))
+// const bidA: fc.Arbitrary<readonlyNonEmptyArray.ReadonlyNonEmptyArray<Bid>> =
+//   fc.
 
 const metadata: SerializerMetadata = {
   serializedHandL:    { arb: handA,    eq: eqHand },
   serializedDealL:    { arb: dealA,    eq: eqDeal },
   serializedBoardL:   { arb: boardA,   eq: eqBoard },
-  serializedBidPathL: { arb: bidPathA, eq: readonlyNonEmptyArray.getEq(eqContractBid) }
+  serializedBidPathL: { arb: bidPathA, eq: readonlyNonEmptyArray.getEq(eqBid) }
 }
 
 const getPredicate = <T, U>(serializer: iso.Iso<T, U>, eq: eq.Eq<T>): predicate.Predicate<T> =>

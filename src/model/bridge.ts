@@ -1,8 +1,8 @@
 import { apply, eq, number, option, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet as RS, readonlyTuple as RT, refinement, semigroup, string } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
+
 import { ordAscending } from '../lib';
 import { Card, Deck, eqCard, Hand, ordCardDescending, Suit, suits } from './deck';
-
 
 export const directions = ['N', 'E', 'S', 'W'] as const
 export type Direction = typeof directions[number]
@@ -78,8 +78,12 @@ export const makeBoard = (number: number) => (deal: Deal) : BoardWithDetail => (
   vulnerability: boneChart(number)
 })
 
-export type NonContractBid = "Pass" | "Double" | "Redouble"
+const nonContractBids = ["Pass", "Double", "Redouble"] as const
+export type NonContractBid = typeof nonContractBids[number]
 export const eqNonContractBid : eq.Eq<NonContractBid> = string.Eq
+export const isNonContractBid = (b: unknown) : b is NonContractBid =>
+  typeof b === "string" && pipe(nonContractBids, RA.elem<string>(string.Eq)(b))
+
 export interface ContractBid {
   level: number
   strain: Strain
@@ -102,7 +106,6 @@ export const contractBids : ReadonlyArray<ContractBid> =
     RA.sort(ordContractBid))
 
 export type Bid = NonContractBid | ContractBid
-export const isNonContractBid = (b: Bid) : b is NonContractBid => typeof b === "string"
 
 export const eqBid : eq.Eq<Bid> = eq.fromEquals((x, y) =>
   (isNonContractBid(x) && isNonContractBid(y) && eqNonContractBid.equals(x, y)) ||

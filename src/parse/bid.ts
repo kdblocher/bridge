@@ -1,10 +1,11 @@
 import { either, eitherT, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, string } from 'fp-ts';
 import { constant, flow, identity, pipe } from 'fp-ts/lib/function';
-import { Strain, zeroSpecificShape } from '../model/bridge';
+
+import { assertUnreachable } from '../lib';
+import { Bid, Strain, zeroSpecificShape } from '../model/bridge';
 import { constConstraintFalse, constConstraintTrue, ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints';
 import { rankFromString, ranks, Suit } from '../model/deck';
 import * as AST from '../parse/bid.peg.g';
-
 
 const getConnectiveItems = (items: ReadonlyArray<AST.Constraint>) =>
   pipe(items,
@@ -78,7 +79,7 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
         constraint: constraintFromAST(c.constraint)
       }
 
-    case AST.ASTKinds.Bid:
+    case AST.ASTKinds.OtherBid:
       return {
         type: "OtherBid",
         bid: {
@@ -176,11 +177,22 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
   }
 }
 
-export const bidFromAST = (bidSpec: AST.BidSpec) : ConstrainedBid => ({
-  bid: {
-    level: bidSpec.level.value,
-    strain: strainFromAST(bidSpec.bid as AST.Strain),
-  },
+export const bidFromAST = (bid: AST.Bid): Bid => {
+  switch (bid.kind) {
+    case AST.ASTKinds.ContractBid:
+      return {
+        level: bid.level.value,
+        strain: strainFromAST(bid.specifier as AST.Strain),
+      }
+    case AST.ASTKinds.Pass:
+      return "Pass"
+    default:
+      return assertUnreachable(bid)
+  }
+}
+
+export const constrainedBidFromAST = (bidSpec: AST.BidSpec) : ConstrainedBid => ({
+  bid: bidFromAST(bidSpec.bid),
   constraint: pipe(
     bidSpec.constraints?.constraints,
     option.fromNullable,

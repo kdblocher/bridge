@@ -1,20 +1,20 @@
-import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { magma, number, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
 import { observable, observableEither } from 'fp-ts-rxjs';
 import { constant, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import { Epic } from 'redux-observable';
 import { bufferCount, concatWith, EMPTY, filter, from } from 'rxjs';
+
+import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
+
 import { RootState } from '../app/store';
 import { maxProcessors } from '../lib/concurrency';
-import { ContractBid, makeBoard } from '../model/bridge';
+import { makeBoard } from '../model/bridge';
 import { SerializedBidPath, serializedBidPathL, serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
 import { BidPath } from '../model/system';
 import { ping, postDeals } from '../services/server';
 import { observeDealsParallel, observeDealsSerial, observeResultsParallel, observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
-
-
 
 const name = 'generator'
 
@@ -113,7 +113,7 @@ export const analyzeResultsEpic : E = (action$, state$) =>
             () => reportResults({}),
             results => pipe(
               a.payload.path,
-              readonlyNonEmptyArray.map(a => a.bid as ContractBid),
+              readonlyNonEmptyArray.map(a => a.bid ),
               serializedBidPathL.get,
               path => reportResults(({ [path]: results })))))),
         concatWith([done()]))))

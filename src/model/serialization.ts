@@ -8,10 +8,10 @@ import * as E from 'io-ts/Encoder';
 import * as iso from 'monocle-ts/Iso';
 import { O } from 'ts-toolbelt';
 import { Uuid, UuidLike, UuidTool } from 'uuid-tool';
-import { decodeHand } from '../parse';
-import { Board, ContractBid, Deal, directions, Strain } from './bridge';
-import { Card, cards, eqCard, Hand, ordCardDescending } from './deck';
 
+import { decodeHand } from '../parse';
+import { Bid, Board, ContractBid, Deal, directions, isNonContractBid, Strain } from './bridge';
+import { Card, cards, eqCard, Hand, ordCardDescending } from './deck';
 
 export type DecodedHand = ReturnType<typeof decodeHand>
 export type SerializedHand = ReadonlyArray<Card>
@@ -104,16 +104,26 @@ export const isBidPath: refinement.Refinement<string, SerializedBidPath> =
       string.split("."),
       readonlyArray.every(s => s.length === 2))
 
+const ContractBidL: iso.Iso<ContractBid, string> = iso.iso(
+  bid => `${bid.level}${bid.strain}`,
+  bid => ({
+    level: parseInt(bid.charAt(0)),
+    strain: bid.charAt(1) as Strain
+  })
+)
+
+const BidL : iso.Iso<Bid, string> = iso.iso(
+  bid => isNonContractBid(bid) ? bid : ContractBidL.get(bid),
+  bid => isNonContractBid(bid) ? bid : ContractBidL.reverseGet(bid)
+)
+
 const SerializedBidPathB = t.brand(t.string, isBidPath, "BidPath")
-export const serializedBidPathL = iso.iso<readonlyNonEmptyArray.ReadonlyNonEmptyArray<ContractBid>, SerializedBidPath>(
+export const serializedBidPathL = iso.iso<readonlyNonEmptyArray.ReadonlyNonEmptyArray<Bid>, SerializedBidPath>(
   flow(
-    readonlyArray.map(b => `${b.level}${b.strain}`),
+    readonlyArray.map(BidL.get),
     readonlyArray.intersperse("."),
     readonlyArray.foldMap(string.Monoid)(identity),
     x => (SerializedBidPathB.decode(x) as either.Right<SerializedBidPath>).right),
   flow(
     string.split("."),
-    readonlyNonEmptyArray.map(bid => ({
-      level: parseInt(bid.charAt(0)),
-      strain: bid.charAt(1) as Strain
-    }))))
+    readonlyNonEmptyArray.map(BidL.reverseGet)))
