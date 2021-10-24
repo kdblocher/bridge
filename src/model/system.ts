@@ -1,8 +1,9 @@
-import { either, eq, hkt, option as O, option, readonlyArray as RA, readonlyNonEmptyArray as RNEA, tree } from 'fp-ts'
-import { flow, pipe } from "fp-ts/lib/function"
-import { Functor1 } from "fp-ts/lib/Functor"
-import { ConstrainedBid, Constraint } from "../model/constraints"
-import { Bid } from './bridge'
+import { either, eq, hkt, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, tree } from 'fp-ts';
+import { flow, pipe } from 'fp-ts/lib/function';
+import { Functor1 } from 'fp-ts/lib/Functor';
+
+import { ConstrainedBid, Constraint } from '../model/constraints';
+import { Bid } from './bridge';
 
 export type Path<T> = RNEA.ReadonlyNonEmptyArray<T>
 export type Paths<T> = RNEA.ReadonlyNonEmptyArray<Path<T>>
@@ -15,7 +16,7 @@ export const pathsWithoutRoot = <F extends hkt.URIS>(K: Functor1<F>) => <A, B>(f
 export const filterIncomplete = <E, A>(t: tree.Tree<O.Option<either.Either<E, A>>>) =>
   pipe(
     t.forest,
-    RA.map(tree.traverse(option.Applicative)(O.chain(O.fromEither))),
+    RA.map(tree.traverse(O.Applicative)(O.chain(O.fromEither))),
     forest => tree.make<A | null>(null, pipe(forest, RA.compact, RA.toArray))) as tree.Tree<A> // null hack at root node
 
 export const getAllLeafPaths = <T>(tree: tree.Tree<T>) =>
@@ -34,6 +35,7 @@ export interface BidInfo {
 }
 export type BidPath = Path<BidInfo>
 export type BidPaths = Paths<BidInfo>
+export type BidTree = tree.Tree<BidInfo>
 
 const extendWithSiblingsInternal = <T>(eq: eq.Eq<T>) => (siblings: ReadonlyArray<T>) => (t: tree.Tree<T>) : tree.Tree<T & { siblings: ReadonlyArray<T> }> =>
   tree.make(

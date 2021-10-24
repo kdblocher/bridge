@@ -1,4 +1,4 @@
-import { either, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
+import { number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
 import { combineEpics } from 'redux-observable';
@@ -35,8 +35,9 @@ export const selectHandsSatisfySelectedPath = (state: RootState) =>
     option.apS('responder', selectHand(state.selection, 'responder')),
     option.chain(o => pipe(
       selectBidsByKey(state.system, o.blockKey),
-      either.map(satisfiesPathWithoutSiblingCheck(o.opener, o.responder)),
-      option.fromEither)),
+      option.fromEither,
+      option.chain(readonlyNonEmptyArray.fromReadonlyArray),
+      option.map(satisfiesPathWithoutSiblingCheck(o.opener, o.responder)))),
     option.toNullable)
 
 interface BidResult {

@@ -7,7 +7,7 @@ import { serializedBidPathL } from '../model/serialization';
 import { average, getStats, stdev } from '../model/stats';
 import { BidPathResult, selectSatisfyStats } from '../reducers';
 import { generate, getResults, selectProgress, selectResultsByPath } from '../reducers/generator';
-import { selectAllCompleteBidPaths, selectErrors } from '../reducers/system';
+import { selectAllCompleteBidPaths, selectErrors, selectSystemValid } from '../reducers/system';
 import BidPath from './core/BidPath';
 import { DoubleDummyTableView } from './core/DoubleDummyResultView';
 
@@ -68,12 +68,15 @@ const Stats = () => {
   const dispatch = useAppDispatch()
   const rules = useAppSelector(state => selectAllCompleteBidPaths(state.system, state.settings))
   const errors = useAppSelector(state => selectErrors(state.system))
-  const showGenerate = rules !== null && rules.length > 0 && errors.length === 0
+  const valid = useAppSelector(state => selectSystemValid(state.system, state.settings))
+  const showGenerate = rules !== null && rules.length > 0 && errors.length === 0 && valid
   return (
     <section>
       <h3>Stats</h3>
       {!showGenerate && <div>
         <p>Select the system and/or fix errors</p>
+        {rules === null && <p>No complete rules found or system not selected</p>}
+        {!valid && <p>System is not valid</p>}
         {errors.length > 0 && <div>
           <h4>Errors</h4>
           <ul>{errors.map((e, i) => <li key={i}>{draw(e)}</li>)}</ul>
