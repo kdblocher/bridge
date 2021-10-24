@@ -1,12 +1,12 @@
 import { boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
-import { constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib/function';
+import { constant, constFalse, constTrue, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
 import { fromTraversable, Lens, lens, Optional } from 'monocle-ts';
 
 import { assertUnreachable } from '../lib';
-import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, makeShape, Shape as AnyShape, SpecificShape } from './bridge';
+import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, isGameLevel, isSlamLevel, makeShape, ordContractBid, Shape as AnyShape, SpecificShape } from './bridge';
 import { eqRank, eqSuit, Hand, honors, ordRankAscending, Rank, Suit, suits } from './deck';
-import { BidInfo } from './system';
+import { BidInfo, BidPath, BidTree, getAllLeafPaths } from './system';
 
 export interface ConstraintPointRange {
   type: "PointRange"
@@ -339,15 +339,17 @@ const satisfiesBasic : ReturnType<SatisfiesT1<id.URI, BasicConstraint>> = c => {
   }
 }
 
+const ofS = <T>(x: T) => S.of<BidContext, T>(x)
+
 const satisfiesContextual : SatisfiesT2<S.URI, ContextualConstraint> = recur =>
   S.chain(c => {
     switch (c.type) {
       case "Conjunction":
-        return pipe(c.constraints, RNEA.map(c => S.of(c)), forallT(recur))
+        return pipe(c.constraints, RNEA.map(ofS), forallT(recur))
       case "Disjunction":
-        return pipe(c.constraints, RNEA.map(c => S.of(c)), existsT(recur))
+        return pipe(c.constraints, RNEA.map(ofS), existsT(recur))
       case "Negation": 
-        return pipe(c.constraint, S.of, recur, S.map(P.not))
+        return pipe(c.constraint, ofS, recur, S.map(P.not))
       case "Otherwise":
         return pipe(
           S.gets((context: BidContext) =>
@@ -366,7 +368,7 @@ const satisfiesContextual : SatisfiesT2<S.URI, ContextualConstraint> = recur =>
             peersL.get,
             RA.findFirst(b => eqBid.equals(b.bid, c.bid)))),
           S.chain(O.fold(
-            () => S.of(constraintFalse),
+            constant(ofS(constraintFalse)),
             otherBid => pipe(
               S.gets(bidL.get),
               S.chain(bid =>
@@ -379,17 +381,17 @@ const satisfiesContextual : SatisfiesT2<S.URI, ContextualConstraint> = recur =>
       case "Relay":
         return pipe(
           S.modify<BidContext>(forceL.set(O.some(c))),
-          S.map(() => constTrue))
+          S.map(constant(constTrue)))
       case "SuitPrimary":
         return pipe(
           S.modify<BidContext>(primarySuitL.set(O.some(c.suit))),
-          S.map(() => suitPrimary(c.suit)))
+          S.map(constant(suitPrimary(c.suit))))
       case "SuitSecondary":
         return pipe(
           S.modify<BidContext>(secondarySuitL.set(O.some(c.suit))),
-          S.chain(() => S.gets(context => context.primarySuit)),
+          S.chain(constant(S.gets(context => context.primarySuit))),
           optionT.map(S.Functor)(suitSecondary(c.suit)),
-          S.map(O.getOrElseW(() => constraintFalse)))
+          S.map(O.getOrElseW(constant(constraintFalse))))
       default:
         return assertUnreachable(c)
     }
@@ -429,26 +431,160 @@ const specialRelayCase = (bid: Bid) => (s: S.State<BidContext, Constraint>) =>
           constraint.type === "Constant" && !constraint.value && force.type === "Relay" && eqBid.equals(force.bid, bid))))),
     S.map(s => s.relay ? constConstraintTrue() : s.constraint))
 
-export const satisfiesPath = (opener: Hand, responder: Hand) => (bids: ReadonlyArray<BidInfo>) => {
-  return pipe(
+const preTraversal = (info: BidInfo) =>
+  pipe(
+    S.modify(peersL.set(info.siblings)),
+    S.chain(() => S.modify(bidL.set(info.bid))),
+    S.map(() => info.constraint))
+
+const postTraversal = (info: BidInfo) =>
+    S.chain((s: boolean) => pipe(
+      S.modify(pathL.modify(RA.prepend(info.bid))),
+      S.map(() => s)))
+  
+export const satisfiesPath = (opener: Hand, responder: Hand) => (path: BidPath) =>
+  pipe(
     Gen.alternate(opener, responder),
-    Gen.unfold(bids.length),
-    RA.zip(bids),
-    S.traverseArray(([hand, { bid, siblings, constraint }]) =>
+    Gen.unfold(path.length),
+    RA.zip(path),
+    S.traverseArray(([hand, info]) =>
       pipe(
-        S.modify(peersL.set(siblings)),
-        S.chain(() => S.modify(bidL.set(bid))),
-        S.chain(() => S.of(constraint)),
-        flow(specialRelayCase(bid), satisfiesS),
-        // satisfiesS,
+        preTraversal(info),
+        flow(
+          specialRelayCase(info.bid),
+          satisfiesS),
         S.ap(S.of(hand)),
-        S.chain(s => pipe(
-          S.modify(pathL.modify(RA.prepend(bid))),
-          S.map(() => s))))),
+        postTraversal(info))),
     S.map(RA.foldMap(boolean.MonoidAll)(identity)),
-    S.evaluate(zeroContext)) 
-  }
+    S.evaluate(zeroContext))
 
 // Only use for one-off checks, as it doesn't descend the entire bid tree
 export const satisfiesPathWithoutSiblingCheck = (opener: Hand, responder: Hand) =>
-  flow(RA.map((x: ConstrainedBid) => ({ ...x, siblings: [] })), satisfiesPath(opener, responder))
+  flow(RNEA.map((x: ConstrainedBid) => ({ ...x, siblings: [] })), satisfiesPath(opener, responder))
+
+const ordBid: ord.Ord<Bid> =
+  ord.fromCompare((a, b) =>
+    isContractBid(a) && !isContractBid(b) ? -1 :
+    isContractBid(b) && !isContractBid(a) ? 1 :
+    isContractBid(a) && isContractBid(b) ? ordContractBid.compare(a, b) :
+    0)
+
+const ordConstrainedBid = ord.contramap<Bid, ConstrainedBid>(b => b.bid)(ordBid)
+
+const bidPathSorted : P.Predicate<BidPath> = path =>
+  pipe(path,
+    RA.zip(RNEA.tail(path)),
+    RA.foldMap(boolean.MonoidAll)(bids =>
+      ord.lt(ordConstrainedBid)(...bids)))
+
+const bidTreeSorted : P.Predicate<BidTree> =
+  flow(getAllLeafPaths,
+    RA.foldMap(boolean.MonoidAll)(bidPathSorted))
+
+export const validateS = (s: S.State<BidContext, Constraint>): S.State<BidContext, boolean> =>
+  pipe(s, S.chain(c => {
+    if (isContextualConstraint(c)) {
+      switch (c.type) {
+        case "Conjunction":
+        case "Disjunction":
+          return pipe(c.constraints, RNEA.map(ofS), S.traverseArray(validateS), S.map(RA.foldMap(boolean.MonoidAll)(identity)))
+        case "Negation": 
+          return pipe(c.constraint, ofS, validateS)
+        case "OtherBid":
+          return S.gets(flow(
+            peersL.get,
+            RA.map(cb => cb.bid),
+            RA.elem(eqBid)(c.bid)))
+        case "ForceOneRound":
+        case "ForceGame":
+        case "ForceSlam":
+        case "Relay":
+          return pipe(
+            S.modify(forceL.set(O.some(c))),
+            S.map(constTrue))
+        case "SuitPrimary":
+          return pipe(
+            S.modify(primarySuitL.set(O.some(c.suit))),
+            S.map(constTrue))
+        case "SuitSecondary":
+          return pipe(
+            S.modify(secondarySuitL.set(O.some(c.suit))),
+            S.chain(constant(S.gets(context => context.primarySuit))),
+            S.map(O.isSome))
+        case "Otherwise":
+          return S.of(true)
+        default:
+          return assertUnreachable(c)
+      }
+    } else {
+      return S.of(true)
+    }
+  }))
+
+const resetForce = S.modify(forceL.set(O.none))
+const continueForce: typeof resetForce = S.of(constVoid())
+const updateForce = (bid: Bid) => (force: ConstraintForce) => {
+  switch (force.type) {
+    case "ForceOneRound":
+    case "Relay":
+      return resetForce
+    case "ForceGame":
+      return isGameLevel(bid) ? resetForce : continueForce
+    case "ForceSlam":
+      return isSlamLevel(bid) ? resetForce : continueForce
+    default:
+      return assertUnreachable(force)
+  }
+}
+
+const updateForceS : (s: S.State<BidContext, Constraint>) => S.State<BidContext, Constraint> =
+  flow(
+    S.bindTo('constraint'),
+    S.apS('bid', S.gets(bidL.get)),
+    S.apS('force', S.gets(forceO.getOption)),
+    S.chain(({ bid, force, constraint }) =>
+      pipe(force,
+        O.traverse(S.Applicative)(updateForce(bid)),
+        S.map(constant(constraint)))))
+
+const checkPass = (bid: Bid) => (force: O.Option<ConstraintForce>) =>
+  !(bid === "Pass" && O.isSome(force))
+
+const checkPassS : (s: S.State<BidContext, Constraint>) => S.State<BidContext, boolean> =
+  flow(
+    S.apS('bid', S.gets(bidL.get)),
+    S.apS('force', S.gets(forceL.get)),
+    S.map(({ bid, force }) => checkPass(bid)(force)))
+
+const checkFinal =
+  pipe(
+    S.gets(forceO.getOption),
+    S.map(O.isNone))
+
+const pathIsSound : P.Predicate<BidPath> =
+  flow(
+    S.traverseArray(info =>
+      pipe(
+        preTraversal(info),
+        S.bindTo('constraint'),
+        S.bind('forceCheck', ({ constraint }) => checkPassS(S.of(constraint))),
+        S.chain(({ constraint, forceCheck }) =>
+          !forceCheck
+          ? S.of(false)
+          : pipe(
+            S.of(constraint),
+            updateForceS,
+            validateS,
+            postTraversal(info))))),
+    S.bindTo('result'),
+    S.apS('finalCheck', checkFinal),
+    S.map(({ result, finalCheck }) =>
+      finalCheck && pipe(result, RA.foldMap(boolean.MonoidAll)(identity))),
+    S.evaluate(zeroContext))
+
+const treeIsSound : P.Predicate<BidTree> =
+flow(getAllLeafPaths,
+  RA.foldMap(boolean.MonoidAll)(pathIsSound))
+
+export const validateTree : P.Predicate<BidTree> =
+  P.and(bidTreeSorted)(treeIsSound)

@@ -106,10 +106,16 @@ export const contractBids : ReadonlyArray<ContractBid> =
     RA.sort(ordContractBid))
 
 export type Bid = NonContractBid | ContractBid
+export const isContractBid = (b: Bid): b is ContractBid => !isNonContractBid(b)
 
 export const eqBid : eq.Eq<Bid> = eq.fromEquals((x, y) =>
   (isNonContractBid(x) && isNonContractBid(y) && eqNonContractBid.equals(x, y)) ||
   (!isNonContractBid(x) && !isNonContractBid(y) && eqContractBid.equals(x, y)))
+
+export const isGameLevel = (bid: Bid) =>
+  isContractBid(bid) && ord.geq(ordContractBid)(bid, { level: 3, strain: "N" })
+export const isSlamLevel = (bid: Bid) =>
+  isContractBid(bid) && ord.gt(ordContractBid)(bid, { level: 5, strain: "N" })
 
 export const contractModifiers = ["Undoubled", "Doubled", "Redoubled"] as const
 export type ContractModifier = typeof contractModifiers[number]

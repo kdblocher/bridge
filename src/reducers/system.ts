@@ -5,8 +5,8 @@ import { castDraft } from 'immer';
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { Bid, eqBid } from '../model/bridge';
-import { ConstrainedBid } from '../model/constraints';
-import { BidPath, extendWithSiblings, filterIncomplete, getAllLeafPaths, pathsWithoutRoot } from '../model/system';
+import { ConstrainedBid, validateTree } from '../model/constraints';
+import { BidTree, extendWithSiblings, filterIncomplete, getAllLeafPaths, pathsWithoutRoot } from '../model/system';
 import { decodeBid } from '../parse';
 
 export type DecodedBid = ReturnType<typeof decodeBid>
@@ -138,11 +138,19 @@ const withImplicitPasses =
       RA.append(tree.make<ConstrainedBid>({ bid: "Pass", constraint: { type: "Otherwise" }})),
       RA.toArray)))
 
-export const selectAllCompleteBidPaths = (state: State, options?: { implicitPass: boolean }) : ReadonlyArray<BidPath> =>
+export const selectCompleteBidSubtree = (state: State, options?: { implicitPass: boolean }) : BidTree =>
   pipe(state,
     getCompleteTree,
     options?.implicitPass ? withImplicitPasses : identity,
-    extendWithSiblings(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid)),
+    extendWithSiblings(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid)))
+
+export const selectAllCompleteBidPaths =
+  flow(selectCompleteBidSubtree,
     getAllLeafPaths)
+
+export const selectSystemValid =
+  flow(selectCompleteBidSubtree,
+    validateTree)
+    
 
 export default slice.reducer
