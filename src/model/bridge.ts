@@ -2,7 +2,7 @@ import { apply, eq, number, option, ord, readonlyArray as RA, readonlyNonEmptyAr
 import { flow, pipe } from 'fp-ts/lib/function';
 
 import { ordAscending } from '../lib';
-import { Card, Deck, eqCard, Hand, ordCardDescending, Suit, suits } from './deck';
+import { Card, Deck, eqCard, groupHandBySuits, Hand, ordCardDescending, Suit, suits } from './deck';
 
 export const directions = ['N', 'E', 'S', 'W'] as const
 export type Direction = typeof directions[number]
@@ -173,17 +173,9 @@ export const makeSpecificShape = (s: number, h: number, d: number, c: number) : 
 })
 export const zeroSpecificShape = makeSpecificShape(0, 0, 0, 0)
 
-export const groupHandBySuit = (hand: Hand) =>
-  pipe(hand,
-    RS.toReadonlyArray(ordCardDescending),
-    RNEA.fromReadonlyArray,
-    option.fold(() => readonlyRecord.empty, flow(
-      RNEA.groupBy(c => c.suit),
-      readonlyRecord.mapWithIndex((s: Suit, cards: RNEA.ReadonlyNonEmptyArray<Card>) => cards))))
-
 export const getHandSpecificShape = (hand: Hand) : SpecificShape =>
   pipe(hand,
-    groupHandBySuit,
+    groupHandBySuits,
     readonlyRecord.map(x => x.length),
     readonlyRecord.union(semigroup.first<number>())(zeroSpecificShape),
     (suits: readonlyRecord.ReadonlyRecord<Suit, number>) => suits)
