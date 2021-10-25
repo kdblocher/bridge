@@ -2,9 +2,10 @@ import { either, eitherT, option, readonlyArray, readonlyNonEmptyArray, readonly
 import { constant, flow, identity, pipe } from 'fp-ts/lib/function';
 
 import { assertUnreachable } from '../lib';
-import { Bid, Strain, zeroSpecificShape } from '../model/bridge';
+import { Bid, Strain } from '../model/bridge';
 import { constConstraintFalse, constConstraintTrue, ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints';
 import { rankFromString, ranks, Suit } from '../model/deck';
+import { zeroSpecificShape } from '../model/evaluation';
 import * as AST from '../parse/bid.peg.g';
 
 const getConnectiveItems = (items: ReadonlyArray<AST.Constraint>) =>

@@ -7,10 +7,9 @@ import { constant, constFalse, constTrue, constVoid, flow, identity, pipe } from
 import { fromTraversable, Lens, lens, Optional } from 'monocle-ts';
 
 import { assertUnreachable } from '../lib';
-import {
-    Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, isContractBid, isGameLevel, isSlamLevel, makeShape, ordContractBid, Shape as AnyShape, SpecificShape
-} from './bridge';
+import { Bid, ContractBid, eqBid, isContractBid, isGameLevel, isSlamLevel, ordContractBid } from './bridge';
 import { eqRank, eqSuit, groupHandBySuits, Hand, honors, ordRankAscending, Rank, Suit, suits } from './deck';
+import { eqShape, getHandShape, getHandSpecificShape, getHcp, makeShape, Shape as AnyShape, SpecificShape } from './evaluation';
 import { BidInfo, BidPath, BidTree, getAllLeafPaths } from './system';
 
 export interface ConstraintPointRange {

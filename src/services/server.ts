@@ -2,10 +2,11 @@ import { either, option, ord, readonlyArray, readonlyRecord, readonlySet, readon
 import { flow, pipe } from 'fp-ts/lib/function';
 import { Encoder } from 'io-ts/lib/Encoder';
 import { Uuid } from 'uuid-tool';
-import { TrickCountsByDirectionThenStrain, TrickCountsByStrain } from '../model/analyze';
-import { Deal, Direction, directions, getHandSpecificShape, getHcp, SpecificShape } from '../model/bridge';
-import { Card, ordCardDescending } from '../model/deck';
 
+import { TrickCountsByDirectionThenStrain, TrickCountsByStrain } from '../model/analyze';
+import { Deal, Direction, directions } from '../model/bridge';
+import { Card, ordCardDescending } from '../model/deck';
+import { getHandSpecificShape, getHcp, SpecificShape } from '../model/evaluation';
 
 // const Uuid = t.brand(t.string, (s: string): s is t.Branded<string, { readonly Uuid: unique symbol }> => validate(s), 'Uuid')
 // type Uuid = t.TypeOf<typeof Uuid>
