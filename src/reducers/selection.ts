@@ -1,7 +1,6 @@
-import { either, option, predicate, readonlyArray, readonlyNonEmptyArray, readonlySet, separated } from 'fp-ts';
+import { either, option, predicate, readonlyArray, readonlyNonEmptyArray, readonlySet } from 'fp-ts';
 import { observable } from 'fp-ts-rxjs';
-import { tailRec } from 'fp-ts/lib/ChainRec';
-import { constFalse, constTrue, flow, pipe } from 'fp-ts/lib/function';
+import { constTrue, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import { WritableDraft } from 'immer/dist/internal';
 import * as D from 'io-ts/Decoder';
@@ -9,9 +8,10 @@ import { O } from 'ts-toolbelt';
 
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-import { Board, deal, getHcp } from '../model/bridge';
+import { Board, getHcp } from '../model/bridge';
 import { Constraint, satisfies, satisfiesPath } from '../model/constraints';
 import { eqCard, Hand, newDeck, ordCardDescending } from '../model/deck';
+import { genMatchingOf, genUntilCondition } from '../model/generator';
 import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL, serializedBoardL, SerializedHand, serializedHandL } from '../model/serialization';
 import { BidPath } from '../model/system';
 import { decodeHand } from '../parse';
@@ -67,27 +67,6 @@ const getResult = createAsyncThunk('abc', ({ opener, responder}: Hands) =>
     observeResultsSerial,
     observable.toTask,
     t => t()))
-
-const genUntilCondition = (limit: option.Option<number>) => (condition: predicate.Predicate<readonly [Hand, Hand]>) =>
-  tailRec(limit, l => {
-    if (pipe(l, option.fold(constFalse, i => i === 0))) {
-      return either.right(option.none)
-    } else {
-      const d = deal(newDeck())
-      const hands = [d.N, d.S] as const
-      const result = condition(hands)
-      return result
-        ? either.right(option.some(hands))
-        : either.left(pipe(l, option.map(i => i - 1)))
-    }
-  })
-
-const genMatchingOf = (length: predicate.Predicate<number>) => (paths: readonlyNonEmptyArray.ReadonlyNonEmptyArray<BidPath>) =>
-  genUntilCondition(option.some(10000))(hands =>
-    pipe(paths,
-      readonlyArray.partition(satisfiesPath(...hands)),
-      separated.right,
-      x => length(x.length)))
 
 const slice = createSlice({
   name,

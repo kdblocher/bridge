@@ -1,13 +1,16 @@
-import { option } from 'fp-ts';
+import { number, option } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 
 import { useAppSelector } from '../app/hooks';
+import { satisfiesPath } from '../model/constraints';
+import { genUntilCondition } from '../model/generator';
 import { BidPath } from '../model/system';
 import { selectPathsSatisfyHands } from '../reducers';
 import { selectHandsSatisfyPath } from '../reducers/selection';
 import { selectCompleteBidSubtree, selectSystemValid } from '../reducers/system';
 import BidPathView from './core/BidPath';
 import BidTreeView from './core/BidTree';
+import HandView from './core/HandView';
 import HandEditor from './HandEditor';
 
 interface BidTreeSatisfiesViewProps {
@@ -23,6 +26,21 @@ const BidTreeSatisfiesView = ({ path }: BidTreeSatisfiesViewProps) => {
       result => result
         ? "Yes"
         : "No"))}</>)
+}
+
+interface BidTreeHandSampleViewProps {
+  path: BidPath
+}
+const BidTreeHandSampleView = ({ path }: BidTreeHandSampleViewProps) => {
+  const gen = 
+    genUntilCondition(option.some(1000))(hands =>
+      satisfiesPath(...hands)(path))
+  return (
+    <>{pipe(gen,
+    option.matchW(
+      () => "Effort level too low",
+      ([opener, responder]) => <HandView hand={path.length % 2 === 1 ? opener : responder} />))
+    }</>)
 }
 
 const TestHands = () => {
@@ -41,6 +59,9 @@ const TestHands = () => {
         <h4>Results</h4>
         <BidTreeView tree={bidPathTree}>
           {path => <>: <BidTreeSatisfiesView path={path} /></>}
+        </BidTreeView>
+        <BidTreeView tree={bidPathTree}>
+          {path => <>: <BidTreeHandSampleView path={path} /></>}
         </BidTreeView>
         <ul>
           {results.map((r, i) => <li key={i}>
