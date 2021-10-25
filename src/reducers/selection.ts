@@ -162,3 +162,9 @@ export const selectHand = (state: State, type: AuctionPositionType) : option.Opt
   pipe(state[type],
     option.fromNullable,
     option.chain(flow(decodedSerializedHandL.reverseGet, option.fromEither)))
+
+export const selectHandsSatisfyPath = (state: State, path: BidPath) =>
+  pipe(option.Do,
+    option.apS('opener', selectHand(state, 'opener')),
+    option.apS('responder', selectHand(state, 'responder')),
+    option.map(o => satisfiesPath(o.opener, o.responder)(path)))

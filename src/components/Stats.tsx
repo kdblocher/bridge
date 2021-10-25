@@ -8,7 +8,7 @@ import { average, getStats, stdev } from '../model/stats';
 import { BidPathResult, selectSatisfyStats } from '../reducers';
 import { generate, getResults, selectProgress, selectResultsByPath } from '../reducers/generator';
 import { selectAllCompleteBidPaths, selectErrors, selectSystemValid } from '../reducers/system';
-import BidPath from './core/BidPath';
+import BidPathView from './core/BidPath';
 import { DoubleDummyTableView } from './core/DoubleDummyResultView';
 
 interface StatsPathProps {
@@ -22,7 +22,7 @@ const StatsPath = ({ result }: StatsPathProps) => {
   const stdevs = stats && stdev(stats)
   return (
     <>
-      <BidPath path={result.path} />
+      <BidPathView path={result.path} />
       : &nbsp;
       <span>{result.count.toString()}</span>
       {averages !== null && <section>
