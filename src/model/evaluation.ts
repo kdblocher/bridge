@@ -1,15 +1,15 @@
 import { eq, number, option, ord, readonlyArray, readonlyRecord, readonlySet, readonlyTuple, semigroup } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 
-import { Card, groupHandBySuits, Hand, ordCardDescending, Suit } from './deck';
+import { groupHandBySuits, Hand, ordCardDescending, Rank, Suit } from './deck';
 
-export const getCardHcp = (card: Card) =>
-  Math.max(0, card.rank - 10)
+export const getRankHcp = (rank: Rank) =>
+  Math.max(0, rank - 10)
 
 export const getHcp =
   flow(
     readonlySet.toReadonlyArray(ordCardDescending),
-    readonlyArray.foldMap(number.MonoidSum)(getCardHcp))
+    readonlyArray.foldMap(number.MonoidSum)(c => getRankHcp(c.rank)))
 
 export type Shape = readonly [number, number, number, number]
 export const zeroShape: Shape = [0, 0, 0, 0]
