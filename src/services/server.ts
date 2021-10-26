@@ -2,10 +2,10 @@ import { either, option, ord, readonlyArray, readonlyRecord, readonlySet, readon
 import { flow, pipe } from 'fp-ts/lib/function';
 import { Encoder } from 'io-ts/lib/Encoder';
 import { Uuid } from 'uuid-tool';
-
 import { TrickCountsByDirectionThenStrain, TrickCountsByStrain } from '../model/analyze';
 import { Deal, Direction, directions, getHandSpecificShape, getHcp, SpecificShape } from '../model/bridge';
 import { Card, ordCardDescending } from '../model/deck';
+
 
 // const Uuid = t.brand(t.string, (s: string): s is t.Branded<string, { readonly Uuid: unique symbol }> => validate(s), 'Uuid')
 // type Uuid = t.TypeOf<typeof Uuid>
@@ -26,11 +26,13 @@ const encode: Encoder<Uuid, Deal> = {
       x => new Uuid(x))
 }
 
+const baseUrl = process.env.REACT_APP_API_URL
+
 const safeFetch = (t: task.Task<Response>) =>
   taskEither.tryCatchK(t, either.toError)()
 
 export const ping =
-  pipe(() => fetch("http://localhost:5000/ping"),
+  pipe(() => fetch(`${baseUrl}/ping`),
     safeFetch,
     taskEither.chainTaskK(response => () => response.text()),
     taskEither.filterOrElse(response => response === "pong", () => new Error("'pong' was not received")))
@@ -65,7 +67,7 @@ export const postDeals = (deals: ReadonlyArray<Deal>) =>
     JSON.stringify,
     task.of,
     task.chain(body => () =>
-      fetch("http://localhost:5000/deals", {
+      fetch(`${baseUrl}/deals`, {
         method: "POST",
         body
       })),
@@ -77,7 +79,7 @@ export const putDeals = (deals: ReadonlyArray<DealWithSolution>) =>
     JSON.stringify,
     task.of,
     task.chain(body => () =>
-      fetch("http://localhost:5000/deals", {
+      fetch(`${baseUrl}/deals`, {
         method: "PUT",
         body
       })),
