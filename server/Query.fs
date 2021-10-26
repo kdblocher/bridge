@@ -10,7 +10,7 @@ let shapeTable = table<shape_table>
 type Id = System.Guid
 
 let openContext () = 
-  let conn = new SqlConnection "server=localhost;database=Bridge;TrustServerCertificate=True;User ID=bridge;Password=refinance-unweave-unglazed-dizzy-shuffling;MultipleActiveResultSets=true"
+  let conn = new SqlConnection "server=db;database=Bridge;TrustServerCertificate=True;User ID=bridge;Password=refinance-unweave-unglazed-dizzy-shuffling;MultipleActiveResultSets=true"
   conn.Open ()
   new QueryContext(conn, SqlKata.Compilers.SqlServerCompiler ())
 
