@@ -23,7 +23,7 @@ let configureServices (config: IConfiguration) (services : IServiceCollection) =
     .AddResponseCaching()
     .AddGiraffe()
     .AddSingleton<Json.ISerializer>(serializer)
-    .AddScoped<SqlHydra.Query.QueryContext>(fun sp -> Query.openContext ())
+    .AddScoped<SqlHydra.Query.QueryContext>(fun _ -> config.GetConnectionString("Bridge") |> Query.openContext)
 
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting

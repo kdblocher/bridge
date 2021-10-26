@@ -30,7 +30,7 @@ const safeFetch = (t: task.Task<Response>) =>
   taskEither.tryCatchK(t, either.toError)()
 
 export const ping =
-  pipe(() => fetch("http://192.168.20.244:5000/ping"),
+  pipe(() => fetch("http://localhost:5000/ping"),
     safeFetch,
     taskEither.chainTaskK(response => () => response.text()),
     taskEither.filterOrElse(response => response === "pong", () => new Error("'pong' was not received")))
@@ -65,7 +65,7 @@ export const postDeals = (deals: ReadonlyArray<Deal>) =>
     JSON.stringify,
     task.of,
     task.chain(body => () =>
-      fetch("http://192.168.20.244:5000/deals", {
+      fetch("http://localhost:5000/deals", {
         method: "POST",
         body
       })),
@@ -77,7 +77,7 @@ export const putDeals = (deals: ReadonlyArray<DealWithSolution>) =>
     JSON.stringify,
     task.of,
     task.chain(body => () =>
-      fetch("http://192.168.20.244:5000/deals", {
+      fetch("http://localhost:5000/deals", {
         method: "PUT",
         body
       })),
