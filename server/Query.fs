@@ -9,8 +9,8 @@ let dealTable = table<deals>
 let shapeTable = table<shape_table>
 type Id = System.Guid
 
-let openContext () = 
-  let conn = new SqlConnection "server=localhost;database=Bridge;TrustServerCertificate=True;User ID=bridge;Password=refinance-unweave-unglazed-dizzy-shuffling;MultipleActiveResultSets=true"
+let openContext (connectionString: string) = 
+  let conn = new SqlConnection(connectionString)
   conn.Open ()
   new QueryContext(conn, SqlKata.Compilers.SqlServerCompiler ())
 
