@@ -16,10 +16,15 @@ let serializer =
 
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
+open Microsoft.AspNetCore.HttpOverrides
+open Microsoft.AspNetCore.Builder
 
 let configureServices (config: IConfiguration) (services : IServiceCollection) =
   ignore <| services
     .AddCors()
+    .Configure(fun (options: ForwardedHeadersOptions) ->
+      options.ForwardedHeaders <-
+        ForwardedHeaders.XForwardedFor ||| ForwardedHeaders.XForwardedProto)
     .AddResponseCaching()
     .AddGiraffe()
     .AddSingleton<Json.ISerializer>(serializer)
@@ -32,6 +37,7 @@ open Microsoft.FSharp.Control
 
 let configureApp (app : IApplicationBuilder) =
   app
+    .UseForwardedHeaders()
     .UseCors(fun builder -> 
       ignore <| builder
         .AllowAnyHeader()
