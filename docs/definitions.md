@@ -12,16 +12,14 @@ Incomplete list of terms
 - **Deals**: The set _D_ = {(_h_<sub>`N`</sub>, _h_<sub>`E`</sub>, _h_<sub>`S`</sub>, _h_<sub>`W`</sub>) | &forall;<sub>_d_&in;Dir</sub> _h_<sub>_d_</sub> &in; _H_ and &bigcup;<sub>_d_&in;Dir</sub> _h_<sub>_d_</sub> = _C_}.
 - **Boards**: The set _Bd_ = _D_ &times; _Dir_ &times; _V_.
 - **Levels**: The set _L_ = {`1`, `2`, `3`, `4`, `5`, `6`, `7`}.
-- **Contract Bids**: The totally ordered set (_B_<sub>_c_</sub>, &lt;) such that _B_<sub>_c_</sub> = _L_ &times; _St_.
-- **Special Bids**: The totally ordered set (_B_<sub>_s_</sub>, &lt;) such that _B_<sub>_s_</sub> = {&empty;, `X`, `XX`}.
-- **Non-Pass Bids**: The totally ordered set (_B_<sub>_c_&times;_s_</sub>, &lt;) such that _B_<sub>_c_&times;_s_</sub> = _B_<sub>_c_</sub> &times; _B_<sub>_s_</sub>.
-- **Pass Bids**: The set _B_<sub>_p_</sub> = {&bottom;}.
-- **Bids**: The set _B_ = _B_<sub>_c_&times;_s_</sub> &cup; _B_<sub>_p_</sub>.
+- **Contract Bids**: The totally ordered set (_B_<sub>_c_</sub> , &lt;) such that _B_<sub>_c_</sub> = _L_ &times; _St_.
+- **Bid Modifiers**: The totally ordered set (_B_<sub>_m_</sub> , &lt;) such that _B_<sub>_m_</sub> = {`O`, `X`, `XX`}.
+- **Passes**: The totally ordered set (_B_<sub>_p_</sub> , &lt;) such that _B_<sub>_p_</sub> = {`P`<sub>1</sub>, `P`<sub>2</sub>, `P`<sub>3</sub>, `P`<sub>4</sub>}.
+---
 - **Complete Auctions**: The set _A_ = {(_b_<sub>1</sub>, _b_<sub>2</sub>,..., _b_<sub>n</sub>)} such that:
     - _i_, _j_ &in; &Zopf;<sup>+</sup>
-    - (_b_<sub>_i_</sub>, _b_<sub>_j_</sub> &in; _B_<sub>_c_&times;_s_</sub> &and; _i_ &lt; _j_) ⇒ _b_<sub>_i_</sub> &lt; _b_<sub>_j_</sub>
-    - _b_<sub>_i_</sub> = (&star;, `X`)
-    - &nexist;<sub>_b_&in;{`X`, `XX`}</sub> (..., _a_<sub>_i_</sub>, &bottom;, (_dir_, _b_), ...)<sub>_i_&in;&Zopf;</sub> 
+    - _b_<sub>_i_</sub> &in; _B_
+    - (_b_<sub>_i_</sub>, _b_<sub>_j_</sub> &in; _B_<sub>_c_&times;_m_</sub> &and; _i_ &lt; _j_) ⇒ _b_<sub>_i_</sub> &lt; _b_<sub>_j_</sub>
 
 - **Auction**: Any finite sequence (_a_<sub>_i_</sub> ...)<sub>_i_&in;&Zopf;</sub> &in; _A_ such that _a_<sub>_i_</sub> &in; _Dir_ &times; _B_ and the following rules hold:
     - _dir_<sub>_i_</sub>+1 = _dir_<sub>_i+1_</sub> (directions must rotate)
