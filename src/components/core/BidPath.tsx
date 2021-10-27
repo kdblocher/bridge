@@ -2,9 +2,9 @@ import { readonlyArray } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 import { Fragment } from 'react';
 import styled from 'styled-components';
-
 import { ContractBid, NonContractBid } from '../../model/bridge';
 import { BidPath } from '../../model/system';
+
 
 const SuitSpan = styled.span `
   &.S::after { content: "♠"; color: #0000FF; }
@@ -23,11 +23,11 @@ const ContractBidView = (bid: ContractBid) =>
 const NonContractBidView = ({ bid }: { bid: NonContractBid }) =>
   <span>{bid}</span>
 
-interface Props {
+export interface BidPathProps {
   path: BidPath
 }
-const BidPathView = ({ path }: Props) => 
-  <>{pipe(path,
+const BidPathView = ({ path }: BidPathProps) => 
+  <div>{pipe(path,
     readonlyArray.filter(path => path !== null),
     readonlyArray.map(cb => cb.bid),
     readonlyArray.mapWithIndex((i, bid) =>
@@ -37,6 +37,6 @@ const BidPathView = ({ path }: Props) =>
           ? <NonContractBidView bid={bid} />
           : <ContractBidView {...bid} />}
       </Fragment>))
-  }</>
+  }</div>
 
 export default BidPathView

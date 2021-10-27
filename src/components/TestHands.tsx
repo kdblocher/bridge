@@ -1,17 +1,15 @@
-import { number, option } from 'fp-ts';
+import { option } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
-
 import { useAppSelector } from '../app/hooks';
 import { satisfiesPath } from '../model/constraints';
 import { genUntilCondition } from '../model/generator';
 import { BidPath } from '../model/system';
-import { selectPathsSatisfyHands } from '../reducers';
 import { selectHandsSatisfyPath } from '../reducers/selection';
 import { selectCompleteBidSubtree, selectSystemValid } from '../reducers/system';
-import BidPathView from './core/BidPath';
 import BidTreeView from './core/BidTree';
 import HandView from './core/HandView';
 import HandEditor from './HandEditor';
+
 
 interface BidTreeSatisfiesViewProps {
   path: BidPath
@@ -45,7 +43,6 @@ const BidTreeHandSampleView = ({ path }: BidTreeHandSampleViewProps) => {
 
 const TestHands = () => {
   const valid = useAppSelector(state => selectSystemValid(state.system, state.settings))
-  const results = useAppSelector(selectPathsSatisfyHands)
   const bidPathTree = useAppSelector(state => pipe(
     selectCompleteBidSubtree(state.system, state.settings)))
   
@@ -55,22 +52,14 @@ const TestHands = () => {
       <HandEditor />
       <h4>Valid System?</h4>
       {valid.toString()}
-      {results !== null && <div>
-        <h4>Results</h4>
-        <BidTreeView tree={bidPathTree}>
-          {path => <>: <BidTreeSatisfiesView path={path} /></>}
-        </BidTreeView>
-        <BidTreeView tree={bidPathTree}>
-          {path => <>: <BidTreeHandSampleView path={path} /></>}
-        </BidTreeView>
-        <ul>
-          {results.map((r, i) => <li key={i}>
-            <BidPathView path={r.path} />
-            : &nbsp;
-            <span>{r.result.toString()}</span>
-          </li>)}
-        </ul>
-      </div>}
+      <h4>Satisfies</h4>
+      <BidTreeView tree={bidPathTree}>
+        {path => <BidTreeSatisfiesView path={path} />}
+      </BidTreeView>
+      <h4>Samples</h4>
+      <BidTreeView tree={bidPathTree}>
+        {path => <BidTreeHandSampleView path={path} />}
+      </BidTreeView>
     </section>
   )
 }
