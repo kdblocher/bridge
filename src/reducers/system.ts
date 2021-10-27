@@ -1,11 +1,13 @@
-import { either, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, separated, tree } from 'fp-ts';
+import { either, eq, option as O, predicate, readonlyArray as RA, readonlyNonEmptyArray as RNEA, separated, state, tree } from 'fp-ts';
+import { modify } from 'fp-ts/lib/FromState';
 import { flow, identity, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createEntityAdapter, createSlice, EntityState, PayloadAction } from '@reduxjs/toolkit';
 
 import { Bid, eqBid } from '../model/bridge';
-import { ConstrainedBid, validateTree } from '../model/constraints';
+import { BidContext, ConstrainedBid, validateTree } from '../model/constraints';
+import { Hand } from '../model/deck';
 import { BidTree, extendWithSiblings, filterIncomplete, getAllLeafPaths, pathsWithoutRoot } from '../model/system';
 import { decodeBid } from '../parse';
 
@@ -16,12 +18,21 @@ interface Node {
   bid: O.Option<DecodedBid>
 }
 
-type State = {
-  system: tree.Tree<Node>
+interface CompiledConstraint {
+  id: string
+  f: state.State<BidContext, predicate.Predicate<Hand>>
 }
+const constraintAdapter = createEntityAdapter<CompiledConstraint>()
+
+interface State {
+  system: tree.Tree<Node>
+  constraints: EntityState<CompiledConstraint>
+}
+
 const getRoot = () => tree.make<Node>({ blockKey: "root", text: "root", bid: O.none })
 const initialState: State = {
-  system: getRoot()
+  system: getRoot(),
+  constraints: constraintAdapter.getInitialState()
 }
 
 const getPath = (blockKey: string) =>
@@ -67,11 +78,17 @@ const slice = createSlice({
   reducers: {
     setSystem: (state, action: PayloadAction<ReadonlyArray<BlockItem>>) => {
       state.system = pipe(buildTree(action.payload), castDraft)
+    },
+    removeConstraintsByBlockKey: (state, action: PayloadAction<ReadonlyArray<string>>) => {
+      constraintAdapter.removeMany(state.constraints, action.payload)
+    },
+    cacheSystemConstraints: (state, action: PayloadAction<ReadonlyArray<BlockItem>>) => {
+      // constraintAdapter.setMany(state.constraints, action.payload)
     }
   }
 })
 
-export const { setSystem } = slice.actions
+export const { setSystem, removeConstraintsByBlockKey, cacheSystemConstraints } = slice.actions
 
 export const selectNodeByKey = (state: State, blockKey: string) =>
   pipe(
