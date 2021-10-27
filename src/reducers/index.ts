@@ -12,7 +12,7 @@ import { BidInfo } from '../model/system';
 import generator, { analyzeDealsEpic, analyzeResultsEpic, saveDealsToApiEpic, saveSolutionsToApiEpic, selectAllDeals } from './generator';
 import selection, { selectHand } from './selection';
 import settings from './settings';
-import system, { selectAllCompleteBidPaths, selectBidsByKey } from './system';
+import system, { selectAllCompleteBidPaths, selectBidPathUpToKey } from './system';
 
 const reducers = {
   system,
@@ -34,7 +34,7 @@ export const selectHandsSatisfySelectedPath = (state: RootState) =>
     option.apS('opener', selectHand(state.selection, 'opener')),
     option.apS('responder', selectHand(state.selection, 'responder')),
     option.chain(o => pipe(
-      selectBidsByKey(state.system, o.blockKey),
+      selectBidPathUpToKey(state.system, o.blockKey),
       option.fromEither,
       option.chain(readonlyNonEmptyArray.fromReadonlyArray),
       option.map(satisfiesPathWithoutSiblingCheck(o.opener, o.responder)))),

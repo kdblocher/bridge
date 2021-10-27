@@ -7,27 +7,13 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { selectBlockKey, setSelectedBlockKey } from '../reducers/selection';
-import { BlockItem, cacheSystemConstraints, removeConstraintsByBlockKey, setSystem } from '../reducers/system';
+import { BlockItem, BlockKeyDescriptor, cacheSystemConstraints, removeConstraintsByBlockKey, setSystem } from '../reducers/system';
 
-const getBlockItemFromContentBlock = (x: ContentBlock): BlockItem => ({
+const getDescriptorFromContentBlock = (x: ContentBlock): BlockKeyDescriptor & BlockItem => ({
   key: x.getKey(),
   text: x.getText(),
   depth: x.getDepth()
 })
-
-const getItemsFromBlocks = (editorState: EditorState) =>
-  editorState.getCurrentContent().getBlockMap().toArray().map(getBlockItemFromContentBlock)
-
-const getSelectedBlocks = (editorState: EditorState) => {
-  const selectionState = editorState.getSelection()
-  const contentState = editorState.getCurrentContent()
-  const endKey = selectionState.getEndKey()
-  return pipe(
-    readonlyArray.unfold(selectionState.getStartKey(), k => 
-      k === endKey ? option.none :
-        option.some([contentState.getBlockForKey(k), contentState.getKeyAfter(k)])),
-    readonlyArray.append(contentState.getBlockForKey(endKey)))
-}
 
 const eqContentBlock = monoid.concatAll(eq.getMonoid<ContentBlock>())([
   eq.contramap((b: ContentBlock) => b.getKey())(string.Eq),
@@ -56,7 +42,7 @@ const Editor = () => {
       dispatch(pipe(
         newBlocks,
         readonlySet.toReadonlyArray<ContentBlock>(ord.trivial),
-        readonlyArray.map(getBlockItemFromContentBlock),
+        readonlyArray.map(getDescriptorFromContentBlock),
         setSystem))
       pipe(
         removed,
@@ -70,7 +56,7 @@ const Editor = () => {
         readonlySet.toReadonlyArray<ContentBlock>(ord.trivial),
         readonlyNonEmptyArray.fromReadonlyArray,
         option.map(flow(
-          readonlyNonEmptyArray.map(getBlockItemFromContentBlock),
+          readonlyNonEmptyArray.map(getDescriptorFromContentBlock),
           x => dispatch(cacheSystemConstraints(x)))))
     }
     

@@ -10,7 +10,7 @@ import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../app/store';
 import { maxProcessors } from '../lib/concurrency';
 import { transpose } from '../model/analyze';
-import { ContractBid, makeBoard } from '../model/bridge';
+import { makeBoard } from '../model/bridge';
 import { SerializedBidPath, serializedBidPathL, serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
 import { BidPath } from '../model/system';
 import { ping, postDeals, putDeals } from '../services/server';
