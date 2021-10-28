@@ -13,8 +13,10 @@ Incomplete list of terms
 - **Boards**: The set _Bd_ = _D_ &times; _Dir_ &times; _V_.
 - **Levels**: The set _L_ = {`1`, `2`, `3`, `4`, `5`, `6`, `7`}.
 - **Contract Bids**: The totally ordered set (_B_<sub>_c_</sub> , &lt;) such that _B_<sub>_c_</sub> = _L_ &times; _St_.
-- **Bid Modifiers**: The totally ordered set (_B_<sub>_m_</sub> , &lt;) such that _B_<sub>_m_</sub> = {`O`, `X`, `XX`}.
-- **Passes**: The totally ordered set (_B_<sub>_p_</sub> , &lt;) such that _B_<sub>_p_</sub> = {`P`<sub>1</sub>, `P`<sub>2</sub>, `P`<sub>3</sub>, `P`<sub>4</sub>}.
+- **Modifiers**: The totally ordered set (_B_<sub>_m_</sub> , &lt;) such that _B_<sub>_m_</sub> = {`O`, `X`, `XX`}.
+- **Passes**: The totally ordered set (_B_<sub>_p_</sub> , &lt;) such that _B_<sub>_p_</sub> = {`P`<sub>1</sub>, `P`<sub>2</sub>, `P`<sub>3</sub>}.
+- **Modifier Sequence**: The totally ordered set (_M_, &lt;) such that (all valid pass/double/redouble sequences from _B_<sub>_m_</sub> and _B_<sub>_p_</sub>)
+- **Auction Item**: Tuple 
 ---
 - **Complete Auctions**: The set _A_ = {(_b_<sub>1</sub>, _b_<sub>2</sub>,..., _b_<sub>n</sub>)} such that:
     - _i_, _j_ &in; &Zopf;<sup>+</sup>
