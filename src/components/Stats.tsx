@@ -83,7 +83,7 @@ const Stats = () => {
         {!valid && <p>System is not valid</p>}
         {errors.length > 0 && <div>
           <h4>Errors</h4>
-          <ul>{errors.map((e, i) => <li key={i}>{draw(e)}</li>)}</ul>
+          <ul>{errors.map((e, i) => <li key={i}><pre>{draw(e)}</pre></li>)}</ul>
         </div>}
       </div>}
       {showGenerate && <div>

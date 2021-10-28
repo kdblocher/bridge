@@ -1,5 +1,6 @@
 import { option } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
+import JSONPretty from 'react-json-pretty';
 
 import { useAppSelector } from '../app/hooks';
 import { selectHandsSatisfySelectedPath } from '../reducers';
@@ -27,7 +28,7 @@ const SelectionDetails = () => {
 
       {bid && <div>
         <h4>Selected Bid</h4>
-        {pipe(bid, option.fromNullable, option.map(JSON.stringify), option.toNullable)}
+        <JSONPretty data={bid} />
         {satisfies !== null && <div>
         <h4>Satisfies</h4>
         {satisfies.toString()}
