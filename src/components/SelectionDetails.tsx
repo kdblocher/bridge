@@ -9,10 +9,10 @@ const SelectionDetails = () => {
   const selected = useAppSelector(state => state.selection.selectedBlockKey)
 
   const path = useAppSelector(state => pipe(selected,
-    option.chain(s => selectPathUpToKey(state.system, s)),
+    option.chain(key => selectPathUpToKey({ state: state.system, key })),
     option.toNullable))
   const bid = useAppSelector(state => pipe(selected,
-    option.chain(s => selectBidByKey(state.system, s)),
+    option.chain(key => selectBidByKey({ state: state.system, key })),
     option.toNullable))
   const satisfies = useAppSelector(selectHandsSatisfySelectedPath)
 

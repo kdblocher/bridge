@@ -51,7 +51,7 @@ const GenerateMatchMany = ({ bidPaths }: GenerateSystemProps) => {
 const GenerateMatchSelected = () => {
   const selected = useAppSelector(state => state.selection.selectedBlockKey)
   const bidPath = useAppSelector(state => pipe(selected,
-    option.chain(s => selectCompleteBidPathUpToKey(state.system, s)),
+    option.chain(key => selectCompleteBidPathUpToKey({ state: state.system, key })),
     option.toNullable))
   const dispatch = useAppDispatch()
   return <>
@@ -61,7 +61,7 @@ const GenerateMatchSelected = () => {
 
 const SelectionGenerators = () => {
   const bidPaths = useAppSelector(state =>
-    pipe(selectAllCompleteBidPaths(state.system, state.settings),
+    pipe(selectAllCompleteBidPaths({ state: state.system, options: state.settings }),
       readonlyNonEmptyArray.fromReadonlyArray,
       option.toNullable)) 
   return (

@@ -2,6 +2,7 @@ import { option, readonlyRecord } from 'fp-ts';
 import { constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { useCallback, useEffect, useState } from 'react';
 import styled from 'styled-components';
+
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { serializedHandL } from '../model/serialization';
 import { handE } from '../parse/hand';
@@ -11,7 +12,6 @@ import HandView from './core/HandView';
 import { Option } from './core/Monad';
 import SelectionGenerators from './SelectionGenerators';
 
-
 interface HandInputProps {
   type: AuctionPositionType
 }
@@ -20,7 +20,10 @@ const HandInput = ({ type }: HandInputProps) => {
   const [value, setValue] = useState<string>("")
   const storageKey = `hand.${type}`
 
-  const encodedHand = useAppSelector(state => pipe(selectHand(state.selection, type), option.map(handE.encode), option.toNullable))
+  const encodedHand = useAppSelector(state => pipe(
+    selectHand({ state: state.selection, type }),
+    option.map(handE.encode),
+    option.toNullable))
 
   const onSetHand = useCallback((hand: string) => {
     setValue(hand)
@@ -44,8 +47,8 @@ const HandCol = styled.th `
 const HandEditor = () => {
   const dispatch = useAppDispatch()
   const [o, r] = [
-    useAppSelector(state => selectHand(state.selection, 'opener')),
-    useAppSelector(state => selectHand(state.selection, 'responder'))
+    useAppSelector(state => selectHand({ state: state.selection, type: 'opener' })),
+    useAppSelector(state => selectHand({ state: state.selection, type: 'responder' }))
   ]
   const getResultCallback = useCallback(() => pipe(
     option.Do,

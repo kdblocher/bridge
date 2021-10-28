@@ -1,6 +1,7 @@
 import { number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
+import memoize from 'proxy-memoize';
 import { combineEpics } from 'redux-observable';
 
 import { AnyAction } from '@reduxjs/toolkit';
@@ -30,11 +31,11 @@ export const rootEpic = combineEpics<AnyAction, AnyAction, RootState>(
 
 export const selectHandsSatisfySelectedPath = (state: RootState) =>
   pipe(option.Do,
-    option.apS('blockKey', state.selection.selectedBlockKey),
-    option.apS('opener', selectHand(state.selection, 'opener')),
-    option.apS('responder', selectHand(state.selection, 'responder')),
+    option.apS('key', state.selection.selectedBlockKey),
+    option.apS('opener', selectHand({ state: state.selection, type: 'opener' })),
+    option.apS('responder', selectHand({ state: state.selection, type: 'responder' })),
     option.chain(o => pipe(
-      selectBidPathUpToKey(state.system, o.blockKey),
+      selectBidPathUpToKey({ state: state.system, key: o.key }),
       option.fromEither,
       option.chain(readonlyNonEmptyArray.fromReadonlyArray),
       option.map(satisfiesPathWithoutSiblingCheck(o.opener, o.responder)))),
@@ -44,17 +45,17 @@ interface BidResult {
   path: ReadonlyNonEmptyArray<BidInfo>
   result: boolean
 }
-export const selectPathsSatisfyHands = (state: RootState) : ReadonlyArray<BidResult> | null =>
+export const selectPathsSatisfyHands = memoize((state: RootState) : ReadonlyArray<BidResult> | null =>
   pipe(option.Do,
-    option.apS('opener', selectHand(state.selection, 'opener')),
-    option.apS('responder', selectHand(state.selection, 'responder')),
+    option.apS('opener', selectHand({ state: state.selection, type: 'opener' })),
+    option.apS('responder', selectHand({ state: state.selection, type: 'responder' })),
     option.map(o => pipe(
-      selectAllCompleteBidPaths(state.system, state.settings),
+      selectAllCompleteBidPaths({ state: state.system, options: state.settings }),
       readonlyArray.map(path => ({
         path,
         result: satisfiesPath(o.opener, o.responder)(path)
       })))),
-    option.toNullable)
+    option.toNullable))
 
 export interface BidPathResult {
   path: ReadonlyNonEmptyArray<BidInfo>
@@ -66,10 +67,10 @@ const ordStats = pipe(
   ord.reverse,
   ord.contramap<number, BidPathResult>(r => r.count))
 
-export const selectSatisfyStats = (state: RootState) : ReadonlyArray<BidPathResult> | null =>
+export const selectSatisfyStats = memoize((state: RootState) : ReadonlyArray<BidPathResult> | null =>
   pipe(readonlyArray.Do,
     readonlyArray.apS('deal', selectAllDeals(state.generator)),
-    readonlyArray.apS('path', selectAllCompleteBidPaths(state.system, state.settings)),
+    readonlyArray.apS('path', selectAllCompleteBidPaths({ state: state.system, options: state.settings })),
     readonlyArray.map(ra => ({
       deal: ra.deal,
       path: ra.path,
@@ -92,4 +93,4 @@ export const selectSatisfyStats = (state: RootState) : ReadonlyArray<BidPathResu
         readonlyRecord.toReadonlyArray,
         readonlyArray.map(readonlyTuple.snd),
         readonlyArray.sort(ordStats))),
-    option.toNullable)
+    option.toNullable))
