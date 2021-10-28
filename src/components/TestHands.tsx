@@ -28,10 +28,11 @@ const BidTreeSatisfiesView = ({ path }: BidTreeSatisfiesViewProps) => {
 
 interface BidTreeHandSampleViewProps {
   path: BidPath
+  limit: number
 }
-const BidTreeHandSampleView = ({ path }: BidTreeHandSampleViewProps) => {
+const BidTreeHandSampleView = ({ path, limit }: BidTreeHandSampleViewProps) => {
   const gen = 
-    genUntilCondition(option.some(1000))(hands =>
+    genUntilCondition(option.some(limit))(hands =>
       satisfiesPath(...hands)(path))
   return (
     <>{pipe(gen,
@@ -44,6 +45,7 @@ const BidTreeHandSampleView = ({ path }: BidTreeHandSampleViewProps) => {
 const TestHands = () => {
   const valid = useAppSelector(state => selectSystemValid({ state: state.system, options: state.settings }))
   const bidPathTree = useAppSelector(state => selectCompleteBidSubtree({ state: state.system, options: state.settings }))
+  const effortLimit = useAppSelector(state => state.settings.effortLimit)
   
   return (
     <section>
@@ -57,7 +59,7 @@ const TestHands = () => {
       </BidTreeView>
       <h4>Samples</h4>
       <BidTreeView tree={bidPathTree}>
-        {path => <BidTreeHandSampleView path={path} />}
+        {path => <BidTreeHandSampleView path={path} limit={effortLimit} />}
       </BidTreeView>
     </section>
   )

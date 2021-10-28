@@ -51,6 +51,7 @@ const Settings = () => {
           <input type="checkbox" checked={value} onChange={e => onChange(e.target.checked.toString())} />
       }</SettingsItem>
       <SettingsItem label="Generate Count" prop="generateCount" parse={parseInt} onChanged={v => onChanged("generateCount", v)} />
+      <SettingsItem label="Effort Limit" prop="effortLimit" parse={parseInt} onChanged={v => onChanged("effortLimit", v)} />
     </section>
   )
 }

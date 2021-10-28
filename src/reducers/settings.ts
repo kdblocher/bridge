@@ -6,11 +6,13 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 interface State {
   implicitPass: boolean
   generateCount: number
+  effortLimit: number
 }
 
 const initialState: State = {
   implicitPass: false,
-  generateCount: 10000
+  generateCount: 10000,
+  effortLimit: 100
 }
 
 const name = 'settings'
