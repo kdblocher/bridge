@@ -9403,6 +9403,18 @@ proxy-addr@~2.0.5:
     forwarded "0.2.0"
     ipaddr.js "1.9.1"
 
+proxy-compare@2.0.2:
+  version "2.0.2"
+  resolved "https://registry.yarnpkg.com/proxy-compare/-/proxy-compare-2.0.2.tgz#343e624d0ec399dfbe575f1d365d4fa042c9fc69"
+  integrity sha512-3qUXJBariEj3eO90M3Rgqq3+/P5Efl0t/dl9g/1uVzIQmO3M+ql4hvNH3mYdu8H+1zcKv07YvL55tsY74jmH1A==
+
+proxy-memoize@^0.3.7:
+  version "0.3.7"
+  resolved "https://registry.yarnpkg.com/proxy-memoize/-/proxy-memoize-0.3.7.tgz#5df80bb9556a8d2ce263a2cf420798737ab1280e"
+  integrity sha512-5fDsRUvCv4t94wKqhaRH7dgQo+E1IOGPCod4RS+tdbd93Ili36l+AkpYVNt3gfFVUhWiKgI2ir4PorAlixdUjw==
+  dependencies:
+    proxy-compare "2.0.2"
+
 prr@~1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/prr/-/prr-1.0.1.tgz#d3fc114ba06995a45ec6893f484ceb1d78f5f476"

@@ -1,18 +1,18 @@
-import { selectNodeByKey, selectPathByKey } from "../reducers/system"
+import { option } from 'fp-ts';
+import { pipe } from 'fp-ts/lib/function';
 
-import { option } from "fp-ts"
-import { pipe } from "fp-ts/lib/function"
-import { selectHandsSatisfySelectedPath } from "../reducers"
-import { useAppSelector } from "../app/hooks"
+import { useAppSelector } from '../app/hooks';
+import { selectHandsSatisfySelectedPath } from '../reducers';
+import { selectBidByKey, selectPathUpToKey } from '../reducers/system';
 
 const SelectionDetails = () => {
   const selected = useAppSelector(state => state.selection.selectedBlockKey)
 
-  const path = useAppSelector(state => pipe(selected, option.map(s => selectPathByKey(state.system, s)), option.toNullable))
+  const path = useAppSelector(state => pipe(selected,
+    option.chain(key => selectPathUpToKey({ state: state.system, key })),
+    option.toNullable))
   const bid = useAppSelector(state => pipe(selected,
-    option.chain(s => pipe(selectNodeByKey(state.system, s), option.fromNullable)),
-    option.chain(n => n.bid),
-    option.chain(option.fromEither),
+    option.chain(key => selectBidByKey({ state: state.system, key })),
     option.toNullable))
   const satisfies = useAppSelector(selectHandsSatisfySelectedPath)
 
@@ -22,7 +22,7 @@ const SelectionDetails = () => {
 
       {path && <div>
         <h4>Selected Path</h4>
-        {path.map(x => x.text).join(" > ")}
+        {path.map(x => x).join(" > ")}
       </div>}
 
       {bid && <div>

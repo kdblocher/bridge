@@ -5,7 +5,7 @@ import BidPath from './core/BidPath';
 import HandEditor from './HandEditor';
 
 const TestHands = () => {
-  const valid = useAppSelector(state => selectSystemValid(state.system, state.settings))
+  const valid = useAppSelector(state => selectSystemValid({ state: state.system, options: state.settings }))
   const results = useAppSelector(selectPathsSatisfyHands)
   
   return (

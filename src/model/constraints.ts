@@ -1,10 +1,15 @@
-import { boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts';
+import {
+    boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record,
+    state as S, string
+} from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
 import { constant, constFalse, constTrue, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
 import { fromTraversable, Lens, lens, Optional } from 'monocle-ts';
 
 import { assertUnreachable } from '../lib';
-import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, isGameLevel, isSlamLevel, makeShape, ordContractBid, Shape as AnyShape, SpecificShape } from './bridge';
+import {
+    Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, isGameLevel, isSlamLevel, makeShape, ordContractBid, Shape as AnyShape, SpecificShape
+} from './bridge';
 import { eqRank, eqSuit, Hand, honors, ordRankAscending, Rank, Suit, suits } from './deck';
 import { BidInfo, BidPath, BidTree, getAllLeafPaths } from './system';
 
@@ -298,6 +303,7 @@ const secondarySuitO = contextO('secondarySuit')
 type X = BidContext
 type C = Constraint
 type A = P.Predicate<Hand>
+export type ConstraintPredicate = S.State<BidContext, P.Predicate<Hand>>
 
 const quantifierT = (quantifier: (c: ReadonlyArray<A>) => A) => (satisfies: (c: S.State<X, C>) => S.State<X, A>) =>
   flow(

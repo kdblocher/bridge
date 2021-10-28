@@ -4,8 +4,8 @@ import { useState } from 'react';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { BidPaths } from '../model/system';
-import { genHandsMatchingExactlyOneOf, genHandsMatchingMoreThanOneOf, genHandsNotMatchingAnyOf, genOnce, getHandsMatchingPath, selectBlockKey } from '../reducers/selection';
-import { selectAllCompleteBidPaths, selectCompleteByKey } from '../reducers/system';
+import { genHandsMatchingExactlyOneOf, genHandsMatchingMoreThanOneOf, genHandsNotMatchingAnyOf, genOnce, getHandsMatchingPath } from '../reducers/selection';
+import { selectAllCompleteBidPaths, selectCompleteBidPathUpToKey } from '../reducers/system';
 
 const GenerateOnce = () => {
   const dispatch = useAppDispatch()
@@ -49,8 +49,10 @@ const GenerateMatchMany = ({ bidPaths }: GenerateSystemProps) => {
 }
 
 const GenerateMatchSelected = () => {
-  const blockKey = useAppSelector(state => selectBlockKey(state.selection))
-  const bidPath = useAppSelector(state => blockKey !== null ? selectCompleteByKey(state.system, blockKey) : null)
+  const selected = useAppSelector(state => state.selection.selectedBlockKey)
+  const bidPath = useAppSelector(state => pipe(selected,
+    option.chain(key => selectCompleteBidPathUpToKey({ state: state.system, key })),
+    option.toNullable))
   const dispatch = useAppDispatch()
   return <>
     {bidPath && <button type="button" onClick={() => dispatch(getHandsMatchingPath(bidPath))}>Selected</button>}
@@ -59,7 +61,7 @@ const GenerateMatchSelected = () => {
 
 const SelectionGenerators = () => {
   const bidPaths = useAppSelector(state =>
-    pipe(selectAllCompleteBidPaths(state.system, state.settings),
+    pipe(selectAllCompleteBidPaths({ state: state.system, options: state.settings }),
       readonlyNonEmptyArray.fromReadonlyArray,
       option.toNullable)) 
   return (

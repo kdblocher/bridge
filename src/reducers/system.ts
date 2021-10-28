@@ -1,63 +1,55 @@
-import { either, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, separated, tree } from 'fp-ts';
+import { either, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, string, tree } from 'fp-ts';
 import { flow, identity, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
+import memoize from 'proxy-memoize';
 
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createEntityAdapter, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-import { Bid, eqBid } from '../model/bridge';
-import { ConstrainedBid, validateTree } from '../model/constraints';
-import { BidTree, extendWithSiblings, filterIncomplete, getAllLeafPaths, pathsWithoutRoot } from '../model/system';
+import { validateTree } from '../model/constraints';
+import { BidTree, flatten, getAllLeafPaths, getBidInfo, getPathUpTo, withImplicitPasses } from '../model/system';
 import { decodeBid } from '../parse';
 
+type BlockKey = string
+const eqBlockKey : eq.Eq<BlockKey> = string.Eq
+
 export type DecodedBid = ReturnType<typeof decodeBid>
-interface Node {
-  blockKey: string
-  text: string
-  bid: O.Option<DecodedBid>
+interface ConstrainedBidItem {
+  id: BlockKey
+  value: DecodedBid
+}
+const constrainedBidAdapter = createEntityAdapter<ConstrainedBidItem>()
+
+type BlockTree = tree.Forest<BlockKey>
+interface State {
+  system: BlockTree
+  constrainedBids: ReturnType<typeof constrainedBidAdapter.getInitialState>
 }
 
-type State = {
-  system: tree.Tree<Node>
-}
-const getRoot = () => tree.make<Node>({ blockKey: "root", text: "root", bid: O.none })
 const initialState: State = {
-  system: getRoot()
+  system: [],
+  constrainedBids: constrainedBidAdapter.getInitialState()
 }
 
-const getPath = (blockKey: string) =>
-  pathsWithoutRoot(O.Functor)((node: Node, paths: ReadonlyArray<O.Option<RNEA.ReadonlyNonEmptyArray<Node>>>) => {
-    if (node.blockKey === blockKey) {
-      return O.some([node])
-    } else {
-      return pipe(paths, RA.findFirstMap(O.map(RA.prepend(node))))
-    }
-  })
-
-const flatten =
-  tree.reduce<Node, ReadonlyArray<Node>>([], (items, a) =>
-    pipe(items, RA.append(a)))
-
-export interface BlockItem {
-  key: string
-  text: string
+export interface BlockKeyDescriptor {
+  key: BlockKey
   depth: number
 }
-
-const buildTree = (items: ReadonlyArray<BlockItem>) => {
-  const root = getRoot()
+const buildForest = (items: ReadonlyArray<BlockKeyDescriptor>): BlockTree => {
+  const root = tree.make<BlockKey>("ROOT")
   var parents = [root]
   items.forEach(item => {
     const curr = parents[item.depth + 1] = {
       forest: [],
-      value: {
-        blockKey: item.key,
-        text: item.text,
-        bid: O.some(decodeBid(item.text))
-      }
+      value: item.key
     }
     parents[item.depth].forest.push(curr)
   })
-  return root
+  return root.forest
+}
+
+export interface BlockItem {
+  key: string
+  text: string
 }
 
 const name = 'system'
@@ -65,92 +57,91 @@ const slice = createSlice({
   name,
   initialState,
   reducers: {
-    setSystem: (state, action: PayloadAction<ReadonlyArray<BlockItem>>) => {
-      state.system = pipe(buildTree(action.payload), castDraft)
+    setSystem: (state, action: PayloadAction<ReadonlyArray<BlockKeyDescriptor>>) => {
+      state.system = pipe(buildForest(action.payload), castDraft)
+    },
+    removeConstraintsByBlockKey: (state, action: PayloadAction<RNEA.ReadonlyNonEmptyArray<BlockKey>>) => {
+      constrainedBidAdapter.removeMany(state.constrainedBids, action.payload)
+    },
+    cacheSystemConstraints: (state, action: PayloadAction<RNEA.ReadonlyNonEmptyArray<BlockItem>>) => {
+      constrainedBidAdapter.setMany(state.constrainedBids, pipe(
+        action.payload,
+        RNEA.map(i => ({ id: i.key, value: decodeBid(i.text) }))))
     }
   }
 })
 
-export const { setSystem } = slice.actions
+export const { setSystem, removeConstraintsByBlockKey, cacheSystemConstraints } = slice.actions
 
-export const selectNodeByKey = (state: State, blockKey: string) =>
+const constrainedBidSelectors = constrainedBidAdapter.getSelectors()
+
+interface KeyedState {
+  state: State
+  key: BlockKey
+}
+
+export const selectPathUpToKey = memoize(({ state, key }: KeyedState) =>
+  pipe(state.system,
+    getPathUpTo(eqBlockKey)(key)))
+
+const getCachedBidByKey = (constrainedBids: State['constrainedBids']) => (key: BlockKey) =>
+  pipe(
+    O.fromNullableK(constrainedBidSelectors.selectById)(constrainedBids, key),
+    O.map(i => i.value))
+
+export const selectBidByKey = memoize(({ state, key }: KeyedState) =>
+  pipe(key,
+    getCachedBidByKey(state.constrainedBids),
+    O.chain(O.fromEither)))
+
+export const selectBidPathUpToKey = memoize(({ state, key }: KeyedState) =>
   pipe(
     state.system,
-    getPath(blockKey),
-    O.chain(RA.last),
-    O.toNullable)
+    getPathUpTo(eqBlockKey)(key),
+    O.getOrElse(() => RA.zero()),
+    RA.filterMap(getCachedBidByKey(state.constrainedBids)),
+    RA.sequence(either.Applicative)))
 
-export const selectPathByKey = (state: State, blockKey: string) =>
-  pipe(
-    state.system,
-    getPath(blockKey),
-    O.toNullable)
-
-export const selectBidsByKey = (state: State, blockKey: string) =>
-  pipe(
-    getPath(blockKey)(state.system),
-    O.getOrElse(() => [] as ReadonlyArray<Node>),
-    RA.map(n => n.bid),
-    RA.compact,
-    RA.sequence(either.Applicative))
-
-export const selectRules = (state: State) =>
-  pipe(
-    state.system,
+export const selectRules = memoize((state: State) =>
+  pipe(state.system,
     flatten,
-    RA.map(n => n.bid),
-    RA.compact,
-  )
+    RA.filterMap(getCachedBidByKey(state.constrainedBids))))
 
-export const selectErrors =
+export const selectErrors = memoize(
   flow(
     selectRules,
-    RA.separate,
-    separated.left)
+    RA.lefts))
 
-const getCompleteByTree =
-  flow(
-    tree.map((n: Node) => n.bid),
-    filterIncomplete)
+const getCompleteForest = (constrainedBids: State['constrainedBids']) =>
+  RA.filterMap(flow(
+    tree.traverse(O.Applicative)(flow(
+      getCachedBidByKey(constrainedBids),
+      O.chain(O.fromEither)))))
 
-const getCompleteTree = (state: State) =>
-  getCompleteByTree(state.system)
-
-export const selectCompleteByKey = (state: State, blockKey: string) =>
-  pipe(selectPathByKey(state, blockKey),
-    O.fromNullable,
-    O.chain(nodes => pipe(
-      tree.unfoldTree([getRoot().value, ...nodes], ([n0, ...ns]) => {
-        // debugger
-        return [n0, ns.length === 0 ? [] : [ns]]
-      }),
-      getCompleteByTree,
-      extendWithSiblings(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid)),
+export const selectCompleteBidPathUpToKey = memoize(({ state, key }: KeyedState) =>
+  pipe(state.system,
+    getPathUpTo(eqBlockKey)(key),
+    O.chain(keys => pipe(
+      tree.unfoldTree<BlockKey, ReadonlyArray<BlockKey>>(keys, ([n0, ...ns]) =>
+        [n0, ns.length === 0 ? [] : [ns]]),
+      RA.of,
+      getCompleteForest(state.constrainedBids),
+      getBidInfo,
       getAllLeafPaths,
-      RA.head)),
-    O.toNullable)
+      RA.head))))
 
-const withImplicitPasses =
-  tree.fold((a: ConstrainedBid, bs: tree.Forest<ConstrainedBid>) =>
-    bs.length === 0 || pipe(bs, RA.exists(t => t.value.bid === "Pass"))
-    ? tree.make(a, bs)
-    : tree.make(a, pipe(bs,
-      RA.append(tree.make<ConstrainedBid>({ bid: "Pass", constraint: { type: "Otherwise" }})),
-      RA.toArray)))
-
-export const selectCompleteBidSubtree = (state: State, options?: { implicitPass: boolean }) : BidTree =>
-  pipe(state,
-    getCompleteTree,
+export const selectCompleteBidSubtree = memoize(({ state, options }: { state: State, options?: { implicitPass: boolean }} ): BidTree =>
+  pipe(state.system,
+    getCompleteForest(state.constrainedBids),
     options?.implicitPass ? withImplicitPasses : identity,
-    extendWithSiblings(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid)))
+    getBidInfo))
 
-export const selectAllCompleteBidPaths =
+export const selectAllCompleteBidPaths = memoize(
   flow(selectCompleteBidSubtree,
-    getAllLeafPaths)
+    getAllLeafPaths))
 
-export const selectSystemValid =
+export const selectSystemValid = memoize(
   flow(selectCompleteBidSubtree,
-    validateTree)
+    validateTree))
     
-
 export default slice.reducer

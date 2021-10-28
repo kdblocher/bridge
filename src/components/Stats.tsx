@@ -16,7 +16,11 @@ interface StatsPathProps {
 }
 const StatsPath = ({ result }: StatsPathProps) => {
   const dispatch = useAppDispatch()
-  const dds = useAppSelector(state => selectResultsByPath(state.generator, pipe(result.path, readonlyNonEmptyArray.map(p => p.bid), serializedBidPathL.get)))
+  const dds = useAppSelector(state => pipe(
+    result.path,
+    readonlyNonEmptyArray.map(p => p.bid),
+    serializedBidPathL.get,
+    path => selectResultsByPath({ state: state.generator, path })))
   const stats = dds && getStats(pipe(dds, readonlyNonEmptyArray.map(d => d.results)))
   const averages = stats && average(stats)
   const stdevs = stats && stdev(stats)
@@ -66,9 +70,9 @@ const Stats = () => {
   const generating = useAppSelector(state => pipe(state.generator.working))
   const count = useAppSelector(state => state.settings.generateCount)
   const dispatch = useAppDispatch()
-  const rules = useAppSelector(state => selectAllCompleteBidPaths(state.system, state.settings))
+  const rules = useAppSelector(state => selectAllCompleteBidPaths({ state: state.system, options: state.settings }))
   const errors = useAppSelector(state => selectErrors(state.system))
-  const valid = useAppSelector(state => selectSystemValid(state.system, state.settings))
+  const valid = useAppSelector(state => selectSystemValid({ state: state.system, options: state.settings }))
   const showGenerate = rules !== null && rules.length > 0 && errors.length === 0 && valid
   return (
     <section>
