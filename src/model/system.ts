@@ -1,32 +1,57 @@
-import { either, eq, hkt, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, tree as T } from 'fp-ts';
+import { eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, tree as T } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
-import { Functor1 } from 'fp-ts/lib/Functor';
 
 import { ConstrainedBid, Constraint } from '../model/constraints';
-import { Bid } from './bridge';
+import { Bid, eqBid } from './bridge';
 
-export type Path<T> = RNEA.ReadonlyNonEmptyArray<T>
-export type Paths<T> = RNEA.ReadonlyNonEmptyArray<Path<T>>
+export type Path<A> = RNEA.ReadonlyNonEmptyArray<A>
+export type Paths<A> = RNEA.ReadonlyNonEmptyArray<Path<A>>
+export type Forest<A> = ReadonlyArray<T.Tree<A>>
 
-export const pathsWithoutRoot = <F extends hkt.URIS>(K: Functor1<F>) => <A, B>(f: (a: A, bs: ReadonlyArray<hkt.Kind<F, RNEA.ReadonlyNonEmptyArray<B>>>) => hkt.Kind<F, RNEA.ReadonlyNonEmptyArray<B>>) =>
-  flow(T.fold(f),
-    x => K.map(x, RNEA.tail))
+export const getPathUpTo = <A>(eqA: eq.Eq<A>) => (item: A) =>
+  RA.findFirstMap(
+    T.fold((a: A, paths: ReadonlyArray<O.Option<RNEA.ReadonlyNonEmptyArray<A>>>) : O.Option<RNEA.ReadonlyNonEmptyArray<A>> =>
+      eqA.equals(a, item)
+      ? O.some([item])
+      : pipe(paths,
+          RA.findFirstMap(O.map(RA.prepend(a))))))
 
-// root node is fake, so descend one level and then reconstruct the tree
-export const filterIncomplete = <E, A>(t: T.Tree<O.Option<either.Either<E, A>>>) =>
-  pipe(
-    t.forest,
-    RA.map(T.traverse(O.Applicative)(O.chain(O.fromEither))),
-    forest => T.make<A | null>(null, pipe(forest, RA.compact, RA.toArray))) as T.Tree<A> // null hack at root node
+export const flatten = <A>(forest: Forest<A>) =>
+  pipe(forest,
+    RA.chain(
+      T.reduce<A, ReadonlyArray<A>>([], (items, a) =>
+        pipe(items, RA.append(a)))))
 
-export const getAllLeafPaths = <T>(tree: T.Tree<T>) =>
-  pipe(tree,
-    pathsWithoutRoot(RNEA.Functor)((node: T, paths: ReadonlyArray<Paths<T>>) =>
-      pipe(paths,
-        RNEA.fromReadonlyArray,
-        O.fold(() => [[node]],
-          RNEA.foldMap(RNEA.getSemigroup<Path<T>>())(RNEA.map(RA.prepend(node)))))),
+export const pathTree = <A>(forest: Forest<A>) : Forest<Path<A>> =>
+  pipe(forest,
+    RA.map(flow(
+      T.map(RNEA.of),
+      T.fold((a, forest: ReadonlyArray<T.Tree<Path<A>>>) =>
+        T.make(a, pipe(forest,
+          RA.map(T.map(path => RNEA.concat(path)(a))), RA.toArray))))))
+
+export const getAllLeafPaths = <A>(forest: Forest<A>): ReadonlyArray<Path<A>> =>
+  pipe(forest,
+    RA.chain(
+      T.fold((node: A, paths: ReadonlyArray<Paths<A>>): Paths<A> =>
+        pipe(paths,
+          RNEA.fromReadonlyArray,
+          O.fold(() => [[node]],
+            RNEA.foldMap(RNEA.getSemigroup<Path<A>>())(RNEA.map(RA.prepend(node))))))),
     RA.filterMap(RNEA.fromReadonlyArray))
+
+const extendWithSiblingsInternal = <T>(eq: eq.Eq<T>) => (siblings: ReadonlyArray<T>) => (t: T.Tree<T>) : T.Tree<T & { siblings: ReadonlyArray<T> }> =>
+  T.make(
+    ({ ...t.value, siblings }),
+    pipe(t.forest, RA.map(
+      pipe(t.forest,
+        RA.map(t => t.value),
+        RA.difference(eq)([t.value]), // end null hack
+        extendWithSiblingsInternal(eq))),
+      RA.toArray))
+
+const extendWithSiblings = <A>(eq: eq.Eq<A>) =>
+  RA.map(extendWithSiblingsInternal(eq)([]))
 
 export interface BidInfo {
   bid: Bid
@@ -35,24 +60,16 @@ export interface BidInfo {
 }
 export type BidPath = Path<BidInfo>
 export type BidPaths = Paths<BidInfo>
-export type BidTree = T.Tree<BidInfo>
+export type BidTree = Forest<BidInfo>
 
-const extendWithSiblingsInternal = <T>(eq: eq.Eq<T>) => (siblings: ReadonlyArray<T>) => (t: T.Tree<T>) : T.Tree<T & { siblings: ReadonlyArray<T> }> =>
-  T.make(
-    ({ ...t.value, siblings }),
-    pipe(t.forest, RA.map(
-      pipe(t.forest,
-        RA.map(t => t.value),
-        x => t.value === null ? x : RA.difference(eq)([t.value])(x), // end null hack
-        extendWithSiblingsInternal(eq))),
-      RA.toArray))
+export const getBidInfo : (f: Forest<ConstrainedBid>) => Forest<BidInfo> =
+  extendWithSiblings(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid))
 
-export const extendWithSiblings = <A>(eq: eq.Eq<A>) => extendWithSiblingsInternal(eq)([])
-
-export const pathTree = <A>(t: T.Tree<A>) : T.Tree<Path<A>> =>
-  pipe(t,
-    T.map(RNEA.of),
-    T.fold((a, forest: ReadonlyArray<T.Tree<Path<A>>>) =>
-      T.make(a, pipe(forest,
-        RA.map(T.map(path => RNEA.concat(path)(a))), RA.toArray))),
-    T.map(x => RNEA.tail(x) as RNEA.ReadonlyNonEmptyArray<A>))
+export const withImplicitPasses =
+  RA.map(
+    T.fold((a: ConstrainedBid, bs: T.Forest<ConstrainedBid>) =>
+      bs.length === 0 || pipe(bs, RA.exists(t => t.value.bid === "Pass"))
+      ? T.make(a, bs)
+      : T.make(a, pipe(bs,
+        RA.append(T.make<ConstrainedBid>({ bid: "Pass", constraint: { type: "Otherwise" }})),
+        RA.toArray))))

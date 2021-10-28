@@ -1,5 +1,6 @@
 import { option } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
+
 import { useAppSelector } from '../app/hooks';
 import { satisfiesPath } from '../model/constraints';
 import { genUntilCondition } from '../model/generator';
@@ -10,13 +11,12 @@ import BidTreeView from './core/BidTree';
 import HandView from './core/HandView';
 import HandEditor from './HandEditor';
 
-
 interface BidTreeSatisfiesViewProps {
   path: BidPath
 }
 const BidTreeSatisfiesView = ({ path }: BidTreeSatisfiesViewProps) => {
   const satisfies = useAppSelector(state =>
-    selectHandsSatisfyPath(state.selection, path))
+    selectHandsSatisfyPath({ state: state.selection, path }))
   return (
     <>{pipe(satisfies,
     option.match(
@@ -42,9 +42,8 @@ const BidTreeHandSampleView = ({ path }: BidTreeHandSampleViewProps) => {
 }
 
 const TestHands = () => {
-  const valid = useAppSelector(state => selectSystemValid(state.system, state.settings))
-  const bidPathTree = useAppSelector(state => pipe(
-    selectCompleteBidSubtree(state.system, state.settings)))
+  const valid = useAppSelector(state => selectSystemValid({ state: state.system, options: state.settings }))
+  const bidPathTree = useAppSelector(state => selectCompleteBidSubtree({ state: state.system, options: state.settings }))
   
   return (
     <section>

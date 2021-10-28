@@ -3,13 +3,13 @@ import { observable } from 'fp-ts-rxjs';
 import { constTrue, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import { WritableDraft } from 'immer/dist/internal';
-import * as D from 'io-ts/Decoder';
+import memoize from 'proxy-memoize';
 import { O } from 'ts-toolbelt';
 
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { Board, getHcp } from '../model/bridge';
-import { Constraint, satisfies, satisfiesPath } from '../model/constraints';
+import { satisfiesPath } from '../model/constraints';
 import { eqCard, Hand, newDeck, ordCardDescending } from '../model/deck';
 import { genMatchingOf, genUntilCondition } from '../model/generator';
 import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL, serializedBoardL, SerializedHand, serializedHandL } from '../model/serialization';
@@ -126,24 +126,17 @@ export { getResult };
 
 export default slice.reducer
 
-export const selectBlockKey = (state: State) =>
+export const selectBlockKey = memoize((state: State) =>
   pipe(state.selectedBlockKey,
-    option.toNullable)
+    option.toNullable))
 
-export const selectTestConstraint = (state: State, constraint: Constraint) : boolean =>
-  pipe(state.opener,
-    either.fromNullable(D.error(undefined, "No hand defined yet")),
-    either.flatten,
-    decodedSerializedHandL.reverseGet,
-    either.exists(satisfies(constraint)))
-
-export const selectHand = (state: State, type: AuctionPositionType) : option.Option<Hand> =>
+export const selectHand = memoize(({ state, type } : { state: State, type: AuctionPositionType}) : option.Option<Hand> =>
   pipe(state[type],
     option.fromNullable,
-    option.chain(flow(decodedSerializedHandL.reverseGet, option.fromEither)))
+    option.chain(flow(decodedSerializedHandL.reverseGet, option.fromEither))))
 
-export const selectHandsSatisfyPath = (state: State, path: BidPath) =>
+export const selectHandsSatisfyPath = memoize(({ state, path } : { state: State, path: BidPath }) =>
   pipe(option.Do,
-    option.apS('opener', selectHand(state, 'opener')),
-    option.apS('responder', selectHand(state, 'responder')),
-    option.map(o => satisfiesPath(o.opener, o.responder)(path)))
+    option.apS('opener', selectHand({ state, type: 'opener' })),
+    option.apS('responder', selectHand({ state, type: 'responder' })),
+    option.map(o => satisfiesPath(o.opener, o.responder)(path))))

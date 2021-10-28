@@ -2,6 +2,7 @@ import { magma, number, option, readonlyArray, readonlyNonEmptyArray, readonlyRe
 import { observable, observableEither } from 'fp-ts-rxjs';
 import { constant, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
+import memoize from 'proxy-memoize';
 import { Epic } from 'redux-observable';
 import { bufferCount, concatWith, EMPTY, filter, from } from 'rxjs';
 
@@ -145,23 +146,23 @@ export const saveSolutionsToApiEpic: Epic<AnyAction> = (action$, state$) =>
       observableEither.fromTaskEither)),
     observable.chain(_ => EMPTY))    
         
-export const selectAllDeals = (state: State) =>
+export const selectAllDeals = memoize((state: State) =>
   pipe(state.deals,
-    readonlyTuple.fst)
+    readonlyTuple.fst))
 
-export const selectAllNorthSouthPairs =
+export const selectAllNorthSouthPairs = memoize(
   flow(
     selectAllDeals,
     readonlyArray.map(flow(
       serializedDealL.reverseGet,
-      deal => [deal.N, deal.S] as const)))
+      deal => [deal.N, deal.S] as const))))
 
-export const selectProgress = (state: State) => ({
+export const selectProgress = memoize((state: State) => ({
   deals: state.deals[1],
   results: state.results[1],
-})
+}))
 
-export const selectResultsByPath = (state: State, path: SerializedBidPath) =>
+export const selectResultsByPath = memoize(({ state, path }: { state: State, path: SerializedBidPath }) =>
   pipe(state.results[0],
     readonlyRecord.lookup(path),
-    option.toNullable)
+    option.toNullable))
