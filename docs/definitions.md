@@ -12,35 +12,22 @@ Incomplete list of terms
 - **Deals**: The set _D_ = {(_h_<sub>`N`</sub>, _h_<sub>`E`</sub>, _h_<sub>`S`</sub>, _h_<sub>`W`</sub>) | &forall;<sub>_d_&in;Dir</sub> _h_<sub>_d_</sub> &in; _H_ and &bigcup;<sub>_d_&in;Dir</sub> _h_<sub>_d_</sub> = _C_}.
 - **Boards**: The set _Bd_ = _D_ &times; _Dir_ &times; _V_.
 - **Levels**: The set _L_ = {`1`, `2`, `3`, `4`, `5`, `6`, `7`}.
-- **Contract Bids**: The totally ordered set (_B_<sub>_c_</sub> , &lt;) such that _B_<sub>_c_</sub> = _L_ &times; _St_.
+- **Contract Bids**: The totally ordered set (_B_, &lt;) such that _B_ = _L_ &times; _St_.
 - **Double Modifiers**: The totally ordered set (_M_<sub>_d_</sub> , &lt;) such that _M_<sub>_d_</sub> = {`O`, `X`, `XX`}.
 - **Pass Modifiers**: The totally ordered set (_M_<sub>_p_</sub> , &lt;) such that _M_<sub>_p_</sub> = {`P`<sub>0</sub>, `P`<sub>1</sub>, `P`<sub>2</sub>, `P`<sub>3</sub>}.
-- **Modifiers**: The  totally ordered set (_M_, &lt;) = _M_<sub>_d_</sub> &times; _M_<sub>_p_</sub> .
----
-- **Modifier Sequence**: The set of sequences _M_<sup>n</sup> = {(_m_<sub>1</sub>, _m_<sub>2</sub>,..., _m_<sub>n</sub>)} such that
+- **Modifiers**: The totally ordered set (_M_, &lt;) = _M_<sub>_d_</sub> &times; _M_<sub>_p_</sub> .
+- **Modifier Sequences**: The set of sequences _M_<sup>n</sup> = {(_m_<sub>1</sub>, _m_<sub>2</sub>,..., _m_<sub>n</sub>)} such that
     - &forall;<sub>_i_&in;[1,_n_]</sub> _m_<sub>_i_</sub> &in; _M_
     - _m_<sub>_1_</sub> = (`O`, `P`<sub>0</sub>)
-    - &forall;<sub>_i_&in;[1,_n_-1]</sub> _m_<sub>_i_</sub> = (&lowast;, _p_) &and; _p_ &ne; `P`<sub>3</sub>
-    - &forall;<sub>_i_&in;[1,_n_-1]</sub> _m_<sub>_i_</sub> = (_d_<sub>_i_</sub>, _p_<sub>_i_</sub>), _m_<sub>_i_+1</sub> = (_d_<sub>_i+1_</sub>, _p_<sub>_i_+1</sub>) &and; (_d_<sub>_i_+1</sub> = _d_<sub>_i_</sub> &rArr; _p_<sub>_i_+1</sub> = `P`<sub>0</sub>)
-    - &forall;<sub>_i_&in;[1,_n_-1]</sub> _m_<sub>_i_</sub> = (_d_<sub>_i_</sub>, _p_<sub>_i_</sub>), _m_<sub>_i_+1</sub> = (_d_<sub>_i+1_</sub>, _p_<sub>_i_+1</sub>) &and; (_p_<sub>_i_+1</sub> = _p_<sub>_i_</sub> &rArr; _d_<sub>_i_+1</sub> = succ(_d_<sub>_i_</sub>))
-    - &forall;<sub>_i_&in;[1,_n_-1]</sub> _m_<sub>_i_</sub> = (`O`, `P`<sub>1</sub>) &rArr; _m_<sub>_i_+1</sub> &ne; (`X`, _)
-    - &forall;<sub>_i_&in;[1,_n_-1]</sub> _m_<sub>_i_</sub> = (`X`, `P`<sub>1</sub>) &rArr; _m_<sub>_i_+1</sub> &ne; (`XX`, _)
-
-
-- **Auction Item**: Tuple 
-- **Complete Auctions**: The set of sequences _A_ = {(_b_<sub>1</sub>, _b_<sub>2</sub>,..., _b_<sub>n</sub>)} such that:
-    - _i_, _j_ &in; &Zopf;<sup>+</sup>
-    - _b_<sub>_i_</sub> &in; _B_
-    - (_b_<sub>_i_</sub>, _b_<sub>_j_</sub> &in; _B_<sub>_c_&times;_m_</sub> &and; _i_ &lt; _j_) ⇒ _b_<sub>_i_</sub> &lt; _b_<sub>_j_</sub>
-    - (
-
-- **Auction**: Any finite sequence (_a_<sub>_i_</sub> ...)<sub>_i_&in;&Zopf;</sub> &in; _A_ such that _a_<sub>_i_</sub> &in; _Dir_ &times; _B_ and the following rules hold:
-    - _dir_<sub>_i_</sub>+1 = _dir_<sub>_i+1_</sub> (directions must rotate)
-    - _b_<sub>_i_</sub> &le; _b_<sub>_i+1_</sub> (bids must increase)
-    - &nexist;<sub>_b_&in;{`X`, `XX`}</sub> (..., _a_<sub>_i_</sub>, &bottom;, (_dir_, _b_), ...)<sub>_i_&in;&Zopf;</sub> (can't double or redouble partner)
-    - (..., &bottom;, &bottom;, &bottom;, ...) &notin; _A_ (no three consecutive passes in the middle)
-- **Complete Auction**: Any finite sequence (_a_<sub>_i_</sub> ...)<sub>_i_&in;&Zopf;</sub> &in; _A_<sup>&star;</sup> such that one of the following rules hold:
-    - |(_a_...)| = 4 &and; &forall;<sub>_b_&in;(_a_...)</sub> = _b_ = &bottom; (all pass)
-    - |(_a_...)| > 4 &and; (..., &bottom;, &bottom;, &bottom;) &sub; (_a_...) (three consecutive passes at the end)
-- **Contract**: _B_<sub>_c_</sub><sub>MAX</sub>, _m_, _dir_ = &star; in the auction (tbd)
-- **Score**: score(&star;, _bd_) &in; &Zopf;
+    - &forall;<sub>_i_&in;[1,_n_-1]</sub> _m_<sub>_i_</sub> &ne; (&lowast;, `P`<sub>3</sub>)
+    - &forall;<sub>_i_&in;[1,_n_-1]</sub> _m_<sub>_i_</sub> = (_x_, _p_), &rArr; _m_<sub>_i_+1</sub> = (_x_, **succ**(_p_)) &or; _m_<sub>_i_+1</sub> = (**succ**(_x_), `P`<sub>0</sub>)
+    - &forall;<sub>_i_&in;[1,_n_-1]</sub> _m_<sub>_i_</sub> = (_x_, `P`<sub>1</sub>) &rArr; _m_<sub>_i_+1</sub> &ne; (**succ**(_x_), `P`<sub>0</sub>)
+- **Contracts**: The totally ordered set (_A_, &lt;) = _B_ &times; _M_<sup>n</sup> .
+- **Contract Sequences**: The totally ordered set (_A_<sup>n</sup>, &lt;) = {(_a_<sub>1</sub>, _a_<sub>2</sub>,..., _a_<sub>n</sub>)} such that
+    - &forall;<sub>_i_&in;[1,_n_]</sub> _a_<sub>_i_</sub> &in; _A_
+    - _a_<sub>_n_</sub> = (&lowast;, (&lowast;, `P`<sub>3</sub>))
+- **Initial Pass Sequences**: The totally ordered set (_A_<sub>0</sub>, &lt;) = {(_a_<sub>1</sub>, _a_<sub>2</sub>,..., _a_<sub>n</sub>)} such that
+    - &forall;<sub>_i_&in;[1,_n_]</sub> _a_<sub>_i_</sub> &in; {`P`<sub>0</sub>, `P`<sub>1</sub>, `P`<sub>2</sub>, `P`<sub>3</sub>, `P`<sub>4</sub>}
+    - &forall;<sub>_i_&in;[1,_n_]</sub> _a_<sub>_i_</sub> = `P`<sub>i-1</sub>
+- **Auctions**: The set _A_<sup>&star;</sup> = {(_d_, _a_<sub>0</sub>, _a_) | _d_ &in; _Dir_, _a_<sub>0</sub> &in; _A_<sub>0</sub>, _a_ &in; _A_<sup>n</sup> &cup; {&empty;}} such that
+    - `P`<sub>4</sub> &in; _a_<sub>0</sub> &hArr; _a_ &ne; &empty;
