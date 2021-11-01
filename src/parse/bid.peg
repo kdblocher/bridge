@@ -42,6 +42,8 @@ Constraint :=
   | PointRange
   | PointBound
   | OtherBid
+  | LabelDef
+  | LabelRef
 
 Const := True | False
 True := v='true'
@@ -90,6 +92,10 @@ ForceOneRound := v='F1'
 ForceGame := v='FG'
 ForceSlam := v='FS'
 Relay := '->' bid=OtherBid
+
+LabelDef := '\'' label=Label '\': ' constraints=ConstraintList
+LabelRef := '\'' label=Label '\''
+Label := v='[0-9a-zA-z-_]+'
 
 Digit := literal='[0-9]'
   .value = number { return parseInt(literal) }

@@ -1,10 +1,15 @@
-import { applicative, apply, boolean, either as E, eitherT, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S, stateT, string, these } from 'fp-ts';
+import {
+    boolean, either as E, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet,
+    readonlyTuple, record, state as S, string
+} from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
 import { constant, constFalse, constTrue, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
 import { fromTraversable, Lens, lens, Optional } from 'monocle-ts';
 
 import { assertUnreachable, debug } from '../lib';
-import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, isGameLevel, isSlamLevel, makeShape, ordContractBid, Shape as AnyShape, SpecificShape } from './bridge';
+import {
+    Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, isGameLevel, isSlamLevel, makeShape, ordContractBid, Shape as AnyShape, SpecificShape
+} from './bridge';
 import { eqRank, eqSuit, Hand, honors, ordRankAscending, Rank, Suit, suits } from './deck';
 import { BidInfo, BidPath, BidTree, getAllLeafPaths } from './system';
 
@@ -109,6 +114,17 @@ export type ConstraintForce =
     ConstraintResponse
   | ConstraintRelayResponse
 
+export interface ConstraintLabelDef {
+  type: "LabelDef"
+  name: string
+  constraint: Constraint
+}
+
+export interface ConstraintLabelRef {
+  type: "LabelRef"
+  name: string
+}
+
 export type Constraint =
   | ConstraintConst
   | ConstraintConjunction
@@ -126,6 +142,8 @@ export type Constraint =
   | ConstraintAnyShape
   | ConstraintSpecificShape
   | ConstraintForce
+  | ConstraintLabelDef
+  | ConstraintLabelRef
 
 const contextualConstraintTypes = [
   "Conjunction",
@@ -139,6 +157,8 @@ const contextualConstraintTypes = [
   "Relay",
   "SuitPrimary",
   "SuitSecondary",
+  "LabelDef",
+  "LabelRef"
 ] as const
 
 type ContextualConstraintType = typeof contextualConstraintTypes[number]
@@ -269,6 +289,7 @@ export interface BidContext {
   primarySuit: O.Option<Suit>
   secondarySuit: O.Option<Suit>,
   peers: ReadonlyArray<ConstrainedBid>,
+  labels: ReadonlyMap<string, S.State<BidContext, Constraint>>
 }
 export const zeroContext : BidContext = {
   bid: {} as Bid,
@@ -277,6 +298,7 @@ export const zeroContext : BidContext = {
   primarySuit: O.none,
   secondarySuit: O.none,
   peers: [],
+  labels: readonlyMap.empty
 }
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -289,6 +311,7 @@ const secondarySuitL = contextL('secondarySuit')
 const peersL = contextL('peers')
 const peersT = pipe(peersL,
   lens.composeTraversal(fromTraversable(RA.Traversable)<ConstrainedBid>()))
+const labelsL = contextL('labels')
 const contextO = Optional.fromOptionProp<BidContext>()
 const forceO = contextO('force')
 const primarySuitO = contextO('primarySuit')
@@ -298,7 +321,6 @@ const secondarySuitO = contextO('secondarySuit')
 type X = BidContext
 type C = Constraint
 type A = P.Predicate<Hand>
-export type ConstraintPredicate = S.State<BidContext, P.Predicate<Hand>>
 
 const quantifierT = (quantifier: (c: ReadonlyArray<A>) => A) => (satisfies: (c: S.State<X, C>) => S.State<X, A>) =>
   flow(
@@ -306,6 +328,36 @@ const quantifierT = (quantifier: (c: ReadonlyArray<A>) => A) => (satisfies: (c: 
     S.map(quantifier))
 const existsT = quantifierT(exists(identity))
 const forallT = quantifierT(forall(identity))
+
+const labelDef = <A>(recur: (c: S.State<X, C>) => S.State<X, A>) => (c: ConstraintLabelDef) =>
+  pipe(
+    S.gets(flow(
+      labelsL.get,
+      readonlyMap.lookup(string.Eq)(c.name))),
+    S.chain(O.fold(
+      () => ofS(c.constraint),
+      S.chain(c0 => ofS({ type: "Conjunction", constraints: [c0, c.constraint] } as const)))),
+    S.chain(constraint => pipe(
+      S.modify(labelsL.modify(readonlyMap.upsertAt(string.Eq)(c.name, ofS(constraint)))),
+      S.chain(() => recur(ofS(constraint))))))
+
+const labelRef = <A>(recur: (c: S.State<X, C>) => S.State<X, A>) => (c: ConstraintLabelRef) : S.State<X, O.Option<A>>  =>
+  pipe(
+    S.gets(flow(
+      labelsL.get, 
+      readonlyMap.lookup(string.Eq)(c.name))),
+    optionT.alt(S.Monad)(() => pipe(
+      S.get<BidContext>(),
+      S.map(context => pipe(
+        S.gets(peersL.get),
+        debug,
+        S.chain(RA.traverse(S.Applicative)(s => pipe(s.constraint, ofS, recur))),
+        S.chain(() => S.gets(flow(
+          labelsL.get,
+          readonlyMap.lookup(string.Eq)(c.name)))),
+        S.evaluate(context))))),
+    S.chain(O.sequence(S.Applicative)),
+    S.chain(O.traverse(S.Applicative)(x => recur(ofS(x)))))
 
 type SatisfiesShape<R, C, A> = (recur: (c: R) => A) => (constraint: C) => A
 type SatisfiesT1<F extends hkt.URIS , C extends Constraint> = SatisfiesShape<hkt.Kind  <F,    Constraint>, hkt.Kind <F,    C>, hkt.Kind <F,    A>>
@@ -351,6 +403,7 @@ const satisfiesContextual : SatisfiesT2<S.URI, ContextualConstraint> = recur =>
         return pipe(c.constraints, RNEA.map(ofS), existsT(recur))
       case "Negation": 
         return pipe(c.constraint, ofS, recur, S.map(P.not))
+        
       case "Otherwise":
         return pipe(
           S.gets((context: BidContext) =>
@@ -363,36 +416,46 @@ const satisfiesContextual : SatisfiesT2<S.URI, ContextualConstraint> = recur =>
               S.modify(bidL.set(cb.bid)),
               S.map(() => cb.constraint))),
             forallT(flow(recur, S.map(P.not))))))
+
       case "OtherBid":
         return pipe(
           S.gets(flow(
             peersL.get,
             RA.findFirst(b => eqBid.equals(b.bid, c.bid)))),
           S.chain(O.fold(
-            constant(ofS(constraintFalse)),
+            () => ofS(constraintFalse),
             otherBid => pipe(
               S.gets(bidL.get),
               S.chain(bid =>
                 eqBid.equals(bid, otherBid.bid) // stops cycles
                 ? S.of(constFalse)
                 : recur(S.of(otherBid.constraint)))))))
+
       case "ForceOneRound":
       case "ForceGame":
       case "ForceSlam":
       case "Relay":
         return pipe(
           S.modify<BidContext>(forceL.set(O.some(c))),
-          S.map(constant(constTrue)))
+          S.map(() => constTrue))
+
       case "SuitPrimary":
         return pipe(
           S.modify<BidContext>(primarySuitL.set(O.some(c.suit))),
-          S.map(constant(suitPrimary(c.suit))))
+          S.map(() => suitPrimary(c.suit)))
       case "SuitSecondary":
         return pipe(
           S.modify<BidContext>(secondarySuitL.set(O.some(c.suit))),
-          S.chain(constant(S.gets(context => context.primarySuit))),
+          S.chain(() => S.gets(context => context.primarySuit)),
           optionT.map(S.Functor)(suitSecondary(c.suit)),
-          S.map(O.getOrElseW(constant(constraintFalse))))
+          S.map(O.getOrElseW(() => constraintFalse)))
+
+      case "LabelDef":
+        return pipe(c, labelDef(recur))
+      case "LabelRef":
+        return pipe(c, labelRef(recur),
+          S.map(O.getOrElse(() => constraintFalse)))
+        
       default:
         return assertUnreachable(c)
     }
@@ -405,7 +468,7 @@ const satisfiesS : ReturnType<SatisfiesT2<S.URI, Constraint>> = s =>
       flow(S.of, satisfiesContextual(satisfiesS)),
       right => pipe(S.of<X, typeof satisfiesBasic>(satisfiesBasic), S.ap(S.of(right))))))
 
-export const satisfiesWithContext = (x: Constraint) =>
+const satisfiesWithContext = (x: Constraint) =>
   pipe(x, S.of, satisfiesS)
   
 export const satisfies =
@@ -485,6 +548,10 @@ interface SystemValidationErrorNoPrimaryBidDefined {
   type: "NoPrimaryBidDefined"
   constraint: Constraint
 }
+interface SystemValidationErrorLabelNotFound {
+  type: "LabelNotFound"
+  constraint: Constraint
+}
 interface SystemValidationErrorPassWhileForcing {
   type: "PassWhileForcing",
   bid: Bid
@@ -497,6 +564,7 @@ interface SystemValidationErrorNoBidDefinedButStillForcing {
 type SystemValidationBidReason =
   | SystemValidationErrorOtherBidNotFound
   | SystemValidationErrorNoPrimaryBidDefined
+  | SystemValidationErrorLabelNotFound
 type SystemValidationBidError = SystemValidationBidReason & {
   bid: Bid
 }
@@ -539,34 +607,44 @@ export const validateS = (s: S.State<BidContext, Constraint>): S.State<BidContex
               E.map(constVoid))))
         case "Negation": 
           return pipe(c.constraint, ofS, validateS)
+        
+        case "Otherwise":
+          return S.of(E.right(constVoid()))
         case "OtherBid":
           return pipe(
             S.gets(flow(
               peersL.get,
               RA.map(cb => cb.bid),
               debug,
-              E.fromPredicate(RA.elem(eqBid)(c.bid), constant<SystemValidationBidReason>({ type: "OtherBidNotFound", constraint: c })),
+              E.fromPredicate(RA.elem(eqBid)(c.bid), (): SystemValidationBidReason => ({ type: "OtherBidNotFound", constraint: c })),
               E.map(constVoid))))
+        
         case "ForceOneRound":
         case "ForceGame":
         case "ForceSlam":
         case "Relay":
           return pipe(
             S.modify(forceL.set(O.some(c))),
-            S.map(constant(E.right(constVoid()))))
+            S.map(() => E.right(constVoid())))
+
         case "SuitPrimary":
           return pipe(
             S.modify(primarySuitL.set(O.some(c.suit))),
-            S.map(constant(E.right(constVoid()))))
+            S.map(() => E.right(constVoid())))
         case "SuitSecondary":
           return pipe(
             S.modify(secondarySuitL.set(O.some(c.suit))),
-            S.chain(constant(S.gets(context => context.primarySuit))),
+            S.chain(() => S.gets(context => context.primarySuit)),
             S.map(flow(
-              E.fromOption(constant<SystemValidationBidReason>({ type: "NoPrimaryBidDefined", constraint: c })),
+              E.fromOption((): SystemValidationBidReason => ({ type: "NoPrimaryBidDefined", constraint: c })),
               E.map(constVoid))))
-        case "Otherwise":
-          return S.of(E.right(constVoid()))
+              
+        case "LabelDef":
+          return pipe(c, labelDef(validateS))
+        case "LabelRef":
+          return pipe(c, labelRef(validateS),
+            S.map(O.getOrElseW(() => E.left<SystemValidationBidReason>({ type: "LabelNotFound", constraint: c }))))
+            
         default:
           return assertUnreachable(c)
       }
@@ -603,7 +681,7 @@ const updateForceS : <A>(s: S.State<BidContext, A>) => S.State<BidContext, A> =
     S.chain(({ bid, force, result }) =>
       pipe(force,
         O.traverse(S.Applicative)(updateForce(bid)),
-        S.map(constant(result)))))
+        S.map(() => result))))
 
 const checkPass = (bid: Bid) => (force: O.Option<ConstraintForce>) =>
   !(bid === "Pass" && O.isSome(force))

@@ -39,6 +39,8 @@
 *   | PointRange
 *   | PointBound
 *   | OtherBid
+*   | LabelDef
+*   | LabelRef
 * Const := True | False
 * True := v='true'
 * False := v='false'
@@ -76,6 +78,9 @@
 * ForceGame := v='FG'
 * ForceSlam := v='FS'
 * Relay := '->' bid=OtherBid
+* LabelDef := '\'' label=Label '\': ' constraints=ConstraintList
+* LabelRef := '\'' label=Label '\''
+* Label := v='[0-9a-zA-z-_]+'
 * Digit := literal='[0-9]'
 *   .value = number { return parseInt(literal) }
 * Number := literal='[0-9]+'
@@ -133,6 +138,8 @@ export enum ASTKinds {
     Constraint_14 = "Constraint_14",
     Constraint_15 = "Constraint_15",
     Constraint_16 = "Constraint_16",
+    Constraint_17 = "Constraint_17",
+    Constraint_18 = "Constraint_18",
     Const_1 = "Const_1",
     Const_2 = "Const_2",
     True = "True",
@@ -185,6 +192,9 @@ export enum ASTKinds {
     ForceGame = "ForceGame",
     ForceSlam = "ForceSlam",
     Relay = "Relay",
+    LabelDef = "LabelDef",
+    LabelRef = "LabelRef",
+    Label = "Label",
     Digit = "Digit",
     Number = "Number",
     $EOF = "$EOF",
@@ -271,7 +281,7 @@ export interface ConstraintListItem {
     kind: ASTKinds.ConstraintListItem;
     constraint: Constraint;
 }
-export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8 | Constraint_9 | Constraint_10 | Constraint_11 | Constraint_12 | Constraint_13 | Constraint_14 | Constraint_15 | Constraint_16;
+export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8 | Constraint_9 | Constraint_10 | Constraint_11 | Constraint_12 | Constraint_13 | Constraint_14 | Constraint_15 | Constraint_16 | Constraint_17 | Constraint_18;
 export type Constraint_1 = Const;
 export type Constraint_2 = Or;
 export type Constraint_3 = And;
@@ -288,6 +298,8 @@ export type Constraint_13 = SuitRank;
 export type Constraint_14 = PointRange;
 export type Constraint_15 = PointBound;
 export type Constraint_16 = OtherBid;
+export type Constraint_17 = LabelDef;
+export type Constraint_18 = LabelRef;
 export type Const = Const_1 | Const_2;
 export type Const_1 = True;
 export type Const_2 = False;
@@ -461,6 +473,19 @@ export interface ForceSlam {
 export interface Relay {
     kind: ASTKinds.Relay;
     bid: OtherBid;
+}
+export interface LabelDef {
+    kind: ASTKinds.LabelDef;
+    label: Label;
+    constraints: ConstraintList;
+}
+export interface LabelRef {
+    kind: ASTKinds.LabelRef;
+    label: Label;
+}
+export interface Label {
+    kind: ASTKinds.Label;
+    v: string;
 }
 export class Digit {
     public kind: ASTKinds.Digit = ASTKinds.Digit;
@@ -803,6 +828,8 @@ export class Parser {
                 () => this.matchConstraint_14($$dpth + 1, $$cr),
                 () => this.matchConstraint_15($$dpth + 1, $$cr),
                 () => this.matchConstraint_16($$dpth + 1, $$cr),
+                () => this.matchConstraint_17($$dpth + 1, $$cr),
+                () => this.matchConstraint_18($$dpth + 1, $$cr),
             ]);
         };
         const $scope$pos = this.mark();
@@ -877,6 +904,12 @@ export class Parser {
     }
     public matchConstraint_16($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_16> {
         return this.matchOtherBid($$dpth + 1, $$cr);
+    }
+    public matchConstraint_17($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_17> {
+        return this.matchLabelDef($$dpth + 1, $$cr);
+    }
+    public matchConstraint_18($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_18> {
+        return this.matchLabelRef($$dpth + 1, $$cr);
     }
     public matchConst($$dpth: number, $$cr?: ErrorTracker): Nullable<Const> {
         return this.choice<Const>([
@@ -1455,6 +1488,51 @@ export class Parser {
                     && ($scope$bid = this.matchOtherBid($$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.Relay, bid: $scope$bid};
+                }
+                return $$res;
+            });
+    }
+    public matchLabelDef($$dpth: number, $$cr?: ErrorTracker): Nullable<LabelDef> {
+        return this.run<LabelDef>($$dpth,
+            () => {
+                let $scope$label: Nullable<Label>;
+                let $scope$constraints: Nullable<ConstraintList>;
+                let $$res: Nullable<LabelDef> = null;
+                if (true
+                    && this.regexAccept(String.raw`(?:\')`, $$dpth + 1, $$cr) !== null
+                    && ($scope$label = this.matchLabel($$dpth + 1, $$cr)) !== null
+                    && this.regexAccept(String.raw`(?:\': )`, $$dpth + 1, $$cr) !== null
+                    && ($scope$constraints = this.matchConstraintList($$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.LabelDef, label: $scope$label, constraints: $scope$constraints};
+                }
+                return $$res;
+            });
+    }
+    public matchLabelRef($$dpth: number, $$cr?: ErrorTracker): Nullable<LabelRef> {
+        return this.run<LabelRef>($$dpth,
+            () => {
+                let $scope$label: Nullable<Label>;
+                let $$res: Nullable<LabelRef> = null;
+                if (true
+                    && this.regexAccept(String.raw`(?:\')`, $$dpth + 1, $$cr) !== null
+                    && ($scope$label = this.matchLabel($$dpth + 1, $$cr)) !== null
+                    && this.regexAccept(String.raw`(?:\')`, $$dpth + 1, $$cr) !== null
+                ) {
+                    $$res = {kind: ASTKinds.LabelRef, label: $scope$label};
+                }
+                return $$res;
+            });
+    }
+    public matchLabel($$dpth: number, $$cr?: ErrorTracker): Nullable<Label> {
+        return this.run<Label>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<Label> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:[0-9a-zA-z-_]+)`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.Label, v: $scope$v};
                 }
                 return $$res;
             });

@@ -11,10 +11,10 @@ const getConnectiveItems = (items: ReadonlyArray<AST.Constraint>) =>
   pipe(items,
     readonlyNonEmptyArray.fromReadonlyArray,
     option.map(flow(
-      readonlyNonEmptyArray.map(constraintFromAST),
+      readonlyNonEmptyArray.map(constraint),
       either.fromPredicate(i => i.length > 1, i => i[0]))))
 
-const connectiveFromAST = (type: "Conjunction" | "Disjunction", zero: () => Constraint) =>
+const connective = (type: "Conjunction" | "Disjunction", zero: () => Constraint) =>
   flow(getConnectiveItems,
     eitherT.match(option.Functor)(identity, constraints => ({
       type,
@@ -22,22 +22,22 @@ const connectiveFromAST = (type: "Conjunction" | "Disjunction", zero: () => Cons
     }) as const),
     option.getOrElse(zero))
 
-const suitFromAST = (s: AST.Suit) : Suit =>
+const suit = (s: AST.Suit) : Suit =>
   s.kind === AST.ASTKinds.Club    ? 'C' :
   s.kind === AST.ASTKinds.Diamond ? 'D' :
   s.kind === AST.ASTKinds.Heart   ? 'H' :
                                     'S'
 
-const strainFromAST = (s: AST.Strain) : Strain =>
+const strain = (s: AST.Strain) : Strain =>
   s.kind === AST.ASTKinds.Notrump ? 'N' :
-  suitFromAST(s)
+  suit(s)
 
-const suitSpecifierFromAST = (s: AST.SuitRangeSpecifier) : SuitRangeSpecifier =>
+const suitSpecifier = (s: AST.SuitRangeSpecifier) : SuitRangeSpecifier =>
   // s.kind === AST.ASTKinds.Major ? "Major" :
   // s.kind === AST.ASTKinds.Minor ? "Minor" :
-  suitFromAST(s)
+  suit(s)
 
-const bindValueFromASTQualifier = (s: AST.BoundQualifier, value: number) => (type: 'min' | 'max') =>
+const bindValueQualifier = (s: AST.BoundQualifier, value: number) => (type: 'min' | 'max') =>
   pipe(value,
     option.of,
     option.filter(_ =>
@@ -45,7 +45,12 @@ const bindValueFromASTQualifier = (s: AST.BoundQualifier, value: number) => (typ
       || (type === 'min' && s.kind === AST.ASTKinds.Plus)
       || (type === 'max' && s.kind === AST.ASTKinds.Minus)))
 
-export const constraintFromAST = (c: AST.Constraint) : Constraint => {
+const constraintList = (c: AST.ConstraintList) : Constraint =>
+  pipe(c,
+    readonlyArray.map(c => c.constraint),
+    connective("Conjunction", constConstraintFalse))
+
+export const constraint = (c: AST.Constraint) : Constraint => {
   switch (c.kind) {
 
     case AST.ASTKinds.True:
@@ -58,7 +63,7 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
       return pipe(
         c.constraints,
         readonlyArray.map(c => c.constraint),
-        connectiveFromAST("Conjunction", constConstraintTrue))
+        connective("Conjunction", constConstraintTrue))
 
     case AST.ASTKinds.Otherwise:
       return { type: "Otherwise" }
@@ -74,12 +79,12 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
               items => [head, ...flatten(items[0], ...items.slice(1))]))
       return pipe(
         flatten(c.left, c.right),
-        connectiveFromAST("Disjunction", constConstraintFalse))
+        connective("Disjunction", constConstraintFalse))
 
     case AST.ASTKinds.Not:
       return {
         type: "Negation",
-        constraint: constraintFromAST(c.constraint)
+        constraint: constraint(c.constraint)
       }
 
     case AST.ASTKinds.OtherBid:
@@ -87,7 +92,7 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
         type: "OtherBid",
         bid: {
           level: c.level.value,
-          strain: strainFromAST(c.strain)
+          strain: strain(c.strain)
         }
       }
 
@@ -101,8 +106,8 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
     case AST.ASTKinds.PointBound:
       return {
         type: "PointRange",
-        min: pipe(bindValueFromASTQualifier(c.qualifier, c.value.value)('min'), option.getOrElse(constant(0))),
-        max: pipe(bindValueFromASTQualifier(c.qualifier, c.value.value)('max'), option.getOrElse(constant(37))),
+        min: pipe(bindValueQualifier(c.qualifier, c.value.value)('min'), option.getOrElse(constant(0))),
+        max: pipe(bindValueQualifier(c.qualifier, c.value.value)('max'), option.getOrElse(constant(37))),
       }
 
     case AST.ASTKinds.SuitRange:
@@ -110,36 +115,36 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
         type: "SuitRange",
         min: c.lower.value,
         max: c.upper.value,
-        suit: suitSpecifierFromAST(c.suit)
+        suit: suitSpecifier(c.suit)
       }
 
     case AST.ASTKinds.SuitComparison:
       return {
         type: "SuitComparison",
         op: c.op.v as SuitComparisonOperator,
-        left: suitFromAST(c.left),
-        right: suitFromAST(c.right)
+        left: suit(c.left),
+        right: suit(c.right)
       }
 
     case AST.ASTKinds.Primary:
     case AST.ASTKinds.Secondary:
       return {
         type: `Suit${c.kind}`,
-        suit: suitFromAST(c.suit)
+        suit: suit(c.suit)
       }
 
     case AST.ASTKinds.SuitBound:
       return {
         type: "SuitRange",
-        min: pipe(bindValueFromASTQualifier(c.qualifier, c.value.value)('min'), option.getOrElse(constant(0))),
-        max: pipe(bindValueFromASTQualifier(c.qualifier, c.value.value)('max'), option.getOrElse(constant(13))),
-        suit: suitSpecifierFromAST(c.suit)
+        min: pipe(bindValueQualifier(c.qualifier, c.value.value)('min'), option.getOrElse(constant(0))),
+        max: pipe(bindValueQualifier(c.qualifier, c.value.value)('max'), option.getOrElse(constant(13))),
+        suit: suitSpecifier(c.suit)
       }
 
     case AST.ASTKinds.SuitHonors:
       return {
         type: "SuitHonors",
-        suit: suitFromAST(c.suit),
+        suit: suit(c.suit),
         honors: pipe(c.honors,
           readonlyArray.fromArray,
           readonlyArray.traverse(option.Applicative)(flow(h => h.v, rankFromString)),
@@ -149,7 +154,7 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
     case AST.ASTKinds.SuitTop:
       return {
         type: "SuitTop",
-        suit: suitFromAST(c.suit),
+        suit: suit(c.suit),
         count: parseInt(c.x),
         minRank: ranks[ranks.length - parseInt(c.y)]
       }
@@ -171,8 +176,21 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
         type: "Relay",
         bid: {
           level: c.bid.level.value,
-          strain: strainFromAST(c.bid.strain)
+          strain: strain(c.bid.strain)
         }
+      }
+
+    case AST.ASTKinds.LabelDef:
+      return {
+        type: "LabelDef",
+        name: c.label.v,
+        constraint: constraintList(c.constraints)
+      }
+
+    case AST.ASTKinds.LabelRef:
+      return {
+        type: "LabelRef",
+        name: c.label.v
       }
     
     default:
@@ -180,12 +198,12 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
   }
 }
 
-export const bidFromAST = (bid: AST.Bid): Bid => {
+export const bid = (bid: AST.Bid): Bid => {
   switch (bid.kind) {
     case AST.ASTKinds.ContractBid:
       return {
         level: bid.level.value,
-        strain: strainFromAST(bid.specifier as AST.Strain),
+        strain: strain(bid.specifier as AST.Strain),
       }
     case AST.ASTKinds.Pass:
       return "Pass"
@@ -194,13 +212,12 @@ export const bidFromAST = (bid: AST.Bid): Bid => {
   }
 }
 
-export const constrainedBidFromAST = (bidSpec: AST.BidSpec) : ConstrainedBid => ({
-  bid: bidFromAST(bidSpec.bid),
+export const constrainedBid = (bidSpec: AST.BidSpec) : ConstrainedBid => ({
+  bid: bid(bidSpec.bid),
   constraint: pipe(
     bidSpec.constraints?.constraints,
     option.fromNullable,
-    option.fold(() => [], readonlyArray.map(c => c.constraint)),
-    connectiveFromAST("Conjunction", constConstraintFalse))
+    option.fold(constConstraintFalse, constraintList))
 })
 
 export const parseBid = AST.parse
