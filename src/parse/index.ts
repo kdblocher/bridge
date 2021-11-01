@@ -4,8 +4,8 @@ import * as d from 'io-ts/Decoder';
 import * as DE from 'io-ts/lib/DecodeError';
 import * as FS from 'io-ts/lib/FreeSemigroup';
 
-import { constrainedBidFromAST, parseBid } from './bid';
-import { handFromAST, parseHand } from './hand';
+import { constrainedBid, parseBid } from './bid';
+import { hand, parseHand } from './hand';
 
 export interface PosInfo {
   readonly overallPos: number;
@@ -58,8 +58,8 @@ const getDecoder = <T>(parser: (input: string) => ParseResult<T>) : d.Decoder<st
 
 export const decodeBid = flow(
   getDecoder(parseBid).decode,
-  either.map(x => constrainedBidFromAST(x.spec)))
+  either.map(x => constrainedBid(x.spec)))
 
 export const decodeHand = flow(
   getDecoder(parseHand).decode,
-  either.map(x => handFromAST(x.hand)))
+  either.map(x => hand(x.hand)))
