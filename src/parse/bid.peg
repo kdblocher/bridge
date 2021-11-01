@@ -3,10 +3,9 @@ BidSpec := bid=Bid constraints=BidSpecConstraintList?
 BidSpecConstraintList := ': ' constraints=ConstraintList
 Bid := ContractBid | NonContractBid
 
-ContractBid := level=Digit specifier=BidSpecifier
-BidSpecifier := Wildcard | SuitSpecifier
+ContractBid := level=Digit specifier=SuitSpecifier
+SuitSpecifier := Wildcard | Major | Minor | Strain
 Wildcard := v='x'
-SuitSpecifier := Major | Minor | Strain
 Major := v='M'
 Minor := v='m'
 
@@ -59,7 +58,7 @@ PointBound := value=Number qualifier=BoundQualifier
 
 SuitRange := lower=Digit '-' upper=Digit suit=SuitRangeSpecifier
 SuitBound := value=Number qualifier=BoundQualifier suit=SuitRangeSpecifier
-SuitRangeSpecifier := Suit //| Major | Minor | OtherMajor | OtherMinor
+SuitRangeSpecifier := SuitSpecifier //| Major | Minor | OtherMajor | OtherMinor
 // OtherMajor := v='oM'
 // OtherMinor := v='om'
 

@@ -3,7 +3,7 @@ import {
     readonlyTuple, record, state as S, string
 } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
-import { constant, constFalse, constTrue, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
+import { apply, constant, constFalse, constTrue, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
 import { fromTraversable, Lens, lens, Optional } from 'monocle-ts';
 
 import { assertUnreachable, debug } from '../lib';
@@ -19,7 +19,9 @@ export interface ConstraintPointRange {
   max: number
 }
 
-export type SuitRangeSpecifier = "Major" | "Minor" | Suit // | "OtherMajor" | "OtherMinor"
+export type SuitContextSpecifier = "Wildcard" | "Major" | "Minor"
+
+export type SuitRangeSpecifier = SuitContextSpecifier | Suit // | "OtherMajor" | "OtherMinor"
 export interface ConstraintSuitRange {
   type: "SuitRange"
   suit: SuitRangeSpecifier
@@ -185,7 +187,12 @@ const exists = pipe(anyP, RA.foldMap)
 const forall = pipe(allP, RA.foldMap)
 /* eslint-enable @typescript-eslint/no-unused-vars */
 
-const rangeCheck = (range: { min: number, max: number }) => ord.between(number.Ord)(range.min, range.max)
+interface Range {
+  min: number
+  max: number
+}
+
+const rangeCheck = (range: Range) => ord.between(number.Ord)(range.min, range.max)
 
 export const isPointRange =
   flow(rangeCheck, P.contramap(getHcp))
@@ -193,14 +200,9 @@ export const isPointRange =
 export const isSpecificShape = (shape: SpecificShape) =>
   flow(getHandSpecificShape, suits => record.getEq(eqStrict).equals(suits, shape))
 
-export const isSuitRange = (range: ConstraintSuitRange) => {
-  const getSuitsToCheck: readonly Suit[] =
-    range.suit === "Major" ? ["S", "H"] :
-    range.suit === "Minor" ? ["D", "C"] :
-    [range.suit]
-  return flow(getHandSpecificShape, shape =>
-    pipe(getSuitsToCheck, RA.exists(s => ord.between(number.Ord)(range.min, range.max)(shape[s]))))
-}
+export const isSuitRange = (range: Range) => (suits: ReadonlyArray<Suit>) =>
+  flow(getHandSpecificShape, shape =>
+    pipe(suits, RA.exists(s => pipe(range, rangeCheck, apply(shape[s])))))
 
 const getComparator = (op: SuitComparisonOperator) => {
   switch (op) {
@@ -226,7 +228,7 @@ export const suitPrimary = (suit: Suit) =>
           RA.map(higher => suitCompare("<")(higher, suit)))),
       RA.map(lower => suitCompare("<=")(lower, suit))),
     RA.flatten,
-    RA.prepend(isSuitRange({ type: "SuitRange", suit, min: 5, max: 13 })),
+    RA.prepend(isSuitRange({ min: 5, max: 13 })([suit])),
     forall(identity))
 
 export const suitSecondary = (secondarySuit: Suit) => (primarySuit: Suit) =>
@@ -236,7 +238,7 @@ export const suitSecondary = (secondarySuit: Suit) => (primarySuit: Suit) =>
     RA.filter(({ suit, otherSuit }) => !eqSuit.equals(suit, otherSuit)),
     RA.map(({ suit, otherSuit }) => suitCompare(">")(suit, otherSuit)),
     RA.concat([
-      isSuitRange({ type: "SuitRange", suit: secondarySuit, min: 4, max: 13 }),
+      isSuitRange({ min: 5, max: 13 })([secondarySuit]),
       suitCompare(">=")(primarySuit, secondarySuit)
     ]),
     forall(identity))
@@ -392,7 +394,7 @@ const satisfiesBasic : ReturnType<SatisfiesT1<id.URI, BasicConstraint>> = c => {
   }
 }
 
-const ofS = <T>(x: T) => S.of<BidContext, T>(x)
+const ofS = <A>(x: A) => S.of<BidContext, A>(x)
 
 const satisfiesContextual : SatisfiesT2<S.URI, ContextualConstraint> = recur =>
   S.chain(c => {

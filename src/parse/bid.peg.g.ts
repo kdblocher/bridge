@@ -4,10 +4,9 @@
 * BidSpec := bid=Bid constraints=BidSpecConstraintList?
 * BidSpecConstraintList := ': ' constraints=ConstraintList
 * Bid := ContractBid | NonContractBid
-* ContractBid := level=Digit specifier=BidSpecifier
-* BidSpecifier := Wildcard | SuitSpecifier
+* ContractBid := level=Digit specifier=SuitSpecifier
+* SuitSpecifier := Wildcard | Major | Minor | Strain
 * Wildcard := v='x'
-* SuitSpecifier := Major | Minor | Strain
 * Major := v='M'
 * Minor := v='m'
 * NonContractBid := Pass
@@ -52,7 +51,7 @@
 * PointBound := value=Number qualifier=BoundQualifier
 * SuitRange := lower=Digit '-' upper=Digit suit=SuitRangeSpecifier
 * SuitBound := value=Number qualifier=BoundQualifier suit=SuitRangeSpecifier
-* SuitRangeSpecifier := Suit //| Major | Minor | OtherMajor | OtherMinor
+* SuitRangeSpecifier := SuitSpecifier //| Major | Minor | OtherMajor | OtherMinor
 * // OtherMajor := v='oM'
 * // OtherMinor := v='om'
 * SuitComparison := left=Suit op=SuitComparisonOperator right=Suit
@@ -98,12 +97,11 @@ export enum ASTKinds {
     Bid_1 = "Bid_1",
     Bid_2 = "Bid_2",
     ContractBid = "ContractBid",
-    BidSpecifier_1 = "BidSpecifier_1",
-    BidSpecifier_2 = "BidSpecifier_2",
-    Wildcard = "Wildcard",
     SuitSpecifier_1 = "SuitSpecifier_1",
     SuitSpecifier_2 = "SuitSpecifier_2",
     SuitSpecifier_3 = "SuitSpecifier_3",
+    SuitSpecifier_4 = "SuitSpecifier_4",
+    Wildcard = "Wildcard",
     Major = "Major",
     Minor = "Minor",
     NonContractBid = "NonContractBid",
@@ -218,19 +216,17 @@ export type Bid_2 = NonContractBid;
 export interface ContractBid {
     kind: ASTKinds.ContractBid;
     level: Digit;
-    specifier: BidSpecifier;
+    specifier: SuitSpecifier;
 }
-export type BidSpecifier = BidSpecifier_1 | BidSpecifier_2;
-export type BidSpecifier_1 = Wildcard;
-export type BidSpecifier_2 = SuitSpecifier;
+export type SuitSpecifier = SuitSpecifier_1 | SuitSpecifier_2 | SuitSpecifier_3 | SuitSpecifier_4;
+export type SuitSpecifier_1 = Wildcard;
+export type SuitSpecifier_2 = Major;
+export type SuitSpecifier_3 = Minor;
+export type SuitSpecifier_4 = Strain;
 export interface Wildcard {
     kind: ASTKinds.Wildcard;
     v: string;
 }
-export type SuitSpecifier = SuitSpecifier_1 | SuitSpecifier_2 | SuitSpecifier_3;
-export type SuitSpecifier_1 = Major;
-export type SuitSpecifier_2 = Minor;
-export type SuitSpecifier_3 = Strain;
 export interface Major {
     kind: ASTKinds.Major;
     v: string;
@@ -353,7 +349,7 @@ export interface SuitBound {
     qualifier: BoundQualifier;
     suit: SuitRangeSpecifier;
 }
-export type SuitRangeSpecifier = Suit;
+export type SuitRangeSpecifier = SuitSpecifier;
 export interface SuitComparison {
     kind: ASTKinds.SuitComparison;
     left: Suit;
@@ -587,28 +583,36 @@ export class Parser {
         return this.run<ContractBid>($$dpth,
             () => {
                 let $scope$level: Nullable<Digit>;
-                let $scope$specifier: Nullable<BidSpecifier>;
+                let $scope$specifier: Nullable<SuitSpecifier>;
                 let $$res: Nullable<ContractBid> = null;
                 if (true
                     && ($scope$level = this.matchDigit($$dpth + 1, $$cr)) !== null
-                    && ($scope$specifier = this.matchBidSpecifier($$dpth + 1, $$cr)) !== null
+                    && ($scope$specifier = this.matchSuitSpecifier($$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.ContractBid, level: $scope$level, specifier: $scope$specifier};
                 }
                 return $$res;
             });
     }
-    public matchBidSpecifier($$dpth: number, $$cr?: ErrorTracker): Nullable<BidSpecifier> {
-        return this.choice<BidSpecifier>([
-            () => this.matchBidSpecifier_1($$dpth + 1, $$cr),
-            () => this.matchBidSpecifier_2($$dpth + 1, $$cr),
+    public matchSuitSpecifier($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier> {
+        return this.choice<SuitSpecifier>([
+            () => this.matchSuitSpecifier_1($$dpth + 1, $$cr),
+            () => this.matchSuitSpecifier_2($$dpth + 1, $$cr),
+            () => this.matchSuitSpecifier_3($$dpth + 1, $$cr),
+            () => this.matchSuitSpecifier_4($$dpth + 1, $$cr),
         ]);
     }
-    public matchBidSpecifier_1($$dpth: number, $$cr?: ErrorTracker): Nullable<BidSpecifier_1> {
+    public matchSuitSpecifier_1($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_1> {
         return this.matchWildcard($$dpth + 1, $$cr);
     }
-    public matchBidSpecifier_2($$dpth: number, $$cr?: ErrorTracker): Nullable<BidSpecifier_2> {
-        return this.matchSuitSpecifier($$dpth + 1, $$cr);
+    public matchSuitSpecifier_2($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_2> {
+        return this.matchMajor($$dpth + 1, $$cr);
+    }
+    public matchSuitSpecifier_3($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_3> {
+        return this.matchMinor($$dpth + 1, $$cr);
+    }
+    public matchSuitSpecifier_4($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_4> {
+        return this.matchStrain($$dpth + 1, $$cr);
     }
     public matchWildcard($$dpth: number, $$cr?: ErrorTracker): Nullable<Wildcard> {
         return this.run<Wildcard>($$dpth,
@@ -622,22 +626,6 @@ export class Parser {
                 }
                 return $$res;
             });
-    }
-    public matchSuitSpecifier($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier> {
-        return this.choice<SuitSpecifier>([
-            () => this.matchSuitSpecifier_1($$dpth + 1, $$cr),
-            () => this.matchSuitSpecifier_2($$dpth + 1, $$cr),
-            () => this.matchSuitSpecifier_3($$dpth + 1, $$cr),
-        ]);
-    }
-    public matchSuitSpecifier_1($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_1> {
-        return this.matchMajor($$dpth + 1, $$cr);
-    }
-    public matchSuitSpecifier_2($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_2> {
-        return this.matchMinor($$dpth + 1, $$cr);
-    }
-    public matchSuitSpecifier_3($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_3> {
-        return this.matchStrain($$dpth + 1, $$cr);
     }
     public matchMajor($$dpth: number, $$cr?: ErrorTracker): Nullable<Major> {
         return this.run<Major>($$dpth,
@@ -1087,7 +1075,7 @@ export class Parser {
             });
     }
     public matchSuitRangeSpecifier($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitRangeSpecifier> {
-        return this.matchSuit($$dpth + 1, $$cr);
+        return this.matchSuitSpecifier($$dpth + 1, $$cr);
     }
     public matchSuitComparison($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitComparison> {
         return this.run<SuitComparison>($$dpth,
