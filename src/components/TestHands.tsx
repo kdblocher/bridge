@@ -1,3 +1,7 @@
+import { either } from 'fp-ts';
+import { constTrue, identity, pipe } from 'fp-ts/lib/function';
+import JSONPretty from 'react-json-pretty';
+
 import { useAppSelector } from '../app/hooks';
 import { selectPathsSatisfyHands } from '../reducers';
 import { selectSystemValid } from '../reducers/system';
@@ -12,8 +16,10 @@ const TestHands = () => {
     <section>
       <h3>Test Hands</h3>
       <HandEditor />
-      <h4>Valid System?</h4>
-      {valid.toString()}
+      {either.isLeft(valid) && <>
+        <h4>Validation Error</h4>
+        <JSONPretty data={pipe(valid, either.foldW(identity, identity))} />
+      </>}
       {results !== null && <div>
         <h4>Results</h4>
         <ul>

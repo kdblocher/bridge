@@ -1,15 +1,10 @@
-import {
-    boolean, either, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record,
-    state as S, string
-} from 'fp-ts';
+import { applicative, apply, boolean, either as E, eitherT, eq, hkt, identity as id, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S, stateT, string, these } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
 import { constant, constFalse, constTrue, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
 import { fromTraversable, Lens, lens, Optional } from 'monocle-ts';
 
-import { assertUnreachable } from '../lib';
-import {
-    Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, isGameLevel, isSlamLevel, makeShape, ordContractBid, Shape as AnyShape, SpecificShape
-} from './bridge';
+import { assertUnreachable, debug } from '../lib';
+import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, isGameLevel, isSlamLevel, makeShape, ordContractBid, Shape as AnyShape, SpecificShape } from './bridge';
 import { eqRank, eqSuit, Hand, honors, ordRankAscending, Rank, Suit, suits } from './deck';
 import { BidInfo, BidPath, BidTree, getAllLeafPaths } from './system';
 
@@ -153,8 +148,8 @@ type ContextualConstraint = Extract<Constraint, { type: ContextualConstraintType
 const isContextualConstraint = (c: Constraint) : c is ContextualConstraint =>
   RA.elem(string.Eq as eq.Eq<Constraint["type"]>)(c.type)(contextualConstraintTypes)
 
-const separate = (c: Constraint) : either.Either<ContextualConstraint, BasicConstraint> =>
-  isContextualConstraint(c) ? either.left(c) : either.right(c as BasicConstraint)
+const separate = (c: Constraint) : E.Either<ContextualConstraint, BasicConstraint> =>
+  isContextualConstraint(c) ? E.left(c) : E.right(c as BasicConstraint)
 
 export interface ConstrainedBid {
   bid: Bid
@@ -406,7 +401,7 @@ const satisfiesContextual : SatisfiesT2<S.URI, ContextualConstraint> = recur =>
 const satisfiesS : ReturnType<SatisfiesT2<S.URI, Constraint>> = s =>
   pipe(s,
     S.map(separate),
-    S.chain(either.fold(
+    S.chain(E.fold(
       flow(S.of, satisfiesContextual(satisfiesS)),
       right => pipe(S.of<X, typeof satisfiesBasic>(satisfiesBasic), S.ap(S.of(right))))))
 
@@ -443,8 +438,8 @@ const preTraversal = (info: BidInfo) =>
     S.chain(() => S.modify(bidL.set(info.bid))),
     S.map(() => info.constraint))
 
-const postTraversal = (info: BidInfo) =>
-    S.chain((s: boolean) => pipe(
+const postTraversal = <A>(info: BidInfo) =>
+    S.chain((s: A) => pipe(
       S.modify(pathL.modify(RA.prepend(info.bid))),
       S.map(() => s)))
   
@@ -477,55 +472,112 @@ const ordBid: ord.Ord<Bid> =
 
 const ordConstrainedBid = ord.contramap<Bid, ConstrainedBid>(b => b.bid)(ordBid)
 
-const bidPathSorted : P.Predicate<BidPath> = path =>
+interface SystemValidationErrorBidsOutOfOrder {
+  type: "BidsOutOfOrder"
+  left: ConstrainedBid
+  right: ConstrainedBid
+}
+interface SystemValidationErrorOtherBidNotFound {
+  type: "OtherBidNotFound"
+  constraint: Constraint
+}
+interface SystemValidationErrorNoPrimaryBidDefined {
+  type: "NoPrimaryBidDefined"
+  constraint: Constraint
+}
+interface SystemValidationErrorPassWhileForcing {
+  type: "PassWhileForcing",
+  bid: Bid
+}
+interface SystemValidationErrorNoBidDefinedButStillForcing {
+  type: "NoBidDefinedButStillForcing",
+  path: ReadonlyArray<Bid>
+}
+
+type SystemValidationBidReason =
+  | SystemValidationErrorOtherBidNotFound
+  | SystemValidationErrorNoPrimaryBidDefined
+type SystemValidationBidError = SystemValidationBidReason & {
+  bid: Bid
+}
+
+type SystemValidationError =
+  | SystemValidationBidError
+  | SystemValidationErrorBidsOutOfOrder
+  | SystemValidationErrorPassWhileForcing
+  | SystemValidationErrorNoBidDefinedButStillForcing
+
+type SystemValidation = E.Either<SystemValidationError, void>
+type ValidateResult = S.State<BidContext, SystemValidation>
+
+const bidPathSorted = (path: BidPath): SystemValidation =>
   pipe(path,
     RA.zip(RNEA.tail(path)),
-    RA.foldMap(boolean.MonoidAll)(bids =>
-      ord.lt(ordConstrainedBid)(...bids)))
+    RA.traverse(E.Applicative)(([left, right]) =>
+      !ord.lt(ordConstrainedBid)(left, right)
+      ? E.left({ type: "BidsOutOfOrder" as const, left, right })
+      : E.right(constVoid())),
+    E.map(constVoid))
 
-const bidTreeSorted : P.Predicate<BidTree> =
-  flow(getAllLeafPaths,
-    RA.foldMap(boolean.MonoidAll)(bidPathSorted))
+const bidTreeSorted = (path: BidTree) =>
+  pipe(path,
+    getAllLeafPaths,
+    RA.traverse(E.Applicative)(bidPathSorted),
+    E.map(constVoid))
 
-export const validateS = (s: S.State<BidContext, Constraint>): S.State<BidContext, boolean> =>
+export const validateS = (s: S.State<BidContext, Constraint>): S.State<BidContext, E.Either<SystemValidationBidError, void>> =>
   pipe(s, S.chain(c => {
     if (isContextualConstraint(c)) {
       switch (c.type) {
         case "Conjunction":
         case "Disjunction":
-          return pipe(c.constraints, RNEA.map(ofS), S.traverseArray(validateS), S.map(RA.foldMap(boolean.MonoidAll)(identity)))
+          return pipe(c.constraints,
+            RNEA.map(ofS),
+            S.traverseArray(validateS),
+            S.map(flow(
+              RA.sequence(E.Applicative),
+              E.map(constVoid))))
         case "Negation": 
           return pipe(c.constraint, ofS, validateS)
         case "OtherBid":
-          return S.gets(flow(
-            peersL.get,
-            RA.map(cb => cb.bid),
-            RA.elem(eqBid)(c.bid)))
+          return pipe(
+            S.gets(flow(
+              peersL.get,
+              RA.map(cb => cb.bid),
+              debug,
+              E.fromPredicate(RA.elem(eqBid)(c.bid), constant<SystemValidationBidReason>({ type: "OtherBidNotFound", constraint: c })),
+              E.map(constVoid))))
         case "ForceOneRound":
         case "ForceGame":
         case "ForceSlam":
         case "Relay":
           return pipe(
             S.modify(forceL.set(O.some(c))),
-            S.map(constTrue))
+            S.map(constant(E.right(constVoid()))))
         case "SuitPrimary":
           return pipe(
             S.modify(primarySuitL.set(O.some(c.suit))),
-            S.map(constTrue))
+            S.map(constant(E.right(constVoid()))))
         case "SuitSecondary":
           return pipe(
             S.modify(secondarySuitL.set(O.some(c.suit))),
             S.chain(constant(S.gets(context => context.primarySuit))),
-            S.map(O.isSome))
+            S.map(flow(
+              E.fromOption(constant<SystemValidationBidReason>({ type: "NoPrimaryBidDefined", constraint: c })),
+              E.map(constVoid))))
         case "Otherwise":
-          return S.of(true)
+          return S.of(E.right(constVoid()))
         default:
           return assertUnreachable(c)
       }
     } else {
-      return S.of(true)
+      return S.of(E.right(constVoid()))
     }
-  }))
+  }),
+  S.chain(e => pipe(
+    S.gets(bidL.get),
+    S.map(bid => pipe(e, E.mapLeft(r => ({ bid: bid, ...r })))))))
+   
 
 const resetForce = S.modify(forceL.set(O.none))
 const continueForce: typeof resetForce = S.of(constVoid())
@@ -543,54 +595,68 @@ const updateForce = (bid: Bid) => (force: ConstraintForce) => {
   }
 }
 
-const updateForceS : (s: S.State<BidContext, Constraint>) => S.State<BidContext, Constraint> =
+const updateForceS : <A>(s: S.State<BidContext, A>) => S.State<BidContext, A> =
   flow(
-    S.bindTo('constraint'),
+    S.bindTo('result'),
     S.apS('bid', S.gets(bidL.get)),
     S.apS('force', S.gets(forceO.getOption)),
-    S.chain(({ bid, force, constraint }) =>
+    S.chain(({ bid, force, result }) =>
       pipe(force,
         O.traverse(S.Applicative)(updateForce(bid)),
-        S.map(constant(constraint)))))
+        S.map(constant(result)))))
 
 const checkPass = (bid: Bid) => (force: O.Option<ConstraintForce>) =>
   !(bid === "Pass" && O.isSome(force))
 
-const checkPassS : (s: S.State<BidContext, Constraint>) => S.State<BidContext, boolean> =
+const checkPassS : (s: S.State<BidContext, Constraint>) => ValidateResult =
   flow(
     S.apS('bid', S.gets(bidL.get)),
     S.apS('force', S.gets(forceL.get)),
-    S.map(({ bid, force }) => checkPass(bid)(force)))
+    S.map(({ bid, force }) =>
+      pipe(force,
+        E.fromPredicate(checkPass(bid), () => ({ type: "PassWhileForcing" as const, bid })),
+        E.map(constVoid))))
 
-const checkFinal =
+const checkFinal : ValidateResult =
   pipe(
     S.gets(forceO.getOption),
-    S.map(O.isNone))
+    S.bindTo('force'),  
+    S.apS('path', S.gets(pathL.get)),
+    S.map(({ force, path }) => pipe(force,
+      E.fromPredicate(O.isNone, () => ({ type: "NoBidDefinedButStillForcing", path } as const)),
+      E.map(constVoid))))
 
-const pathIsSound : P.Predicate<BidPath> =
-  flow(
+const pathIsSound = (path: BidPath) =>
+  pipe(path,
     S.traverseArray(info =>
       pipe(
         preTraversal(info),
         S.bindTo('constraint'),
         S.bind('forceCheck', ({ constraint }) => checkPassS(S.of(constraint))),
         S.chain(({ constraint, forceCheck }) =>
-          !forceCheck
-          ? S.of(false)
-          : pipe(
-            S.of(constraint),
-            updateForceS,
-            validateS,
-            postTraversal(info))))),
+          pipe(forceCheck,
+            E.traverse(S.Applicative)(() =>
+              pipe(S.of<BidContext, Constraint>(constraint),
+                updateForceS,
+                validateS,
+                postTraversal(info))),
+            S.map(e => E.flatten<SystemValidationError, void>(e)))))),
     S.bindTo('result'),
     S.apS('finalCheck', checkFinal),
     S.map(({ result, finalCheck }) =>
-      finalCheck && pipe(result, RA.foldMap(boolean.MonoidAll)(identity))),
+      pipe(result,
+        RA.prepend(finalCheck),
+        RA.sequence(E.Applicative),
+        E.map(constVoid))),
     S.evaluate(zeroContext))
 
-const treeIsSound : P.Predicate<BidTree> =
-flow(getAllLeafPaths,
-  RA.foldMap(boolean.MonoidAll)(pathIsSound))
+const treeIsSound = (tree: BidTree) : SystemValidation =>
+  pipe(tree,
+    getAllLeafPaths,
+    RA.traverse(E.Applicative)(pathIsSound),
+    E.map(constVoid))
 
-export const validateTree : P.Predicate<BidTree> =
-  P.and(bidTreeSorted)(treeIsSound)
+export const validateTree = (tree: BidTree) =>
+  pipe(tree,
+    bidTreeSorted,
+    E.chain(() => treeIsSound(tree)))
