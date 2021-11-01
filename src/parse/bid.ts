@@ -45,6 +45,11 @@ const bindValueFromASTQualifier = (s: AST.BoundQualifier, value: number) => (typ
       || (type === 'min' && s.kind === AST.ASTKinds.Plus)
       || (type === 'max' && s.kind === AST.ASTKinds.Minus)))
 
+const constraintListFromAST = (c: AST.ConstraintList) : Constraint =>
+  pipe(c,
+    readonlyArray.map(c => c.constraint),
+    connectiveFromAST("Conjunction", constConstraintFalse))
+
 export const constraintFromAST = (c: AST.Constraint) : Constraint => {
   switch (c.kind) {
 
@@ -174,6 +179,19 @@ export const constraintFromAST = (c: AST.Constraint) : Constraint => {
           strain: strainFromAST(c.bid.strain)
         }
       }
+
+    case AST.ASTKinds.LabelDef:
+      return {
+        type: "LabelDef",
+        name: c.label.v,
+        constraint: constraintListFromAST(c.constraints)
+      }
+
+    case AST.ASTKinds.LabelRef:
+      return {
+        type: "LabelRef",
+        name: c.label.v
+      }
     
     default:
       return { type: c.kind }
@@ -199,8 +217,7 @@ export const constrainedBidFromAST = (bidSpec: AST.BidSpec) : ConstrainedBid => 
   constraint: pipe(
     bidSpec.constraints?.constraints,
     option.fromNullable,
-    option.fold(() => [], readonlyArray.map(c => c.constraint)),
-    connectiveFromAST("Conjunction", constConstraintFalse))
+    option.fold(constConstraintFalse, constraintListFromAST))
 })
 
 export const parseBid = AST.parse

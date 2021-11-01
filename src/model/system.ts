@@ -41,24 +41,22 @@ export const getAllLeafPaths = <A>(forest: Forest<A>): ReadonlyArray<Path<A>> =>
             RNEA.foldMap(RNEA.getSemigroup<Path<A>>())(RNEA.map(RA.prepend(node))))))),
     RA.filterMap(RNEA.fromReadonlyArray))
 
-const extendWithSiblingsInternal = <T>(eq: eq.Eq<T>) => (siblings: ReadonlyArray<T>) => (t: T.Tree<T>) : T.Tree<T & { siblings: ReadonlyArray<T> }> =>
+const extendWithSiblingsTree = <A>(eqA: eq.Eq<A>) => (siblings: ReadonlyArray<A>) => (t: T.Tree<A>) : T.Tree<A & { siblings: ReadonlyArray<A> }> =>
   T.make(
     ({ ...t.value, siblings }),
-    pipe(t.forest, RA.map(
+    pipe(t.forest, RA.map(u =>
       pipe(t.forest,
         RA.map(t => t.value),
-        RA.difference(eq)([t.value]), // end null hack
-        extendWithSiblingsInternal(eq))),
+        RA.difference(eqA)([u.value]), // end null hack
+        extendWithSiblingsTree(eqA))(u)),
       RA.toArray))
 
-const extendWithSiblingsForest = <A>(eq: eq.Eq<A>) => (forest: Forest<A>) =>
+const extendWithSiblingsForest = <A>(eqA: eq.Eq<A>) => (forest: Forest<A>) =>
   pipe(forest, RA.map(t =>
     pipe(forest,
       RA.map(t => t.value),
-      RA.difference(eq)([t.value]),
-      extendWithSiblingsInternal(eq),
-      x => x(t))))
-
+      RA.difference(eqA)([t.value]),
+      extendWithSiblingsTree(eqA))(t)))
 export interface BidInfo {
   bid: Bid
   siblings: ReadonlyArray<ConstrainedBid>
@@ -69,7 +67,7 @@ export type BidPaths = Paths<BidInfo>
 export type BidTree = Forest<BidInfo>
 
 export const getBidInfo : (f: Forest<ConstrainedBid>) => Forest<BidInfo> =
-  x => { debugger; return extendWithSiblingsForest(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid))(x) }
+  extendWithSiblingsForest(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid))
 
 export const withImplicitPasses =
   RA.map(
