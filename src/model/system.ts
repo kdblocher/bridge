@@ -51,8 +51,13 @@ const extendWithSiblingsInternal = <T>(eq: eq.Eq<T>) => (siblings: ReadonlyArray
         extendWithSiblingsInternal(eq))),
       RA.toArray))
 
-const extendWithSiblings = <A>(eq: eq.Eq<A>) =>
-  RA.map(extendWithSiblingsInternal(eq)([]))
+const extendWithSiblingsForest = <A>(eq: eq.Eq<A>) => (forest: Forest<A>) =>
+  pipe(forest, RA.map(t =>
+    pipe(forest,
+      RA.map(t => t.value),
+      RA.difference(eq)([t.value]),
+      extendWithSiblingsInternal(eq),
+      x => x(t))))
 
 export interface BidInfo {
   bid: Bid
@@ -64,7 +69,7 @@ export type BidPaths = Paths<BidInfo>
 export type BidTree = Forest<BidInfo>
 
 export const getBidInfo : (f: Forest<ConstrainedBid>) => Forest<BidInfo> =
-  extendWithSiblings(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid))
+  x => { debugger; return extendWithSiblingsForest(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid))(x) }
 
 export const withImplicitPasses =
   RA.map(

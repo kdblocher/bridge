@@ -1,4 +1,4 @@
-import { readonlyNonEmptyArray } from 'fp-ts';
+import { either, readonlyNonEmptyArray } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 import { draw } from 'io-ts/lib/Decoder';
 
@@ -73,14 +73,14 @@ const Stats = () => {
   const rules = useAppSelector(state => selectAllCompleteBidPaths({ state: state.system, options: state.settings }))
   const errors = useAppSelector(state => selectErrors(state.system))
   const valid = useAppSelector(state => selectSystemValid({ state: state.system, options: state.settings }))
-  const showGenerate = rules !== null && rules.length > 0 && errors.length === 0 && valid
+  const showGenerate = rules !== null && rules.length > 0 && errors.length === 0 && either.isRight(valid)
   return (
     <section>
       <h3>Stats</h3>
       {!showGenerate && <div>
         <p>Select the system and/or fix errors</p>
         {rules === null && <p>No complete rules found or system not selected</p>}
-        {!valid && <p>System is not valid</p>}
+        {either.isLeft(valid) && <p>System is not valid</p>}
         {errors.length > 0 && <div>
           <h4>Errors</h4>
           <ul>{errors.map((e, i) => <li key={i}><pre>{draw(e)}</pre></li>)}</ul>
