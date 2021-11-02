@@ -1,9 +1,9 @@
 import { boolean, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, state as S } from 'fp-ts';
-import { constFalse, flow, identity, pipe } from 'fp-ts/lib/function';
+import { identity, pipe } from 'fp-ts/lib/function';
 
-import { Bid, eqBid } from '../bridge';
+import { eqBid } from '../bridge';
 import { Hand } from '../deck';
-import { BidContext, bidL, ConstrainedBid, Constraint, ConstraintS, constraintTrue, forceL, pathL, satisfiesS, zeroContext } from './core';
+import { BidContext, bidL, ConstrainedBid, Constraint, constraintTrue, forceO, ofS, pathL, satisfiesS, zeroContext } from './core';
 
 module Gen {
   export function* alternate<A>(opener: A, responder: A) {
@@ -16,39 +16,29 @@ module Gen {
   }
 }
 
-const specialRelayCase = (bid: Bid) => (s: ConstraintS<BidContext, Constraint>) =>
+const specialRelayCase = (s: S.State<BidContext, Constraint>) =>
   pipe(s,
     S.bindTo('constraint'),
-    S.bind('relay', ({ constraint }) =>
-      S.gets(flow(
-        forceL.get,
-        O.fold(constFalse, force =>
-          constraint.type === "Constant" && !constraint.value && force.type === "Relay" && eqBid.equals(force.bid, bid))))),
-    S.map(s => s.relay ? constraintTrue() : s.constraint))
-
-const preTraversal = (info: ConstrainedBid) =>
-  pipe(
-    // S.modify(peersL.set(info.siblings)),
-    // S.chain(() => S.modify(bidL.set(info.bid))),
-    S.modify(bidL.set(info.bid)),
-    S.map(() => info.constraint))
-
-const postTraversal = <A>(info: ConstrainedBid) =>
-    S.chain((s: A) => pipe(
-      S.modify(pathL.modify(RA.prepend(info.bid))),
-      S.map(() => s)))
+    S.apS('force', S.gets(forceO.getOption)),
+    S.apS('bid', S.gets(bidL.get)),
+    S.map(info =>
+      pipe(info.force,
+        O.chain(O.fromPredicate(force =>
+          info.constraint.type === "Constant" && !info.constraint.value && force.type === "Relay" && eqBid.equals(force.bid, info.bid))),
+        O.fold(() => info.constraint, constraintTrue))))
   
 export const satisfiesPath = (opener: Hand, responder: Hand) => (path: RNEA.ReadonlyNonEmptyArray<ConstrainedBid>) =>
   pipe(
     Gen.alternate(opener, responder),
     Gen.unfold(path.length),
     RA.zip(path),
-    S.traverseArray(([hand, cb]) =>
+    S.traverseArray(([hand, info]) =>
       pipe(
-        preTraversal(cb),
-        specialRelayCase(cb.bid),
+        ofS(info.constraint),
+        S.chainFirst(() => S.modify(bidL.set(info.bid))),
+        specialRelayCase,
         satisfiesS,
         S.flap(hand),
-        postTraversal(cb))),
+        S.chainFirst(() => S.modify(pathL.modify(RA.prepend(info.bid)))))),
     S.map(RA.foldMap(boolean.MonoidAll)(identity)),
     S.evaluate(zeroContext))

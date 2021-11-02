@@ -91,7 +91,7 @@ interface ConstraintRelayResponse {
   bid: ContractBid
 }
 
-type ConstraintForce =
+export type ConstraintForce =
     ConstraintResponse
   | ConstraintRelayResponse
 
