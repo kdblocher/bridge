@@ -1,15 +1,10 @@
-import {
-    boolean, either as E, eitherT, eq, hkt, identity as id, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyRecord,
-    readonlySet, readonlyTuple, record, state as S, string
-} from 'fp-ts';
+import { boolean, either as E, eitherT, eq, hkt, identity as id, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
 import { apply, constant, constFalse, constTrue, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
 import { fromTraversable, Lens, lens, Optional } from 'monocle-ts';
 
 import { assertUnreachable, debug } from '../../lib';
-import {
-    Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, isGameLevel, isSlamLevel, makeShape, ordContractBid, Shape as AnyShape, SpecificShape
-} from '../bridge';
+import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, isGameLevel, isSlamLevel, makeShape, ordContractBid, Shape as AnyShape, SpecificShape } from '../bridge';
 import { eqRank, eqSuit, Hand, honors, ordRankAscending, Rank, Suit, suits } from '../deck';
 import { BidInfo, BidPath, BidTree, getAllLeafPaths } from '../system';
 
@@ -61,8 +56,8 @@ interface ConstraintConstant {
   type: "Constant",
   value: boolean
 }
-const constraintTrue  = constant<Constraint>({ type: "Constant", value: true })
-const constraintFalse = constant<Constraint>({ type: "Constant", value: false })
+export const constraintTrue  = constant<Constraint>({ type: "Constant", value: true })
+export const constraintFalse = constant<Constraint>({ type: "Constant", value: false })
 
 interface ConstraintConjunction {
   type: "Conjunction"
@@ -100,7 +95,7 @@ type ConstraintForce =
     ConstraintResponse
   | ConstraintRelayResponse
 
-type Constraint =
+export type Constraint =
   | ConstraintConstant
   | ConstraintConjunction
   | ConstraintDisjunction
@@ -120,8 +115,8 @@ const predFalse : P.Predicate<Hand> = constFalse
 const predTrue : P.Predicate<Hand> = constTrue
 const quantifier = <A>(ps: ReadonlyArray<P.Predicate<A>>) => (m: monoid.Monoid<P.Predicate<A>>) => 
   RA.foldMap(m)((x: P.Predicate<A>) => x)(ps)
-const exists = <A>(ps: ReadonlyArray<P.Predicate<A>>) => pipe(ps, quantifier, apply(P.getMonoidAny<A>()))
-const forall = <A>(ps: ReadonlyArray<P.Predicate<A>>) => pipe(ps, quantifier, apply(P.getMonoidAll<A>()))
+export const exists = <A>(ps: ReadonlyArray<P.Predicate<A>>) => pipe(ps, quantifier, apply(P.getMonoidAny<A>()))
+export const forall = <A>(ps: ReadonlyArray<P.Predicate<A>>) => pipe(ps, quantifier, apply(P.getMonoidAll<A>()))
 // const forall = <A>() => pipe(P.getMonoidAll<A>(), RA.foldMap, apply(identity))
 /* eslint-enable @typescript-eslint/no-unused-vars */
 
@@ -209,7 +204,6 @@ const isShape = (shape: AnyShape) =>
   flow(getHandShape, handShape =>
     eqShape.equals(shape, handShape))
 
-
 const contextualConstraintTypes = [
   "Conjunction",
   "Disjunction",
@@ -231,7 +225,7 @@ const isContextualConstraint = (c: Constraint) : c is ContextualConstraint =>
 
 const separate = (c: Constraint) : E.Either<ContextualConstraint, BasicConstraint> =>
   isContextualConstraint(c) ? E.left(c) : E.right(c as BasicConstraint)
-
+    
 const satisfiesBasic = (c: BasicConstraint): P.Predicate<Hand> => {
   switch (c.type) {
     case "Constant":
@@ -259,42 +253,42 @@ export interface ConstrainedBid {
   bid: Bid
   constraint: Constraint
 }
-
+const ordBid: ord.Ord<Bid> =
+  ord.fromCompare((a, b) =>
+    isContractBid(a) && !isContractBid(b) ? -1 :
+    isContractBid(b) && !isContractBid(a) ? 1 :
+    isContractBid(a) && isContractBid(b) ? ordContractBid.compare(a, b) :
+    0)
+export const ordConstrainedBid = ord.contramap<Bid, ConstrainedBid>(b => b.bid)(ordBid)
 export interface BidContext {
   bid: Bid,
   path: ReadonlyArray<Bid>
   force: O.Option<ConstraintForce>
   primarySuit: O.Option<Suit>
   secondarySuit: O.Option<Suit>,
-  peers: ReadonlyArray<ConstrainedBid>,
-  labels: ReadonlyMap<string, S.State<BidContext, Constraint>>
 }
 export const zeroContext : BidContext = {
   bid: {} as Bid,
   path: [],
   force: O.none,
   primarySuit: O.none,
-  secondarySuit: O.none,
-  peers: [],
-  labels: readonlyMap.empty
+  secondarySuit: O.none
 }
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
-const contextL = Lens.fromProp<BidContext>()
-const bidL = contextL('bid')
-const pathL = contextL('path')
-const forceL = contextL('force')
-const primarySuitL = contextL('primarySuit')
-const secondarySuitL = contextL('secondarySuit')
-const peersL = contextL('peers')
-const labelsL = contextL('labels')
-const contextO = Optional.fromOptionProp<BidContext>()
-const forceO = contextO('force')
-const primarySuitO = contextO('primarySuit')
-const secondarySuitO = contextO('secondarySuit')
+export const contextL = Lens.fromProp<BidContext>()
+export const bidL = contextL('bid')
+export const pathL = contextL('path')
+export const forceL = contextL('force')
+export const primarySuitL = contextL('primarySuit')
+export const secondarySuitL = contextL('secondarySuit')
+export const contextO = Optional.fromOptionProp<BidContext>()
+export const forceO = contextO('force')
+export const primarySuitO = contextO('primarySuit')
+export const secondarySuitO = contextO('secondarySuit')
 
-type ConstraintS<X, C> = S.State<X, C>
-type SatisfiesS<X, C, A> = (c: ConstraintS<X, C>) => S.State<X, P.Predicate<A>>
+export type ConstraintS<X, C> = S.State<X, C>
+export type SatisfiesS<X, C, A> = (c: ConstraintS<X, C>) => S.State<X, P.Predicate<A>>
 const quantifierS = <A>(quantifier: (c: ReadonlyArray<P.Predicate<A>>) => P.Predicate<A>) => <X, C>(satisfies: SatisfiesS<X, C, A>) =>
   flow(
     S.traverseArray(satisfies),
@@ -302,7 +296,7 @@ const quantifierS = <A>(quantifier: (c: ReadonlyArray<P.Predicate<A>>) => P.Pred
 const existsS = <X, C, A>(satisfies: SatisfiesS<X, C, A>) => quantifierS<A>(exists)(satisfies)
 const forallS = <X, C, A>(satisfies: SatisfiesS<X, C, A>) => quantifierS<A>(forall)(satisfies)
 
-const ofS = <A>(x: A) => S.of<BidContext, A>(x)
+export const ofS = <A>(x: A) => S.of<BidContext, A>(x)
 
 const satisfiesContextual = (recur: SatisfiesS<BidContext, Constraint, Hand>) : SatisfiesS<BidContext, ContextualConstraint, Hand> =>
   S.chain(c => {
@@ -338,7 +332,7 @@ const satisfiesContextual = (recur: SatisfiesS<BidContext, Constraint, Hand>) : 
     }
   })
 
-const satisfiesS : SatisfiesS<BidContext, Constraint, Hand> = s =>
+export const satisfiesS : SatisfiesS<BidContext, Constraint, Hand> = s =>
   pipe(s,
     S.map(separate),
     S.chain(E.fold(
@@ -351,50 +345,3 @@ const satisfiesWithContext = (x: Constraint) =>
 export const satisfies =
   flow(satisfiesWithContext, S.evaluate(zeroContext))
 
-module Gen {
-  export function* alternate(opener: Hand, responder: Hand) {
-    while (true) { yield opener; yield responder }
-  }
-
-  export const unfold = (length: number) => <T>(g: Generator<T>) : readonly T[] => {
-    const val = g.next()
-    return val.done || length === 0 ? [] : [val.value, ...unfold(length - 1)(g)]
-  }
-}
-
-// const specialRelayCase = (bid: Bid) => (s: S.State<BidContext, Constraint>) =>
-//   pipe(s,
-//     S.bindTo('constraint'),
-//     S.bind('relay', ({ constraint }) =>
-//       S.gets(flow(
-//         forceL.get,
-//         O.fold(constFalse, force =>
-//           constraint.type === "Constant" && !constraint.value && force.type === "Relay" && eqBid.equals(force.bid, bid))))),
-//     S.map(s => s.relay ? constraintTrue() : s.constraint))
-
-// const preTraversal = (info: BidInfo) =>
-//   pipe(
-//     S.modify(peersL.set(info.siblings)),
-//     S.chain(() => S.modify(bidL.set(info.bid))),
-//     S.map(() => info.constraint))
-
-// const postTraversal = <A>(info: BidInfo) =>
-//     S.chain((s: A) => pipe(
-//       S.modify(pathL.modify(RA.prepend(info.bid))),
-//       S.map(() => s)))
-  
-// export const satisfiesPath = (opener: Hand, responder: Hand) => (path: BidPath) =>
-//   pipe(
-//     Gen.alternate(opener, responder),
-//     Gen.unfold(path.length),
-//     RA.zip(path),
-//     S.traverseArray(([hand, info]) =>
-//       pipe(
-//         preTraversal(info),
-//         flow(
-//           specialRelayCase(info.bid),
-//           satisfiesS),
-//         S.ap(S.of(hand)),
-//         postTraversal(info))),
-//     S.map(RA.foldMap(boolean.MonoidAll)(identity)),
-//     S.evaluate(zeroContext))
