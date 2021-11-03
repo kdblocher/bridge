@@ -114,7 +114,7 @@ export const validateS : ValidateS<BidContext, Constraint, SystemValidationBidEr
       case "PointRange":
       case "SuitRange":
         return pipe(c,
-          E.fromPredicate(c => c.min > c.max,
+          E.fromPredicate(c => c.min <= c.max,
             (): SystemValidationBidReason => ({ type: "RangeInvalid", constraint: c })),
           E.map(constVoid),
           ofS)
@@ -182,10 +182,12 @@ const checkPassS : ValidateResult =
     ofS(checkPass),
     S.ap(S.gets(bidL.get)),
     S.ap(S.gets(forceO.getOption)),
+    S.map(x =>{ debugger; return x}),
     S.chain(boolean.fold(
-      flow(constVoid, E.right, ofS),
       flow(() => S.gets(bidL.get), S.map(bid =>
-        E.left({ type: "PassWhileForcing" as const, bid }))))))
+        E.left({ type: "PassWhileForcing" as const, bid }))),
+      flow(constVoid, E.right, ofS))))
+      
 
 const checkFinal : ValidateResult =
   pipe(
