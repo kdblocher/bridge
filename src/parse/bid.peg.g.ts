@@ -6,18 +6,18 @@
 * Bid := ContractBid | NonContractBid
 * ContractBid := level=Digit specifier=StrainSpecifier
 * StrainSpecifier := Wildcard | Major | Minor | Strain
-* Wildcard := v='x'
+* Wildcard := v='X'
 * Major := v='M'
 * Minor := v='m'
 * NonContractBid := Pass
 * Pass := v='P'
 * Strain := Suit | Notrump
 * Suit := Club | Diamond | Heart | Spade
-* Club := v='[Cc♣♧]'
-* Diamond := v='[Dd♦♢]'
-* Heart := v='[Hh♥♡]'
-* Spade := v='[Ss♠♤]'
-* Notrump := v='[Nn]' '[Tt]'?
+* Club := v='C'
+* Diamond := v='D'
+* Heart := v='H'
+* Spade := v='S'
+* Notrump := v='N' 'T'?
 * Honor := v='[AKQJT]'
 * ConstraintList := ConstraintListItem+
 * ConstraintListItem := constraint=Constraint ' '?
@@ -641,7 +641,7 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<Wildcard> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:x)`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:X)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.Wildcard, v: $scope$v};
                 }
@@ -728,7 +728,7 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<Club> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:[Cc♣♧])`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:C)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.Club, v: $scope$v};
                 }
@@ -741,7 +741,7 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<Diamond> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:[Dd♦♢])`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:D)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.Diamond, v: $scope$v};
                 }
@@ -754,7 +754,7 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<Heart> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:[Hh♥♡])`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:H)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.Heart, v: $scope$v};
                 }
@@ -767,7 +767,7 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<Spade> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:[Ss♠♤])`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:S)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.Spade, v: $scope$v};
                 }
@@ -780,8 +780,8 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<Notrump> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:[Nn])`, $$dpth + 1, $$cr)) !== null
-                    && ((this.regexAccept(String.raw`(?:[Tt])`, $$dpth + 1, $$cr)) || true)
+                    && ($scope$v = this.regexAccept(String.raw`(?:N)`, $$dpth + 1, $$cr)) !== null
+                    && ((this.regexAccept(String.raw`(?:T)`, $$dpth + 1, $$cr)) || true)
                 ) {
                     $$res = {kind: ASTKinds.Notrump, v: $scope$v};
                 }

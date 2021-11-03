@@ -182,7 +182,6 @@ const checkPassS : ValidateResult =
     ofS(checkPass),
     S.ap(S.gets(bidL.get)),
     S.ap(S.gets(forceO.getOption)),
-    S.map(x =>{ debugger; return x}),
     S.chain(boolean.fold(
       flow(() => S.gets(bidL.get), S.map(bid =>
         E.left({ type: "PassWhileForcing" as const, bid }))),

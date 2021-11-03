@@ -5,8 +5,8 @@ import memoize from 'proxy-memoize';
 
 import { createEntityAdapter, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-import { flatten, getAllLeafPaths, getPathUpTo, withImplicitPasses } from '../model/system';
-import { expandForest } from '../model/system/expander';
+import { flatten, Forest, getAllLeafPaths, getPathUpTo, withImplicitPasses } from '../model/system';
+import { expandForest, SyntacticBid } from '../model/system/expander';
 import { validateTree } from '../model/system/validation';
 import { decodeBid } from '../parse';
 
@@ -113,10 +113,10 @@ export const selectErrors = memoize(
     selectRules,
     RA.lefts))
 
-const getCompleteForest = (constrainedBids: State['decodedBids']) =>
+const getCompleteForest = (bids: State['decodedBids']) : (t: Forest<BlockKey>) => Forest<SyntacticBid> =>
   RA.filterMap(flow(
     tree.traverse(O.Applicative)(flow(
-      getCachedBidByKey(constrainedBids),
+      getCachedBidByKey(bids),
       O.chain(O.fromEither)))))
 
 export const selectCompleteBidPathUpToKey = memoize(({ state, key }: KeyedState) =>
@@ -132,18 +132,21 @@ export const selectCompleteBidPathUpToKey = memoize(({ state, key }: KeyedState)
       getAllLeafPaths,
       RA.head))))
 
-export const selectCompleteBidSubtree = memoize(({ state, options }: { state: State, options?: { implicitPass: boolean }} ) =>
+export const selectCompleteSyntaxForest = memoize(({ state, options }: { state: State, options?: { implicitPass: boolean }} ) =>
   pipe(state.system,
     getCompleteForest(state.decodedBids),
-    options?.implicitPass ? withImplicitPasses : identity,
+    options?.implicitPass ? withImplicitPasses : identity))
+
+export const selectCompleteConstraintForest = memoize(
+  flow(selectCompleteSyntaxForest,
     expandForest))
 
 export const selectAllCompleteBidPaths = memoize(
-  flow(selectCompleteBidSubtree,
+  flow(selectCompleteConstraintForest,
     E.map(getAllLeafPaths)))
 
 export const selectSystemValid = memoize(
-  flow(selectCompleteBidSubtree,
+  flow(selectCompleteConstraintForest,
     E.chainW(validateTree)))
     
 export default slice.reducer

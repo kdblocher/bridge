@@ -1,5 +1,5 @@
-import { either as E, eitherT, option as O, readonlyArray as RA, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, separated, state as S, string } from 'fp-ts';
-import { constant, flow, pipe } from 'fp-ts/lib/function';
+import { either as E, eitherT, eq, option as O, readonlyArray as RA, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyTuple, separated, state as S, string, these } from 'fp-ts';
+import { constant, constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { Lens } from 'monocle-ts';
 import { Object } from 'ts-toolbelt';
 
@@ -7,9 +7,8 @@ import { assertUnreachable } from '../../lib';
 import { Bid, ContractBid, eqBid, isContractBid, makeShape, Shape } from '../bridge';
 import { Suit, suits } from '../deck';
 import { serializedBidL } from '../serialization';
-import { Forest, getAllLeafPaths, getForestFromLeafPaths, Path } from '../system';
-import { ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop } from './core';
-import { ValidateS } from './validation';
+import { extendForestWithSiblings, Forest, getAllLeafPaths, getForestFromLeafPaths, Path } from '../system';
+import { ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue } from './core';
 
 export type SuitContextSpecifier = "Wildcard" | "Major" | "Minor" | "OtherMajor" | "OtherMinor"
 export type SuitSpecifier = SuitContextSpecifier | Suit
@@ -105,31 +104,32 @@ type SyntaxConnective =
   | SyntaxConjunction
   | SyntaxDisjunction
 
-const connective = (s: SyntaxConnective): S.State<ExpandBidContext, E.Either<SyntaxError, Syntax>> =>
-  pipe(s.syntax,
-    RNEA.traverse(S.Applicative)(flow(ofS, expandOnce)),
+const connective = ({ type, syntax }: SyntaxConnective): S.State<ExpandBidContext, E.Either<SyntaxError, E.Either<Constraint, Syntax>>> =>
+  pipe(syntax,
+    RNEA.traverse(S.Applicative)(expandOnce),
     S.map(flow(
-      RNEA.sequence(E.Applicative),
+      RA.wilt(E.Applicative)(x => x),
       E.map(flow(
-        RA.separate,
-        separated.bimap(
-          flow(RNEA.fromReadonlyArray, O.map((constraints): Syntax =>
-            wrap({ type: s.type, constraints }))),
-          flow(RNEA.fromReadonlyArray, O.map((syntax): Syntax =>
-            ({ type: s.type, syntax })))),
-        readonlyRecord.toReadonlyArray,
-        RA.map(readonlyTuple.snd),
-        RA.compact,
-        RNEA.fromReadonlyArray,
+        separated.bimap(RNEA.fromReadonlyArray, RNEA.fromReadonlyArray),
+        x => these.fromOptions(x.left, x.right),
         O.fold(
-          s.type === "Conjunction" ? syntaxTrue : syntaxFalse,
-          syntax => ({ type: s.type, syntax })))))))
+          () => E.left(type === "Conjunction" ? constraintTrue() : constraintTrue()),
+          these.match(
+            constraints => E.left(constraints.length === 1 ? constraints[0] : { type, constraints }),
+            syntax => E.right(syntax.length === 1 ? syntax[0] : { type, syntax }),
+            (constraints, syntax): E.Either<never, Syntax> => E.right(
+              { type: type,
+                syntax: [
+                  wrap({ type, constraints }),
+                  { type, syntax }
+                ]}))))))))
 
 interface ExpandBidContext {
   bid: Bid
-  peers: ReadonlyArray<readonly [Bid, Syntax]>,
+  peers: ReadonlyArray<readonly[Bid, Syntax]>
   labels: ReadonlyMap<string, Syntax>
 }
+
 const zeroContext: ExpandBidContext = {
   bid: "Pass",
   peers: RA.empty,
@@ -252,64 +252,62 @@ type SyntaxError =
 export const ofS = <A>(x: A) => S.of<ExpandBidContext, A>(x)
 export const pure = <A>(x: A) => pipe(x, E.right, E.right, ofS)
 
-const expandOnce: ValidateS<ExpandBidContext, Syntax, SyntaxError, E.Either<Constraint, Syntax>> =
-  S.chain(s => {
-    switch (s.type) {
-      case "Wrapper":
-        return ofS<E.Either<SyntaxError, E.Either<Constraint, Syntax>>>(E.right(E.left(s.constraint)))
-      case "Constant":
-        return pure(wrap({ type: "Constant", value: s.value }))
-      case "Conjunction":
-      case "Disjunction":
-        return pipe(s, connective, S.map(E.map(E.right)))
-      case "Negation": 
-        return pipe(s.syntax, ofS, expandOnce, S.map(E.map(flow(
-          E.fold(
-            (constraint): Syntax => wrap({ type: "Negation", constraint }),
-            (syntax): Syntax => ({ type: "Negation", syntax })),
-          E.right))))
-      case "OtherBid":
-        return otherBid
-      case "Otherwise":
-        return otherwise
-      case "LabelDef":
-        return labelDef(s)
-      case "LabelRef":
-        return labelRef(s)
-      case "Balanced":
-        return pure(syntaxBalanced)
-      case "SemiBalanced":
-        return pure({ type: "Disjunction", syntax: [syntaxBalanced, syntaxSemiBalanced] })
-      case "Unbalanced":
-        return pure({ type: "Negation", syntax: {
-          type: "Disjunction", syntax: [syntaxBalanced, syntaxSemiBalanced]
-        }})
-      case "SuitRange":
-      case "SuitHonors":
-      case "SuitPrimary":
-      case "SuitSecondary":
-      case "SuitTop":
-        return pipe(s.suit,
-          expandSpecifier,
-          eitherT.map(S.Functor)(suit => E.left({ ...s, suit })))
-      case "SuitComparison":
-        return pipe([s.left, s.right],
-          S.traverseArray(expandSpecifier),
-          S.map(E.sequenceArray),
-          eitherT.map(S.Functor)(suits => E.left({ ...s, left: suits[0], right: suits[1] })))
-            
-      default:
-        // return ofS(E.right(E.right(syntaxFalse())))
-        return assertUnreachable(s)
-    }
-  })
+const expandOnce = (s: Syntax): S.State<ExpandBidContext, E.Either<SyntaxError, E.Either<Constraint, Syntax>>> => {
+  switch (s.type) {
+    case "Wrapper":
+      return ofS<E.Either<SyntaxError, E.Either<Constraint, Syntax>>>(E.right(E.left(s.constraint)))
+    case "Constant":
+      return pure(wrap({ type: "Constant", value: s.value }))
+    case "Conjunction":
+    case "Disjunction":
+      return connective(s)
+    case "Negation": 
+      return pipe(s.syntax, expandOnce, S.map(E.map(flow(
+        E.bimap(
+          (constraint) => ({ type: "Negation", constraint }),
+          (syntax) => ({ type: "Negation", syntax }))))))
+    case "OtherBid":
+      return otherBid
+    case "Otherwise":
+      return otherwise
+    case "LabelDef":
+      return labelDef(s)
+    case "LabelRef":
+      return labelRef(s)
+    case "Balanced":
+      return pure(syntaxBalanced)
+    case "SemiBalanced":
+      return pure({ type: "Disjunction", syntax: [syntaxBalanced, syntaxSemiBalanced] })
+    case "Unbalanced":
+      return pure({ type: "Negation", syntax: {
+        type: "Disjunction", syntax: [syntaxBalanced, syntaxSemiBalanced]
+      }})
+    case "SuitRange":
+    case "SuitHonors":
+    case "SuitPrimary":
+    case "SuitSecondary":
+    case "SuitTop":
+      return pipe(s.suit,
+        expandSpecifier,
+        eitherT.map(S.Functor)(suit => E.left({ ...s, suit })))
+    case "SuitComparison":
+      return pipe([s.left, s.right],
+        S.traverseArray(expandSpecifier),
+        S.map(E.sequenceArray),
+        eitherT.map(S.Functor)(suits => E.left({ ...s, left: suits[0], right: suits[1] })))
+          
+    default:
+      // return ofS(E.right(E.right(syntaxFalse())))
+      return assertUnreachable(s)
+  }
+}
 
 type ExpandResult = E.Either<SyntaxError, Constraint>
 const expand = (syntax: Syntax) : S.State<ExpandBidContext, ExpandResult> =>
   pipe(
     syntax,
-    ofS,
     expandOnce,
+    eitherT.map(S.Functor)(x => { /* debugger; */ return x; }),
     S.chain(flow(
       E.mapLeft(E.left),
       E.chain(cont => pipe(cont, E.mapLeft(c => E.right(c)))),
@@ -319,23 +317,30 @@ export type SyntacticBid = {
   bid: Bid
   syntax: Syntax
 }
-export const expandPath = (path: Path<SyntacticBid>) : E.Either<SyntaxError, Path<ConstrainedBid>> =>
+export const expandPath = (path: Path<SyntacticBid & { siblings?: ReadonlyArray<SyntacticBid> }>) : E.Either<SyntaxError, Path<ConstrainedBid>> =>
   pipe(path,
     S.traverseReadonlyNonEmptyArrayWithIndex((_, info) =>
       pipe(
         ofS(info.syntax),
+        S.chainFirst(() => pipe(
+          O.fromNullable(info.siblings),
+          O.fold(
+            flow(constVoid, ofS),
+            flow(RA.map(s => [s.bid, s.syntax] as const),
+              peersL.set,
+              S.modify)))),
         S.chainFirst(() => S.modify(bidL.set(info.bid))),
         S.chain(expand),
         eitherT.map(S.Functor)((constraint): ConstrainedBid => ({
           bid: info.bid,
           constraint
         })))),
-    x => x,
     S.map(RNEA.sequence(E.Applicative)),
     S.evaluate(zeroContext))
 
 export const expandForest = (forest: Forest<SyntacticBid>) =>
   pipe(forest,
+    extendForestWithSiblings(pipe(eqBid, eq.contramap(s => s.bid))),
     getAllLeafPaths,
     RA.map(expandPath),
     RA.sequence(E.Applicative),

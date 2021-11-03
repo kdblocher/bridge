@@ -60,22 +60,22 @@ export const getForestFromLeafPaths = <A, F extends show.Show<A>>(show: F) => (p
               getForestFromLeafPaths(show),
               RA.toArray)))))))
 
-// const extendWithSiblingsTree = <A>(eqA: eq.Eq<A>) => (siblings: ReadonlyArray<A>) => (t: T.Tree<A>) : T.Tree<A & { siblings: ReadonlyArray<A> }> =>
-//   T.make(
-//     ({ ...t.value, siblings }),
-//     pipe(t.forest, RA.map(u =>
-//       pipe(t.forest,
-//         RA.map(t => t.value),
-//         RA.difference(eqA)([u.value]), // end null hack
-//         extendWithSiblingsTree(eqA))(u)),
-//       RA.toArray))
+const extendTreeWithSiblings = <A>(eqA: eq.Eq<A>) => (siblings: ReadonlyArray<A>) => (t: T.Tree<A>) : T.Tree<A & { siblings: ReadonlyArray<A> }> =>
+  T.make(
+    ({ ...t.value, siblings }),
+    pipe(t.forest, RA.map(u =>
+      pipe(t.forest,
+        RA.map(t => t.value),
+        RA.difference(eqA)([u.value]), // end null hack
+        extendTreeWithSiblings(eqA))(u)),
+      RA.toArray))
 
-// const extendWithSiblingsForest = <A>(eqA: eq.Eq<A>) => (forest: Forest<A>) =>
-//   pipe(forest, RA.map(t =>
-//     pipe(forest,
-//       RA.map(t => t.value),
-//       RA.difference(eqA)([t.value]),
-//       extendWithSiblingsTree(eqA))(t)))
+export const extendForestWithSiblings = <A>(eqA: eq.Eq<A>) => (forest: Forest<A>) =>
+  pipe(forest, RA.map(t =>
+    pipe(forest,
+      RA.map(t => t.value),
+      RA.difference(eqA)([t.value]),
+      extendTreeWithSiblings(eqA))(t)))
 
 export const withImplicitPasses =
   RA.map(

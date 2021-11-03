@@ -5,7 +5,7 @@ Bid := ContractBid | NonContractBid
 
 ContractBid := level=Digit specifier=StrainSpecifier
 StrainSpecifier := Wildcard | Major | Minor | Strain
-Wildcard := v='x'
+Wildcard := v='X'
 Major := v='M'
 Minor := v='m'
 
@@ -14,11 +14,11 @@ Pass := v='P'
 
 Strain := Suit | Notrump
 Suit := Club | Diamond | Heart | Spade
-Club := v='[Cc♣♧]'
-Diamond := v='[Dd♦♢]'
-Heart := v='[Hh♥♡]'
-Spade := v='[Ss♠♤]'
-Notrump := v='[Nn]' '[Tt]'?
+Club := v='C'
+Diamond := v='D'
+Heart := v='H'
+Spade := v='S'
+Notrump := v='N' 'T'?
 
 Honor := v='[AKQJT]'
 
