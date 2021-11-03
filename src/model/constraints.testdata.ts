@@ -38,8 +38,8 @@ export const hcpMinusSyntax =
         "constraint":
         {
             "type": "PointRange",
-            "min": 7,
-            "max": 0
+            "min": 0,
+            "max": 7
         }
     }
 }
