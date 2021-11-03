@@ -1,12 +1,11 @@
-import { boolean, either as E, eitherT, eq, hkt, identity as id, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts';
+import { either as E, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
-import { apply, constant, constFalse, constTrue, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
-import { fromTraversable, Lens, lens, Optional } from 'monocle-ts';
+import { apply, constant, constFalse, constTrue, flow, pipe } from 'fp-ts/lib/function';
+import { Lens, Optional } from 'monocle-ts';
 
-import { assertUnreachable, debug } from '../../lib';
-import { Bid, ContractBid, eqBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, isGameLevel, isSlamLevel, makeShape, ordContractBid, Shape as AnyShape, SpecificShape } from '../bridge';
+import { assertUnreachable } from '../../lib';
+import { Bid, ContractBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, ordContractBid, Shape as AnyShape, SpecificShape } from '../bridge';
 import { eqRank, eqSuit, Hand, honors, ordRankAscending, Rank, Suit, suits } from '../deck';
-import { BidInfo, BidPath, BidTree, getAllLeafPaths } from '../system';
 
 interface ConstraintPointRange {
   type: "PointRange"

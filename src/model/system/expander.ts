@@ -1,10 +1,11 @@
-import { chainRec, either as E, eitherT, eq, option as O, optionT, readonlyArray as RA, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, separated, state as S, store, string } from 'fp-ts';
-import { constant, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
+import { either as E, eitherT, option as O, readonlyArray as RA, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, separated, state as S, string } from 'fp-ts';
+import { constant, flow, pipe } from 'fp-ts/lib/function';
 import { Lens } from 'monocle-ts';
 
 import { assertUnreachable } from '../../lib';
 import { Bid, ContractBid, eqBid, makeShape, Shape } from '../bridge';
-import { Path } from '../system';
+import { serializedBidL } from '../serialization';
+import { Forest, getAllLeafPaths, getForestFromLeafPaths, Path } from '../system';
 import { ConstrainedBid, Constraint } from './core';
 import { ValidateS } from './validation';
 
@@ -107,6 +108,11 @@ interface ExpandBidContext {
   bid: Bid
   peers: ReadonlyArray<readonly [Bid, Syntax]>,
   labels: ReadonlyMap<string, Syntax>
+}
+const zeroContext: ExpandBidContext = {
+  bid: "Pass",
+  peers: RA.empty,
+  labels: readonlyMap.empty
 }
 /* eslint-disable @typescript-eslint/no-unused-vars */
 const contextL = Lens.fromProp<ExpandBidContext>()
@@ -250,4 +256,29 @@ const expand = (syntax: Syntax) : S.State<ExpandBidContext, ExpandResult> =>
       E.mapLeft(E.left),
       E.chain(cont => pipe(cont, E.mapLeft(c => E.right(c)))),
       E.fold(ofS, expand))))
-  
+
+type SyntacticBid = {
+  bid: Bid
+  syntax: Syntax
+}
+export const expandPath = (path: Path<SyntacticBid>) : E.Either<SyntaxError, Path<ConstrainedBid>> =>
+  pipe(path,
+    S.traverseReadonlyNonEmptyArrayWithIndex((_, info) =>
+      pipe(
+        ofS(info.syntax),
+        S.chainFirst(() => S.modify(bidL.set(info.bid))),
+        S.chain(expand),
+        eitherT.map(S.Functor)((constraint): ConstrainedBid => ({
+          bid: info.bid,
+          constraint
+        })))),
+    x => x,
+    S.map(RNEA.sequence(E.Applicative)),
+    S.evaluate(zeroContext))
+
+export const expandTree = (forest: Forest<SyntacticBid>) =>
+  pipe(forest,
+    getAllLeafPaths,
+    RA.map(expandPath),
+    RA.sequence(E.Applicative),
+    E.map(getForestFromLeafPaths({ show: cb => serializedBidL.get(cb.bid) })))

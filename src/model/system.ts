@@ -1,4 +1,4 @@
-import { eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, tree as T } from 'fp-ts';
+import { eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, show, tree as T } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 
 import { ConstrainedBid, Constraint } from '../model/constraints';
@@ -40,6 +40,26 @@ export const getAllLeafPaths = <A>(forest: Forest<A>): ReadonlyArray<Path<A>> =>
           O.fold(() => [[node]],
             RNEA.foldMap(RNEA.getSemigroup<Path<A>>())(RNEA.map(RA.prepend(node))))))),
     RA.filterMap(RNEA.fromReadonlyArray))
+
+export const getForestFromLeafPaths = <A, F extends show.Show<A>>(show: F) => (paths: ReadonlyArray<Path<A>>): Forest<A> =>
+  pipe(paths,
+    RNEA.fromReadonlyArray,
+    O.fold(
+      () => RA.empty,
+      flow(
+        RNEA.groupBy(flow(RNEA.head, show.show)),
+        readonlyRecord.toReadonlyArray,
+        RA.map(flow(
+          readonlyTuple.snd,
+          paths => T.make(
+            RNEA.head(RNEA.head(paths)),
+            pipe(paths,
+              RNEA.map(flow(
+                RNEA.tail,
+                RNEA.fromReadonlyArray)),
+              RA.compact,
+              getForestFromLeafPaths(show),
+              RA.toArray)))))))
 
 const extendWithSiblingsTree = <A>(eqA: eq.Eq<A>) => (siblings: ReadonlyArray<A>) => (t: T.Tree<A>) : T.Tree<A & { siblings: ReadonlyArray<A> }> =>
   T.make(
