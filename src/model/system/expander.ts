@@ -153,13 +153,13 @@ interface SyntaxOtherBid {
   type: "OtherBid",
   bid: ContractBid
 }
-const otherBid =
+const otherBid = (bid: Bid) =>
   pipe(
-    S.gets(bidL.get),
-    S.chain(bid => S.gets(flow(
+    S.gets(flow(
       peersL.get,
+      x => { debugger; return x },
       E.fromOptionK((): SyntaxError => "OtherBidNotFound")(
-        RA.findFirst(flow(readonlyTuple.fst, b => eqBid.equals(bid, b))))))),
+        RA.findFirst(flow(readonlyTuple.fst, b => eqBid.equals(bid, b)))))),
     S.map(E.map(flow(
       readonlyTuple.snd,
       E.right))))
@@ -266,7 +266,7 @@ const expandOnce = (s: Syntax): S.State<ExpandBidContext, E.Either<SyntaxError, 
           (constraint) => ({ type: "Negation", constraint }),
           (syntax) => ({ type: "Negation", syntax }))))))
     case "OtherBid":
-      return otherBid
+      return otherBid(s.bid)
     case "Otherwise":
       return otherwise
     case "LabelDef":
