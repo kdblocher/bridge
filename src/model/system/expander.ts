@@ -1,4 +1,4 @@
-import { either as E, eitherT, eq, option as O, readonlyArray as RA, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyTuple, separated, state as S, string, these } from 'fp-ts';
+import { either as E, eitherT, eq, option as O, optionT, readonlyArray as RA, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyTuple, separated, state as S, string, these } from 'fp-ts';
 import { constant, constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { Lens } from 'monocle-ts';
 import { Object } from 'ts-toolbelt';
@@ -57,20 +57,19 @@ const labelRef = (s: SyntaxLabelRef) =>
   pipe(
     S.gets(flow(
       labelsL.get,
-      E.fromOptionK((): SyntaxError => "LabelNotFound")(
-        readonlyMap.lookup(string.Eq)(s.name)),
+      readonlyMap.lookup(string.Eq)(s.name))),
+    optionT.alt(S.Monad)(() => pipe(
+      S.get<ExpandBidContext>(),
+      S.map(context => pipe(
+        S.gets(peersL.get),
+        S.chain(RA.traverse(S.Applicative)(flow(readonlyTuple.snd, expand))),
+        S.chain(() => S.gets(flow(
+          labelsL.get,
+          readonlyMap.lookup(string.Eq)(s.name)))),
+        S.evaluate(context))))),
+    S.map(flow(
+      E.fromOption((): SyntaxError => "LabelNotFound"),
       E.map(E.right))))
-                // optionT.alt(S.Monad)(() => pipe(
-          //   S.get<ExpandBidContext>(),
-          //   S.map(context => pipe(
-          //     S.gets(peersL.get),
-          //     S.chain(RA.traverse(S.Applicative)(expandAll)),
-          //     S.chain(() => S.gets(flow(
-          //       labelsL.get,
-          //       readonlyMap.lookup(string.Eq)(c.name)))),
-          //     S.evaluate(context))))),
-          // S.chain(O.sequence(S.Applicative)),
-          // S.chain(O.traverse(S.Applicative)(x => recur(ofS(x)))))
 
 interface SyntaxWrapper {
   type: "Wrapper"
