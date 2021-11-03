@@ -1,9 +1,9 @@
-import { boolean, either as E, eitherT, number, option as O, optionT, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, state as S, tree as T } from 'fp-ts';
+import { boolean, either as E, eitherT, number, option as O, optionT, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, state as S } from 'fp-ts';
 import { apply, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
 
 import { assertUnreachable } from '../../lib';
 import { Bid, isGameLevel, isSlamLevel } from '../bridge';
-import { getAllLeafPaths } from '../system';
+import { Forest, getAllLeafPaths, Path } from '../system';
 import { BidContext, bidL, ConstrainedBid, Constraint, ConstraintForce, ConstraintS, forceL, forceO, ofS, ordConstrainedBid, pathL, primarySuitL, secondarySuitL, zeroContext } from './core';
 
 interface SystemValidationErrorBidsOutOfOrder {
@@ -58,9 +58,6 @@ type SystemValidationError =
 
 type SystemValidation = E.Either<SystemValidationError, void>
 type ValidateResult = S.State<BidContext, SystemValidation>
-
-type Path<A> = RNEA.ReadonlyNonEmptyArray<A>
-type Forest<A> = T.Forest<A>
 
 const bidPathSorted = (path: Path<ConstrainedBid>): SystemValidation =>
   pipe(path,

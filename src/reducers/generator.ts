@@ -13,7 +13,8 @@ import { maxProcessors } from '../lib/concurrency';
 import { transpose } from '../model/analyze';
 import { makeBoard } from '../model/bridge';
 import { SerializedBidPath, serializedBidPathL, serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
-import { BidPath } from '../model/system';
+import { Path } from '../model/system';
+import { ConstrainedBid } from '../model/system/core';
 import { ping, postDeals, putDeals } from '../services/server';
 import { observeDealsParallel, observeDealsSerial, observeResultsParallel, observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
@@ -47,7 +48,7 @@ const slice = createSlice({
       state.deals = pipe(state.deals, readonlyTuple.mapSnd(constant(action.payload)), castDraft)
       state.working = true
     },
-    getResults: (state, action: PayloadAction<{ path: BidPath, deals: Deals }>) => {
+    getResults: (state, action: PayloadAction<{ path: Path<ConstrainedBid>, deals: Deals }>) => {
       state.results = pipe(state.results, readonlyTuple.mapSnd(constant(action.payload.deals.length)), castDraft)
       state.working = true
     },

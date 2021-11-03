@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import styled from 'styled-components';
 
 import { ContractBid, NonContractBid } from '../../model/bridge';
-import { ConstrainedBid } from '../../model/constraints';
+import { ConstrainedBid } from '../../model/system/core';
 
 const SuitSpan = styled.span `
   &.S::after { content: "♠"; color: #0000FF; }

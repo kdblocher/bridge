@@ -1,13 +1,34 @@
 import { either as E, eitherT, option as O, readonlyArray as RA, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, separated, state as S, string } from 'fp-ts';
 import { constant, flow, pipe } from 'fp-ts/lib/function';
 import { Lens } from 'monocle-ts';
+import { Object } from 'ts-toolbelt';
 
 import { assertUnreachable } from '../../lib';
-import { Bid, ContractBid, eqBid, makeShape, Shape } from '../bridge';
+import { Bid, ContractBid, eqBid, isContractBid, makeShape, Shape } from '../bridge';
+import { Suit, suits } from '../deck';
 import { serializedBidL } from '../serialization';
 import { Forest, getAllLeafPaths, getForestFromLeafPaths, Path } from '../system';
-import { ConstrainedBid, Constraint } from './core';
+import { ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop } from './core';
 import { ValidateS } from './validation';
+
+export type SuitContextSpecifier = "Wildcard" | "Major" | "Minor" | "OtherMajor" | "OtherMinor"
+export type SuitSpecifier = SuitContextSpecifier | Suit
+const isSuit = (s: string): s is Suit =>
+  pipe(suits, RA.elem(string.Eq)(s))
+type ContextualSuitSyntax<T extends Constraint> = Object.Replace<T, Suit, SuitSpecifier>
+type SyntaxSuitRange = ContextualSuitSyntax<ConstraintSuitRange>
+type SyntaxSuitComparison = ContextualSuitSyntax<ConstraintSuitComparison>
+type SyntaxSuitHonors = ContextualSuitSyntax<ConstraintSuitHonors>
+type SyntaxSuitTop = ContextualSuitSyntax<ConstraintSuitTop>
+type SyntaxSuitPrimary = ContextualSuitSyntax<ConstraintSuitPrimary>
+type SyntaxSuitSecondary = ContextualSuitSyntax<ConstraintSuitSecondary>
+type SyntaxSuit = 
+  | SyntaxSuitRange
+  | SyntaxSuitComparison
+  | SyntaxSuitHonors
+  | SyntaxSuitTop
+  | SyntaxSuitPrimary
+  | SyntaxSuitSecondary
 
 interface SyntaxDistribution {
   type: "Balanced" | "SemiBalanced" | "Unbalanced"
@@ -56,7 +77,7 @@ interface SyntaxWrapper {
   type: "Wrapper"
   constraint: Constraint
 }
-const wrap = (constraint: Constraint): SyntaxWrapper => ({
+export const wrap = (constraint: Constraint): SyntaxWrapper => ({
   type: "Wrapper",
   constraint
 })
@@ -65,8 +86,8 @@ interface SyntaxConstant {
   type: "Constant",
   value: boolean
 }
-const syntaxTrue  = constant<Syntax>({ type: "Constant", value: true })
-const syntaxFalse = constant<Syntax>({ type: "Constant", value: false })
+export const syntaxTrue  = constant<Syntax>({ type: "Constant", value: true })
+export const syntaxFalse = constant<Syntax>({ type: "Constant", value: false })
 
 interface SyntaxConjunction {
   type: "Conjunction"
@@ -165,13 +186,14 @@ const otherwise = pipe(
     E.right,
     E.right)))
 
-type Syntax =
+export type Syntax =
   | SyntaxWrapper
   | SyntaxConstant
   | SyntaxConjunction
   | SyntaxDisjunction
   | SyntaxDistribution
   | SyntaxNegation
+  | SyntaxSuit
   | SyntaxLabelDef
   | SyntaxLabelRef
   | SyntaxOtherBid
@@ -200,9 +222,32 @@ const syntaxSemiBalanced : Syntax = {
 }
 
 
+const expandSpecifier = (specifier: SuitSpecifier): S.State<ExpandBidContext, E.Either<SyntaxError, Suit>> => {
+  switch (specifier) {
+    case "C":
+    case "D":
+    case "H":
+    case "S":
+      return ofS(E.right(specifier))
+    case "Wildcard":
+      return pipe(
+        S.gets(flow(bidL.get)),
+        S.map(flow(
+          E.fromPredicate(isContractBid, (b): SyntaxError => "WildcardWithoutBid"),
+          E.chain(b => pipe(b.strain, E.fromPredicate(isSuit, (b): SyntaxError => "WildcardInNTContext"))))))
+    default:
+      return ofS(E.left("NotImplemented"));
+  }
+}
+
+
+
 type SyntaxError =
+  | "NotImplemented"
   | "OtherBidNotFound"
   | "LabelNotFound"
+  | "WildcardWithoutBid"
+  | "WildcardInNTContext"
 
 export const ofS = <A>(x: A) => S.of<ExpandBidContext, A>(x)
 export const pure = <A>(x: A) => pipe(x, E.right, E.right, ofS)
@@ -223,14 +268,6 @@ const expandOnce: ValidateS<ExpandBidContext, Syntax, SyntaxError, E.Either<Cons
             (constraint): Syntax => wrap({ type: "Negation", constraint }),
             (syntax): Syntax => ({ type: "Negation", syntax })),
           E.right))))
-      case "Balanced":
-        return pure(syntaxBalanced)
-      case "SemiBalanced":
-        return pure({ type: "Disjunction", syntax: [syntaxBalanced, syntaxSemiBalanced] })
-      case "Unbalanced":
-        return pure({ type: "Negation", syntax: {
-          type: "Disjunction", syntax: [syntaxBalanced, syntaxSemiBalanced]
-        }})
       case "OtherBid":
         return otherBid
       case "Otherwise":
@@ -239,6 +276,27 @@ const expandOnce: ValidateS<ExpandBidContext, Syntax, SyntaxError, E.Either<Cons
         return labelDef(s)
       case "LabelRef":
         return labelRef(s)
+      case "Balanced":
+        return pure(syntaxBalanced)
+      case "SemiBalanced":
+        return pure({ type: "Disjunction", syntax: [syntaxBalanced, syntaxSemiBalanced] })
+      case "Unbalanced":
+        return pure({ type: "Negation", syntax: {
+          type: "Disjunction", syntax: [syntaxBalanced, syntaxSemiBalanced]
+        }})
+      case "SuitRange":
+      case "SuitHonors":
+      case "SuitPrimary":
+      case "SuitSecondary":
+      case "SuitTop":
+        return pipe(s.suit,
+          expandSpecifier,
+          eitherT.map(S.Functor)(suit => E.left({ ...s, suit })))
+      case "SuitComparison":
+        return pipe([s.left, s.right],
+          S.traverseArray(expandSpecifier),
+          S.map(E.sequenceArray),
+          eitherT.map(S.Functor)(suits => E.left({ ...s, left: suits[0], right: suits[1] })))
             
       default:
         // return ofS(E.right(E.right(syntaxFalse())))
@@ -257,7 +315,7 @@ const expand = (syntax: Syntax) : S.State<ExpandBidContext, ExpandResult> =>
       E.chain(cont => pipe(cont, E.mapLeft(c => E.right(c)))),
       E.fold(ofS, expand))))
 
-type SyntacticBid = {
+export type SyntacticBid = {
   bid: Bid
   syntax: Syntax
 }
@@ -276,7 +334,7 @@ export const expandPath = (path: Path<SyntacticBid>) : E.Either<SyntaxError, Pat
     S.map(RNEA.sequence(E.Applicative)),
     S.evaluate(zeroContext))
 
-export const expandTree = (forest: Forest<SyntacticBid>) =>
+export const expandForest = (forest: Forest<SyntacticBid>) =>
   pipe(forest,
     getAllLeafPaths,
     RA.map(expandPath),

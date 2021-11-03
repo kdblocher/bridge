@@ -3,7 +3,8 @@ import { pipe } from 'fp-ts/lib/function';
 import { useState } from 'react';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { BidPaths } from '../model/system';
+import { Paths } from '../model/system';
+import { ConstrainedBid } from '../model/system/core';
 import { genHandsMatchingExactlyOneOf, genHandsMatchingMoreThanOneOf, genHandsNotMatchingAnyOf, genOnce, getHandsMatchingPath } from '../reducers/selection';
 import { selectAllCompleteBidPaths, selectCompleteBidPathUpToKey } from '../reducers/system';
 
@@ -15,7 +16,7 @@ const GenerateOnce = () => {
 }
 
 interface GenerateSystemProps {
-  bidPaths: BidPaths | null
+  bidPaths: Paths<ConstrainedBid> | null
 }
 
 const GenerateMatchZero = ({ bidPaths }: GenerateSystemProps) => {
@@ -61,8 +62,8 @@ const GenerateMatchSelected = () => {
 
 const SelectionGenerators = () => {
   const bidPaths = useAppSelector(state =>
-    pipe(selectAllCompleteBidPaths({ state: state.system, options: state.settings }),
-      readonlyNonEmptyArray.fromReadonlyArray,
+    pipe(option.fromEitherK(selectAllCompleteBidPaths)({ state: state.system, options: state.settings }),
+      option.chain(readonlyNonEmptyArray.fromReadonlyArray),
       option.toNullable)) 
   return (
     <section>

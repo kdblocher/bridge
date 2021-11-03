@@ -1,8 +1,7 @@
 import { eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, show, tree as T } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 
-import { ConstrainedBid, Constraint } from '../model/constraints';
-import { Bid, eqBid } from './bridge';
+import { SyntacticBid } from './system/expander';
 
 export type Path<A> = RNEA.ReadonlyNonEmptyArray<A>
 export type Paths<A> = RNEA.ReadonlyNonEmptyArray<Path<A>>
@@ -61,39 +60,28 @@ export const getForestFromLeafPaths = <A, F extends show.Show<A>>(show: F) => (p
               getForestFromLeafPaths(show),
               RA.toArray)))))))
 
-const extendWithSiblingsTree = <A>(eqA: eq.Eq<A>) => (siblings: ReadonlyArray<A>) => (t: T.Tree<A>) : T.Tree<A & { siblings: ReadonlyArray<A> }> =>
-  T.make(
-    ({ ...t.value, siblings }),
-    pipe(t.forest, RA.map(u =>
-      pipe(t.forest,
-        RA.map(t => t.value),
-        RA.difference(eqA)([u.value]), // end null hack
-        extendWithSiblingsTree(eqA))(u)),
-      RA.toArray))
+// const extendWithSiblingsTree = <A>(eqA: eq.Eq<A>) => (siblings: ReadonlyArray<A>) => (t: T.Tree<A>) : T.Tree<A & { siblings: ReadonlyArray<A> }> =>
+//   T.make(
+//     ({ ...t.value, siblings }),
+//     pipe(t.forest, RA.map(u =>
+//       pipe(t.forest,
+//         RA.map(t => t.value),
+//         RA.difference(eqA)([u.value]), // end null hack
+//         extendWithSiblingsTree(eqA))(u)),
+//       RA.toArray))
 
-const extendWithSiblingsForest = <A>(eqA: eq.Eq<A>) => (forest: Forest<A>) =>
-  pipe(forest, RA.map(t =>
-    pipe(forest,
-      RA.map(t => t.value),
-      RA.difference(eqA)([t.value]),
-      extendWithSiblingsTree(eqA))(t)))
-export interface BidInfo {
-  bid: Bid
-  siblings: ReadonlyArray<ConstrainedBid>
-  constraint: Constraint
-}
-export type BidPath = Path<BidInfo>
-export type BidPaths = Paths<BidInfo>
-export type BidTree = Forest<BidInfo>
-
-export const getBidInfo : (f: Forest<ConstrainedBid>) => Forest<BidInfo> =
-  extendWithSiblingsForest(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid))
+// const extendWithSiblingsForest = <A>(eqA: eq.Eq<A>) => (forest: Forest<A>) =>
+//   pipe(forest, RA.map(t =>
+//     pipe(forest,
+//       RA.map(t => t.value),
+//       RA.difference(eqA)([t.value]),
+//       extendWithSiblingsTree(eqA))(t)))
 
 export const withImplicitPasses =
   RA.map(
-    T.fold((a: ConstrainedBid, bs: T.Forest<ConstrainedBid>) =>
+    T.fold((a: SyntacticBid, bs: T.Forest<SyntacticBid>) =>
       bs.length === 0 || pipe(bs, RA.exists(t => t.value.bid === "Pass"))
       ? T.make(a, bs)
       : T.make(a, pipe(bs,
-        RA.append(T.make<ConstrainedBid>({ bid: "Pass", constraint: { type: "Otherwise" }})),
+        RA.append(T.make<SyntacticBid>({ bid: "Pass", syntax: { type: "Otherwise" }})),
         RA.toArray))))

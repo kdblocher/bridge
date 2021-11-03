@@ -1,5 +1,5 @@
 import { either } from 'fp-ts';
-import { constTrue, identity, pipe } from 'fp-ts/lib/function';
+import { identity, pipe } from 'fp-ts/lib/function';
 import JSONPretty from 'react-json-pretty';
 
 import { useAppSelector } from '../app/hooks';

@@ -13,39 +13,39 @@ interface ConstraintPointRange {
   max: number
 }
 
-interface ConstraintSuitRange {
+export interface ConstraintSuitRange {
   type: "SuitRange"
   suit: Suit
   min: number
   max: number
 }
 
-type SuitComparisonOperator = "<" | "<=" | "=" | ">=" | ">"
-interface ConstraintSuitComparison {
+export type SuitComparisonOperator = "<" | "<=" | "=" | ">=" | ">"
+export interface ConstraintSuitComparison {
   type: "SuitComparison",
   left: Suit,
   right: Suit,
   op: SuitComparisonOperator
 }
 
-interface ConstraintSuitHonors {
+export interface ConstraintSuitHonors {
   type: "SuitHonors",
   suit: Suit,
   honors: ReadonlyArray<Rank>
 }
 
-interface ConstraintSuitTop {
+export interface ConstraintSuitTop {
   type: "SuitTop",
   suit: Suit,
   count: number,
   minRank: Rank
 }
 
-interface ConstraintSuitPrimary {
+export interface ConstraintSuitPrimary {
   type: "SuitPrimary",
   suit: Suit
 }
-interface ConstraintSuitSecondary {
+export interface ConstraintSuitSecondary {
   type: "SuitSecondary",
   suit: Suit
 }
