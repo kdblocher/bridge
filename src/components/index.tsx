@@ -2,6 +2,7 @@ import Editor from './Editor';
 import SelectionDetails from './SelectionDetails';
 import Settings from './Settings';
 import Stats from './Stats';
+import SystemDetails from './SystemDetails';
 import TestHands from './TestHands';
 
 const App = () => {
@@ -26,8 +27,9 @@ const App = () => {
           &nbsp;|&nbsp;
           <a target="_blank" rel="noreferrer" href="https://github.com/kdblocher/bridge/issues/new">Report issue</a>
         </div>
-        <TestHands />
-        <SelectionDetails />
+        {/* <TestHands /> */}
+        <SystemDetails />
+        {/* <SelectionDetails /> */}
       </div>
     </div>
   )
