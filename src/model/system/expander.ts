@@ -1,4 +1,4 @@
-import { either as E, eitherT, eq, option as O, optionT, readonlyArray as RA, readonlyMap, readonlyNonEmptyArray as RNEA, readonlyTuple, separated, state as S, string, these } from 'fp-ts';
+import { either as E, eitherT, option as O, readonlyArray as RA, readonlyMap as RM, readonlyNonEmptyArray as RNEA, separated, state as S, string, these, tree as T } from 'fp-ts';
 import { constant, constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { Lens } from 'monocle-ts';
 import { Object } from 'ts-toolbelt';
@@ -7,8 +7,10 @@ import { assertUnreachable } from '../../lib';
 import { Bid, ContractBid, eqBid, isContractBid, makeShape, Shape } from '../bridge';
 import { Suit, suits } from '../deck';
 import { serializedBidL } from '../serialization';
-import { extendForestWithSiblings, Forest, getAllLeafPaths, getForestFromLeafPaths, Path } from '../system';
-import { ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue } from './core';
+import { Forest } from '../system';
+import {
+    ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue
+} from './core';
 
 export const ofS = <A>(x: A) => S.of<ExpandBidContext, A>(x)
 
@@ -44,11 +46,11 @@ const labelDef = (s: SyntaxLabelDef) =>
   pipe(
     S.gets(flow(
       labelsL.get,
-      readonlyMap.lookup(string.Eq)(s.name))),
+      RM.lookup(string.Eq)(s.name))),
     S.chain(O.fold(
       () => ofS(s.definition),
       c0 => ofS({ type: "Conjunction", syntax: [c0, s.definition] } as const))),
-    S.chainFirst(syntax => S.modify(labelsL.modify(readonlyMap.upsertAt(string.Eq)(s.name, syntax)))),
+    S.chainFirst(syntax => S.modify(labelsL.modify(RM.upsertAt(string.Eq)(s.name, syntax)))),
     S.map(flow(E.right, E.right)))
 
 interface SyntaxLabelRef {
@@ -59,24 +61,7 @@ const labelRef = (s: SyntaxLabelRef) =>
   pipe(
     S.gets(flow(
       labelsL.get,
-      readonlyMap.lookup(string.Eq)(s.name))),
-    optionT.alt(S.Monad)(() => pipe(
-      S.get<ExpandBidContext>(),
-      S.map(context => pipe(
-        S.gets(bidL.get),
-        S.chain(bid => S.gets(flow(
-          peersL.get,
-          RA.takeLeftWhile(flow(readonlyTuple.fst, b => !eqBid.equals(b, bid)))))),
-        S.chain(RA.traverse(S.Applicative)(flow(
-          S.of,
-          S.chain(([bid, syntax]) => pipe(
-            ofS(syntax),
-            S.chainFirst(() => S.modify(bidL.set(bid))))),
-          S.chain(expand)))),
-        S.chain(() => S.gets(flow(
-          labelsL.get,
-          readonlyMap.lookup(string.Eq)(s.name)))),
-        S.evaluate(context))))),
+      RM.lookup(string.Eq)(s.name))),
     S.map(flow(
       E.fromOption((): SyntaxError => "LabelNotFound"),
       E.map(E.right))))
@@ -133,17 +118,20 @@ const connective = ({ type, syntax }: SyntaxConnective): S.State<ExpandBidContex
 
 interface ExpandBidContext {
   bid: Bid
-  peers: ReadonlyArray<readonly[Bid, Syntax]>
+  path: ReadonlyArray<ConstrainedBid>
+  peers: ReadonlyArray<ConstrainedBid>
   labels: ReadonlyMap<string, Syntax>
 }
-
 const zeroContext: ExpandBidContext = {
   bid: "Pass",
+  path: [],
   peers: RA.empty,
-  labels: readonlyMap.empty
+  labels: RM.empty
 }
+
 const contextL = Lens.fromProp<ExpandBidContext>()
 const bidL = contextL('bid')
+const pathL = contextL('path')
 const peersL = contextL('peers')
 const labelsL = contextL('labels')
 
@@ -154,12 +142,10 @@ interface SyntaxOtherBid {
 const otherBid = (bid: Bid) =>
   pipe(
     S.gets(flow(
-      peersL.get,
+      labelsL.get,
       E.fromOptionK((): SyntaxError => "OtherBidNotFound")(
-        RA.findFirst(flow(readonlyTuple.fst, b => eqBid.equals(bid, b)))))),
-    S.map(E.map(flow(
-      readonlyTuple.snd,
-      E.right))))
+        RM.lookup(string.Eq)(serializedBidL.get(bid))))),
+    S.map(E.map(E.right)))
 
 interface SyntaxOtherwise {
   type: "Otherwise"
@@ -168,18 +154,18 @@ const otherwise = pipe(
   S.gets(bidL.get),
   S.chain(bid => S.gets(flow(
     peersL.get,
-    RA.takeLeftWhile(flow(readonlyTuple.fst, b => !eqBid.equals(b, bid)))))),
+    RA.takeLeftWhile(cb => !eqBid.equals(cb.bid, bid)),
+    RA.map(cb => cb.constraint)))),
   S.map(flow(
-    RA.map(readonlyTuple.snd),
     RNEA.fromReadonlyArray,
     O.fold(
-      syntaxTrue,
-      (syntax): Syntax => ({
-        type: "Negation", syntax: {
-          type: "Conjunction", syntax
+      constraintTrue,
+      (constraints): Constraint => ({
+        type: "Negation", constraint: {
+          type: "Conjunction", constraints
         }
       })),
-    E.right,
+    E.left,
     E.right)))
 
 export type Syntax =
@@ -234,7 +220,7 @@ const expandSpecifier = (specifier: SuitSpecifier): S.State<ExpandBidContext, E.
   }
 }
 
-type SyntaxError =
+export type SyntaxError =
   | "NotImplemented"
   | "OtherBidNotFound"
   | "LabelNotFound"
@@ -243,7 +229,8 @@ type SyntaxError =
 
 export const pure = <A>(x: A) => pipe(x, E.right, E.right, ofS)
 
-const expandOnce = (s: Syntax): S.State<ExpandBidContext, E.Either<SyntaxError, E.Either<Constraint, Syntax>>> => {
+type ExpandResult<T> = S.State<ExpandBidContext, E.Either<SyntaxError, T>>
+const expandOnce = (s: Syntax): ExpandResult<E.Either<Constraint, Syntax>> => {
   switch (s.type) {
     case "Wrapper":
       return ofS<E.Either<SyntaxError, E.Either<Constraint, Syntax>>>(E.right(E.left(s.constraint)))
@@ -293,8 +280,7 @@ const expandOnce = (s: Syntax): S.State<ExpandBidContext, E.Either<SyntaxError, 
   }
 }
 
-type ExpandResult = E.Either<SyntaxError, Constraint>
-const expand = (syntax: Syntax) : S.State<ExpandBidContext, ExpandResult> =>
+const expand = (syntax: Syntax) : ExpandResult<Constraint> =>
   pipe(
     syntax,
     expandOnce,
@@ -307,31 +293,39 @@ export type SyntacticBid = {
   bid: Bid
   syntax: Syntax
 }
-export const expandPath = (path: Path<SyntacticBid & { siblings?: ReadonlyArray<SyntacticBid> }>) : E.Either<SyntaxError, Path<ConstrainedBid>> =>
-  pipe(path,
-    S.traverseReadonlyNonEmptyArrayWithIndex((_, info) =>
-      pipe(
-        ofS(info.syntax),
-        S.chainFirst(() => pipe(
-          O.fromNullable(info.siblings),
-          O.fold(
-            flow(constVoid, ofS),
-            flow(RA.map(s => [s.bid, s.syntax] as const),
-              peersL.set,
-              S.modify)))),
-        S.chainFirst(() => S.modify(bidL.set(info.bid))),
-        S.chain(expand),
-        eitherT.map(S.Functor)((constraint): ConstrainedBid => ({
-          bid: info.bid,
-          constraint
-        })))),
-    S.map(RNEA.sequence(E.Applicative)),
-    S.evaluate(zeroContext))
 
-export const expandForest = (forest: Forest<SyntacticBid>) =>
+const expandBid = 
+  T.map(({ bid, syntax }: SyntacticBid) =>
+    pipe(syntax,
+      expand,
+      S.map(E.map((constraint): ConstrainedBid => ({ bid, constraint }))),
+      S.chainFirst(E.foldW(
+        flow(constVoid, ofS),
+        cb => S.modify(pathL.modify(RA.prepend(cb)))))))
+
+const expandPeers =
+  T.fold((s: ExpandResult<ConstrainedBid>, bs: ReadonlyArray<S.State<ExpandBidContext, T.Tree<E.Either<SyntaxError, ConstrainedBid>>>>) => 
+    pipe(s,
+      S.bindTo('result'),
+      S.apS('context', S.get()),
+      S.map(({ result, context }) =>
+        T.make(result,
+          pipe(bs,
+            S.sequenceArray,
+            S.evaluate(context),
+            RA.toArray)))))
+
+const expandTree = flow(
+  expandBid,
+  expandPeers)
+
+const collectErrors = (forest: Forest<E.Either<SyntaxError, ConstrainedBid>>) =>
   pipe(forest,
-    extendForestWithSiblings(pipe(eqBid, eq.contramap(s => s.bid))),
-    getAllLeafPaths,
-    RA.map(expandPath),
-    RA.sequence(E.Applicative),
-    E.map(getForestFromLeafPaths({ show: cb => serializedBidL.get(cb.bid) })))
+    RA.map(T.traverse(these.getApplicative(RA.getMonoid<SyntaxError>()))(E.mapLeft(RA.of))),
+    RA.sequence(these.getApplicative(RA.getSemigroup<SyntaxError>())))
+
+export const expandForest = (forest: Forest<SyntacticBid>): these.These<ReadonlyArray<SyntaxError>, Forest<ConstrainedBid>> =>
+  pipe(forest,
+    S.traverseArray(expandTree),
+    S.evaluate(zeroContext),
+    collectErrors)

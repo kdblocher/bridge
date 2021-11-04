@@ -1,5 +1,5 @@
 import Editor from './Editor';
-import SelectionDetails from './SelectionDetails';
+// import SelectionDetails from './SelectionDetails';
 import Settings from './Settings';
 import Stats from './Stats';
 import SystemDetails from './SystemDetails';

@@ -1,4 +1,4 @@
-import { either } from 'fp-ts';
+import { either, these } from 'fp-ts';
 import JSONPretty from 'react-json-pretty';
 import styled from 'styled-components';
 
@@ -19,7 +19,7 @@ const SystemDetails = () => {
   return (
     <section>
       <h3>System</h3>
-      {either.isLeft(valid) && 
+      {these.isLeft(valid) && 
         <div style={{float: "right"}}>
           <h4>Errors</h4>
           <JSONPretty data={valid} />
@@ -31,7 +31,7 @@ const SystemDetails = () => {
         </div>
         <div>
           <h4>Constraint Tree</h4>
-          {either.isRight(bidForest) && <JSONPretty data={bidForest} />}
+          {these.isRight(bidForest) && <JSONPretty data={bidForest} />}
         </div>
       </TreeDiv>
     </section>

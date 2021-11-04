@@ -1,4 +1,4 @@
-import { number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
+import { either, fromThese, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple, these } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
 import memoize from 'proxy-memoize';
@@ -10,7 +10,6 @@ import { RootState } from '../app/store';
 import { serializedBidPathL, SerializedDeal, serializedDealL } from '../model/serialization';
 import { Path } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
-import { expandPath } from '../model/system/expander';
 import { satisfiesPath } from '../model/system/satisfaction';
 import generator, { analyzeDealsEpic, analyzeResultsEpic, saveDealsToApiEpic, saveSolutionsToApiEpic, selectAllDeals } from './generator';
 import selection, { selectHand } from './selection';
@@ -31,28 +30,29 @@ export const rootEpic = combineEpics<AnyAction, AnyAction, RootState>(
   saveDealsToApiEpic,
   saveSolutionsToApiEpic)
 
-export const selectHandsSatisfySelectedPath = (state: RootState) =>
-  pipe(option.Do,
-    option.apS('key', state.selection.selectedBlockKey),
-    option.apS('opener', selectHand({ state: state.selection, type: 'opener' })),
-    option.apS('responder', selectHand({ state: state.selection, type: 'responder' })),
-    option.chain(o => pipe(
-      selectBidPathUpToKey({ state: state.system, key: o.key }),
-      option.fromEither,
-      option.chain(readonlyNonEmptyArray.fromReadonlyArray),
-      option.chain(option.fromEitherK(expandPath)),
-      option.map(satisfiesPath(o.opener, o.responder)))),
-    option.toNullable)
+// export const selectHandsSatisfySelectedPath = (state: RootState) =>
+//   pipe(option.Do,
+//     option.apS('key', state.selection.selectedBlockKey),
+//     option.apS('opener', selectHand({ state: state.selection, type: 'opener' })),
+//     option.apS('responder', selectHand({ state: state.selection, type: 'responder' })),
+//     option.chain(o => pipe(
+//       selectBidPathUpToKey({ state: state.system, key: o.key }),
+//       option.fromEither,
+//       option.chain(readonlyNonEmptyArray.fromReadonlyArray),
+//       option.chain(option.fromEitherK(expandPath)),
+//       option.map(satisfiesPath(o.opener, o.responder)))),
+//     option.toNullable)
 
 interface BidResult {
   path: ReadonlyNonEmptyArray<ConstrainedBid>
   result: boolean
 }
+
 export const selectPathsSatisfyHands = memoize((state: RootState) : ReadonlyArray<BidResult> | null =>
   pipe(option.Do,
     option.apS('opener', selectHand({ state: state.selection, type: 'opener' })),
     option.apS('responder', selectHand({ state: state.selection, type: 'responder' })),
-    option.apS('paths', option.fromEitherK(selectAllCompleteBidPaths)({ state: state.system, options: state.settings })),
+    option.apS('paths', pipe(selectAllCompleteBidPaths({ state: state.system, options: state.settings }), these.getRight)),
     option.map(o => pipe(o.paths,
       readonlyArray.map(path => ({
         path,
@@ -74,7 +74,8 @@ export const selectSatisfyStats = memoize((state: RootState) : ReadonlyArray<Bid
   pipe(readonlyArray.Do,
     readonlyArray.apS('deal', selectAllDeals(state.generator)),
     readonlyArray.apS('path', pipe(
-      option.fromEitherK(selectAllCompleteBidPaths)({ state: state.system, options: state.settings }),
+      selectAllCompleteBidPaths({ state: state.system, options: state.settings }),
+      these.getRight,
       option.getOrElseW(() => readonlyArray.empty))),
     readonlyArray.map(ra => ({
       deal: ra.deal,

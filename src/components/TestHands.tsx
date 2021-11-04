@@ -1,4 +1,4 @@
-import { either } from 'fp-ts';
+import { either, these } from 'fp-ts';
 import { identity, pipe } from 'fp-ts/lib/function';
 import JSONPretty from 'react-json-pretty';
 
@@ -16,7 +16,7 @@ const TestHands = () => {
     <section>
       <h3>Test Hands</h3>
       <HandEditor />
-      {either.isLeft(valid) && <>
+      {these.isLeft(valid) && <>
         <h4>Validation Error</h4>
         <JSONPretty data={pipe(valid, either.foldW(identity, identity))} />
       </>}

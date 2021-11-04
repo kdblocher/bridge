@@ -1,4 +1,4 @@
-import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, string, tree } from 'fp-ts';
+import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, semigroup, string, these as TH, tree } from 'fp-ts';
 import { flow, identity, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import memoize from 'proxy-memoize';
@@ -6,8 +6,8 @@ import memoize from 'proxy-memoize';
 import { createEntityAdapter, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { flatten, Forest, getAllLeafPaths, getPathUpTo, withImplicitPasses } from '../model/system';
-import { expandForest, SyntacticBid } from '../model/system/expander';
-import { validateTree } from '../model/system/validation';
+import { expandForest, SyntacticBid, SyntaxError } from '../model/system/expander';
+import { SystemValidationError, validateTree } from '../model/system/validation';
 import { decodeBid } from '../parse';
 
 type BlockKey = string
@@ -119,19 +119,6 @@ const getCompleteForest = (bids: State['decodedBids']) : (t: Forest<BlockKey>) =
       getCachedBidByKey(bids),
       O.chain(O.fromEither)))))
 
-export const selectCompleteBidPathUpToKey = memoize(({ state, key }: KeyedState) =>
-  pipe(state.system,
-    getPathUpTo(eqBlockKey)(key),
-    O.chain(keys => pipe(
-      tree.unfoldTree<BlockKey, ReadonlyArray<BlockKey>>(keys, ([n0, ...ns]) =>
-        [n0, ns.length === 0 ? [] : [ns]]),
-      RA.of,
-      getCompleteForest(state.decodedBids),
-      O.fromEitherK(expandForest))),
-    O.chain(flow(
-      getAllLeafPaths,
-      RA.head))))
-
 export const selectCompleteSyntaxForest = memoize(({ state, options }: { state: State, options?: { implicitPass: boolean }} ) =>
   pipe(state.system,
     getCompleteForest(state.decodedBids),
@@ -143,10 +130,10 @@ export const selectCompleteConstraintForest = memoize(
 
 export const selectAllCompleteBidPaths = memoize(
   flow(selectCompleteConstraintForest,
-    E.map(getAllLeafPaths)))
+    TH.map(getAllLeafPaths)))
 
 export const selectSystemValid = memoize(
   flow(selectCompleteConstraintForest,
-    E.chainW(validateTree)))
+    x => TH.getChain(semigroup.first<ReadonlyArray<SyntaxError> | SystemValidationError>()).chain(x, validateTree)))
     
 export default slice.reducer

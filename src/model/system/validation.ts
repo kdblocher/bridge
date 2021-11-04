@@ -50,7 +50,7 @@ type SystemValidationBidError = SystemValidationBidReason & {
   bid: Bid
 }
 
-type SystemValidationError =
+export type SystemValidationError =
   | SystemValidationBidError
   | SystemValidationErrorBidsOutOfOrder
   | SystemValidationErrorPassWhileForcing
@@ -77,77 +77,71 @@ const forestSorted = (tree: Forest<ConstrainedBid>) =>
 
 export type ValidateS<X, C, E, A> = (c: ConstraintS<X, C>) => S.State<X, E.Either<E, A>>
 
-export const validateS : ValidateS<BidContext, Constraint, SystemValidationBidError, void> = constraint =>
-  pipe(constraint, S.chain(c => {
-    switch (c.type) {
-      case "Conjunction":
-      case "Disjunction":
-        return pipe(c.constraints,
-          RNEA.map(ofS),
-          S.traverseArray(validateS),
-          S.map(flow(
-            RA.sequence(E.Applicative),
-            E.map(constVoid))))
-      case "Negation": 
-        return pipe(c.constraint, ofS, validateS)
-      
-      case "ForceOneRound":
-      case "ForceGame":
-      case "ForceSlam":
-      case "Relay":
-        return pipe(
-          S.modify(forceL.set(O.some(c))),
-          S.map(() => E.right(constVoid())))
+export const validateS = (c: Constraint): S.State<BidContext, E.Either<SystemValidationBidReason, void>> => {
+  switch (c.type) {
+    case "Conjunction":
+    case "Disjunction":
+      return pipe(c.constraints,
+        S.traverseArray(validateS),
+        S.map(flow(
+          RA.sequence(E.Applicative),
+          E.map(constVoid))))
+    case "Negation": 
+      return pipe(c.constraint, validateS)
+    
+    case "ForceOneRound":
+    case "ForceGame":
+    case "ForceSlam":
+    case "Relay":
+      return pipe(
+        S.modify(forceL.set(O.some(c))),
+        S.map(() => E.right(constVoid())))
 
-      case "SuitPrimary":
-        return pipe(
-          S.modify(primarySuitL.set(O.some(c.suit))),
-          S.map(() => E.right(constVoid())))
-      case "SuitSecondary":
-        return pipe(
-          S.modify(secondarySuitL.set(O.some(c.suit))),
-          S.chain(() => S.gets(context => context.primarySuit)),
-          S.map(flow(
-            E.fromOption((): SystemValidationBidReason => ({ type: "NoPrimaryBidDefined", constraint: c })),
-            E.map(constVoid))))
+    case "SuitPrimary":
+      return pipe(
+        S.modify(primarySuitL.set(O.some(c.suit))),
+        S.map(() => E.right(constVoid())))
+    case "SuitSecondary":
+      return pipe(
+        S.modify(secondarySuitL.set(O.some(c.suit))),
+        S.chain(() => S.gets(context => context.primarySuit)),
+        S.map(flow(
+          E.fromOption((): SystemValidationBidReason => ({ type: "NoPrimaryBidDefined", constraint: c })),
+          E.map(constVoid))))
 
-      case "PointRange":
-      case "SuitRange":
-        return pipe(c,
-          E.fromPredicate(c => c.min <= c.max,
-            (): SystemValidationBidReason => ({ type: "RangeInvalid", constraint: c })),
-          E.map(constVoid),
-          ofS)
-          
-      case "SpecificShape":
-        return pipe(c.suits,
-          readonlyRecord.foldMap(ord.trivial)(number.MonoidSum)(identity),
-          E.fromPredicate(n => n === 13,
-            (): SystemValidationBidReason => ({ type: "ShapeInvalid", constraint: c })),
-          E.map(constVoid),
-          ofS)
-          case "AnyShape":
-        return pipe(c.counts,
-          RA.foldMap(number.MonoidSum)(identity),
-          E.fromPredicate(n => n === 13,
-            (): SystemValidationBidReason => ({ type: "ShapeInvalid", constraint: c })),
-          E.map(constVoid),
-          ofS)
+    case "PointRange":
+    case "SuitRange":
+      return pipe(c,
+        E.fromPredicate(c => c.min <= c.max,
+          (): SystemValidationBidReason => ({ type: "RangeInvalid", constraint: c })),
+        E.map(constVoid),
+        ofS)
+        
+    case "SpecificShape":
+      return pipe(c.suits,
+        readonlyRecord.foldMap(ord.trivial)(number.MonoidSum)(identity),
+        E.fromPredicate(n => n === 13,
+          (): SystemValidationBidReason => ({ type: "ShapeInvalid", constraint: c })),
+        E.map(constVoid),
+        ofS)
+        case "AnyShape":
+      return pipe(c.counts,
+        RA.foldMap(number.MonoidSum)(identity),
+        E.fromPredicate(n => n === 13,
+          (): SystemValidationBidReason => ({ type: "ShapeInvalid", constraint: c })),
+        E.map(constVoid),
+        ofS)
 
-      case "Constant":
-      case "SuitComparison":
-      case "SuitHonors":
-      case "SuitTop":
-        return ofS(E.right(constVoid()))
-          
-      default:
-        return assertUnreachable(c)
-    }
-  }),
-  S.chain(e => pipe(
-    S.gets<BidContext, Bid>(bidL.get),
-    S.map(bid => pipe(e, E.mapLeft(r => ({ bid, ...r })))))))
-   
+    case "Constant":
+    case "SuitComparison":
+    case "SuitHonors":
+    case "SuitTop":
+      return ofS(E.right(constVoid()))
+        
+    default:
+      return assertUnreachable(c)
+  }
+}  
 
 const resetForce = S.modify(forceL.set(O.none))
 const continueForce: typeof resetForce = S.of(constVoid())
@@ -206,7 +200,8 @@ const pathIsSound = (path: Path<ConstrainedBid>) =>
         S.chain(E.traverse(S.Applicative)(() =>
           pipe(ofS(info.constraint),
             S.chainFirst(() => updateForceS),
-            validateS))),
+            S.chain(validateS),
+            S.map(E.mapLeft((r): SystemValidationBidError => ({ bid: info.bid, ...r })))))),
         S.chainFirst(() => S.modify(pathL.modify(RA.prepend(info.bid)))),
         S.map(e => E.flatten<SystemValidationError, void>(e)))),
     S.map(RA.sequence(E.Applicative)),

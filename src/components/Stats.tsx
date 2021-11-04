@@ -1,4 +1,4 @@
-import { either, readonlyNonEmptyArray } from 'fp-ts';
+import { boolean, either, readonlyNonEmptyArray, these } from 'fp-ts';
 import { constFalse, pipe } from 'fp-ts/lib/function';
 import { draw } from 'io-ts/lib/Decoder';
 
@@ -73,10 +73,7 @@ const Stats = () => {
   const rules = useAppSelector(state => selectAllCompleteBidPaths({ state: state.system, options: state.settings }))
   const errors = useAppSelector(state => selectErrors(state.system))
   const valid = useAppSelector(state => selectSystemValid({ state: state.system, options: state.settings }))
-  const showGenerate =
-    pipe(rules, either.fold(r => r.length > 0, constFalse))
-    && errors.length === 0
-    && either.isRight(valid)
+  const showGenerate = !these.isLeft(valid)
   return (
     <section>
       <h3>Stats</h3>
