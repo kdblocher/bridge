@@ -4,10 +4,16 @@ import { ContentBlock, convertFromRaw, convertToRaw, Editor as DraftJsEditor, Ed
 import { eq, monoid, option, ord, readonlyArray, readonlyNonEmptyArray, readonlySet, string } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { useCallback, useEffect, useState } from 'react';
+import styled from 'styled-components';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { selectBlockKey, setSelectedBlockKey } from '../reducers/selection';
 import { BlockItem, BlockKeyDescriptor, cacheSystemConstraints, removeConstraintsByBlockKey, setSystem } from '../reducers/system';
+
+const EditorDiv = styled.div `
+  font-family: Cascadia Code, Consolas, monospace;
+  font-size: 0.8em;
+`
 
 const getDescriptorFromContentBlock = (x: ContentBlock): BlockKeyDescriptor & BlockItem => ({
   key: x.getKey(),
@@ -77,21 +83,23 @@ const Editor = () => {
   }, [])
   
   return (
-    <DraftJsEditor
-      editorState={editorState}
-      onChange={onChange}
-      // https://github.com/facebook/draft-js/blob/master/examples/draft-0-10-0/rich/rich.html#L61
-      keyBindingFn={e => {
-        if (e.keyCode === 9 /* TAB */) {
-          const newEditorState = RichUtils.onTab(e, editorState, 10, /* maxDepth */);
-          if (newEditorState !== editorState) {
-            onChange(newEditorState)
+    <EditorDiv>
+      <DraftJsEditor
+        editorState={editorState}
+        onChange={onChange}
+        // https://github.com/facebook/draft-js/blob/master/examples/draft-0-10-0/rich/rich.html#L61
+        keyBindingFn={e => {
+          if (e.keyCode === 9 /* TAB */) {
+            const newEditorState = RichUtils.onTab(e, editorState, 10, /* maxDepth */);
+            if (newEditorState !== editorState) {
+              onChange(newEditorState)
+            }
+            return null;
           }
-          return null;
-        }
-        return getDefaultKeyBinding(e);
-      }}
-    />
+          return getDefaultKeyBinding(e);
+        }}
+      />
+    </EditorDiv>
   )
 }
 

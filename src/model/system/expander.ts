@@ -10,6 +10,8 @@ import { serializedBidL } from '../serialization';
 import { extendForestWithSiblings, Forest, getAllLeafPaths, getForestFromLeafPaths, Path } from '../system';
 import { ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue } from './core';
 
+export const ofS = <A>(x: A) => S.of<ExpandBidContext, A>(x)
+
 export type SuitContextSpecifier = "Wildcard" | "Major" | "Minor" | "OtherMajor" | "OtherMinor"
 export type SuitSpecifier = SuitContextSpecifier | Suit
 const isSuit = (s: string): s is Suit =>
@@ -61,8 +63,16 @@ const labelRef = (s: SyntaxLabelRef) =>
     optionT.alt(S.Monad)(() => pipe(
       S.get<ExpandBidContext>(),
       S.map(context => pipe(
-        S.gets(peersL.get),
-        S.chain(RA.traverse(S.Applicative)(flow(readonlyTuple.snd, expand))),
+        S.gets(bidL.get),
+        S.chain(bid => S.gets(flow(
+          peersL.get,
+          RA.takeLeftWhile(flow(readonlyTuple.fst, b => !eqBid.equals(b, bid)))))),
+        S.chain(RA.traverse(S.Applicative)(flow(
+          S.of,
+          S.chain(([bid, syntax]) => pipe(
+            ofS(syntax),
+            S.chainFirst(() => S.modify(bidL.set(bid))))),
+          S.chain(expand)))),
         S.chain(() => S.gets(flow(
           labelsL.get,
           readonlyMap.lookup(string.Eq)(s.name)))),
@@ -118,10 +128,8 @@ const connective = ({ type, syntax }: SyntaxConnective): S.State<ExpandBidContex
             syntax => E.right(syntax.length === 1 ? syntax[0] : { type, syntax }),
             (constraints, syntax): E.Either<never, Syntax> => E.right(
               { type: type,
-                syntax: [
-                  wrap({ type, constraints }),
-                  { type, syntax }
-                ]}))))))))
+                syntax: [wrap({ type, constraints }), { type, syntax }]
+              }))))))))
 
 interface ExpandBidContext {
   bid: Bid
@@ -134,20 +142,10 @@ const zeroContext: ExpandBidContext = {
   peers: RA.empty,
   labels: readonlyMap.empty
 }
-/* eslint-disable @typescript-eslint/no-unused-vars */
 const contextL = Lens.fromProp<ExpandBidContext>()
 const bidL = contextL('bid')
-// const pathL = contextL('path')
-// const forceL = contextL('force')
-// const primarySuitL = contextL('primarySuit')
-// const secondarySuitL = contextL('secondarySuit')
 const peersL = contextL('peers')
 const labelsL = contextL('labels')
-// const contextO = Optional.fromOptionProp<BidContext>()
-// const forceO = contextO('force')
-// const primarySuitO = contextO('primarySuit')
-// const secondarySuitO = contextO('secondarySuit')
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 interface SyntaxOtherBid {
   type: "OtherBid",
@@ -157,7 +155,6 @@ const otherBid = (bid: Bid) =>
   pipe(
     S.gets(flow(
       peersL.get,
-      x => { debugger; return x },
       E.fromOptionK((): SyntaxError => "OtherBidNotFound")(
         RA.findFirst(flow(readonlyTuple.fst, b => eqBid.equals(bid, b)))))),
     S.map(E.map(flow(
@@ -207,8 +204,7 @@ const syntaxBalanced : Syntax = {
   syntax: wrapShapes([
     makeShape(4, 3, 3, 3),
     makeShape(5, 3, 3, 2),
-    makeShape(4, 4, 3, 2),
-    makeShape(5, 5, 3, 2)
+    makeShape(4, 4, 3, 2)
   ])
 }
 
@@ -219,7 +215,6 @@ const syntaxSemiBalanced : Syntax = {
     makeShape(6, 3, 2, 2)
   ])
 }
-
 
 const expandSpecifier = (specifier: SuitSpecifier): S.State<ExpandBidContext, E.Either<SyntaxError, Suit>> => {
   switch (specifier) {
@@ -239,8 +234,6 @@ const expandSpecifier = (specifier: SuitSpecifier): S.State<ExpandBidContext, E.
   }
 }
 
-
-
 type SyntaxError =
   | "NotImplemented"
   | "OtherBidNotFound"
@@ -248,7 +241,6 @@ type SyntaxError =
   | "WildcardWithoutBid"
   | "WildcardInNTContext"
 
-export const ofS = <A>(x: A) => S.of<ExpandBidContext, A>(x)
 export const pure = <A>(x: A) => pipe(x, E.right, E.right, ofS)
 
 const expandOnce = (s: Syntax): S.State<ExpandBidContext, E.Either<SyntaxError, E.Either<Constraint, Syntax>>> => {
@@ -306,7 +298,6 @@ const expand = (syntax: Syntax) : S.State<ExpandBidContext, ExpandResult> =>
   pipe(
     syntax,
     expandOnce,
-    eitherT.map(S.Functor)(x => { /* debugger; */ return x; }),
     S.chain(flow(
       E.mapLeft(E.left),
       E.chain(cont => pipe(cont, E.mapLeft(c => E.right(c)))),
