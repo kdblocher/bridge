@@ -13,6 +13,7 @@ export const allPossibleNids =
 export const allPossibleShapes =
     ['bal', 'semibal', 'unabl'
     ]
+
 ////////////    HCP tests    //////////////////////
 // Make sure plus operator works as expected
 export const hcpPlusSyntax =
@@ -140,7 +141,8 @@ export const suitReversal =
 ////////////////    Suit comparison tests    //////////////////////
 // Add tests later to test the parsing. For now, verify the hands generate as expected
 
-// Suit comparison less than operator.  If you have two diamonds, and fewer clubs, it better be one or zero
+// Suit comparison less than operator.  
+// If you have two diamonds, and fewer clubs, it had better be one or zero
 export const suitCompareLessThanOperator =
 {
     "value":
@@ -174,7 +176,8 @@ export const suitCompareLessThanOperator =
     }
 }
 
-// Suit comparison less than or equal operator.  If you have two diamonds, and same or fewer clubs, it zero to two.
+// Suit comparison less than or equal operator.  
+// If you have two diamonds, and same or fewer clubs, it zero to two.
 export const suitCompareLessThanOrEqualOperator =
 {
     "value":
@@ -208,30 +211,284 @@ export const suitCompareLessThanOrEqualOperator =
     }
 }
 
-////////////////    Primary and secondary suit tests     /////////////////
-// You cannot have two primary suits
-export const twoPrimarySuits =
+// Suit comparison equal operator.  
+// If you have two hearts, and same spades, it had better be two.
+export const suitCompareEqualOperator =
 {
     "value":
+    {
+        "constraint":
+        {
+            "type": "Conjunction",
+            "constraints": [
+                {
+                    "type": "SuitRange",
+                    "min": 2,
+                    "max": 2,
+                    "suit": "H"
+                },
+                {
+                    "type": "SuitComparison",
+                    "op": "=",
+                    "left": "H",
+                    "right": "D"
+                }
+            ]
+        }
+    },
+    "actual":
+    {
+        "type": "SuitRange",
+        "min": 2,
+        "max": 2,
+        "suit": "D"
+
+    }
+}
+
+// Suit comparison greater than or equal operator.  
+// If you have two spades, and same or greater than hearts, you have zero or one hearts.
+export const suitCompareGreaterThanOrEqualOperator =
+{
+    "value":
+    {
+        "constraint":
+        {
+            "type": "Conjunction",
+            "constraints": [
+                {
+                    "type": "SuitRange",
+                    "min": 2,
+                    "max": 2,
+                    "suit": "S"
+                },
+                {
+                    "type": "SuitComparison",
+                    "op": ">=",
+                    "left": "S",
+                    "right": "H"
+                }
+            ]
+        }
+    },
+    "actual":
+    {
+        "type": "SuitRange",
+        "min": 0,
+        "max": 2,
+        "suit": "H"
+
+    }
+}
+
+// Suit comparison greater than.  
+// If you have two spades, and more spades than hearts, it had better be zero or one.
+export const suitCompareGreaterThanOperator =
+{
+    "value":
+    {
+        "constraint":
+        {
+            "type": "Conjunction",
+            "constraints": [
+                {
+                    "type": "SuitRange",
+                    "min": 2,
+                    "max": 2,
+                    "suit": "S"
+                },
+                {
+                    "type": "SuitComparison",
+                    "op": ">",
+                    "left": "S",
+                    "right": "H"
+                }
+            ]
+        }
+    },
+    "actual":
+    {
+        "type": "SuitRange",
+        "min": 0,
+        "max": 1,
+        "suit": "H"
+
+    }
+}
+
+// Multiple suit comparison operators.  
+// If you have four sapdes, equal hearts to spades, and equal diamonds to hearts, you should have four diamonds.
+export const multpleSuitCompareEqualOperator =
+{
+    "value":
+    {
+        "constraint":
+        {
+            "type": "Conjunction",
+            "constraints": [
+                {
+                    "type": "SuitRange",
+                    "min": 4,
+                    "max": 4,
+                    "suit": "S"
+                },
+                {
+                    "type": "SuitComparison",
+                    "op": "=",
+                    "left": "S",
+                    "right": "H"
+                },
+                {
+                    "type": "SuitComparison",
+                    "op": "=",
+                    "left": "H",
+                    "right": "D"
+                }
+            ]
+        }
+    },
+    "actual":
+    {
+        "type": "SpecificShape",
+        "suits":
+        {
+            "S": 4,
+            "H": 4,
+            "D": 4,
+            "C": 1
+        }
+    }
+}
+
+////////////////    Distribution tests     /////////////////
+
+// Verify balanced shapes
+export const distBalanced =
+{
+    "value":
+    {
+        "constraint": {
+            "type": "Balanced"
+        }
+    },
+    "actual":
     {
         "constraint": {
             "type": "Conjunction",
             "constraints": [
                 {
-                    "type": "SuitPrimary",
-                    "suit": "H"
+                    "type": "AnyShape",
+                    "counts": [
+                        4,
+                        3,
+                        3,
+                        3
+                    ]
                 },
                 {
-                    "type": "SuitPrimary",
-                    "suit": "S"
+                    "type": "AnyShape",
+                    "counts": [
+                        4,
+                        4,
+                        3,
+                        2
+                    ]
+                },
+                {
+                    "type": "AnyShape",
+                    "counts": [
+                        5,
+                        3,
+                        3,
+                        2
+                    ]
                 }
             ]
         }
-    },
-    "actual": false
+    }
 }
 
-// You cannot have two secondary suits  (or can you?)
+// Verify semibalanced shapes
+export const distSemiBalanced =
+{
+    "value":
+    {
+        "constraint": {
+            "type": "SemiBalanced"
+        }
+    },
+    "actual":
+    {
+        "constraint": {
+            "type": "Conjunction",
+            "constraints": [
+                {
+                    "type": "AnyShape",
+                    "counts": [
+                        5,
+                        4,
+                        2,
+                        2
+                    ]
+                },
+                {
+                    "type": "AnyShape",
+                    "counts": [
+                        6,
+                        3,
+                        2,
+                        2
+                    ]
+                }
+            ]
+        }
+    }
+}
+
+// Verify unbalanced shapes
+export const distUnBalanced =
+{
+    "value":
+    {
+        "constraint": {
+            "type": "Unbalanced"
+        }
+    },
+    "actual":
+    {
+        "constraint": {
+            "type": "Disjunction",
+            "constraints": [
+                {
+                    "type": "SuitRange",
+                    "min": 0,
+                    "max": 1,
+                    "suit": "C"
+                },
+                {
+                    "type": "SuitRange",
+                    "min": 0,
+                    "max": 1,
+                    "suit": "D"
+                },
+                {
+                    "type": "SuitRange",
+                    "min": 0,
+                    "max": 1,
+                    "suit": "H"
+                },
+                {
+                    "type": "SuitRange",
+                    "min": 0,
+                    "max": 1,
+                    "suit": "S"
+              }
+            ]
+        }
+    }
+}
+
+// You cannot have two secondary suits 
 export const twoSecondarySuits =
 {
     "value":
