@@ -1,4 +1,4 @@
-import { either, fromThese, number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple, these } from 'fp-ts';
+import { number, option, ord, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple, these } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
 import memoize from 'proxy-memoize';
@@ -14,7 +14,7 @@ import { satisfiesPath } from '../model/system/satisfaction';
 import generator, { analyzeDealsEpic, analyzeResultsEpic, saveDealsToApiEpic, saveSolutionsToApiEpic, selectAllDeals } from './generator';
 import selection, { selectHand } from './selection';
 import settings from './settings';
-import system, { selectAllCompleteBidPaths, selectBidPathUpToKey } from './system';
+import system, { selectAllCompleteBidPaths } from './system';
 
 const reducers = {
   system,

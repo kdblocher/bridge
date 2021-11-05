@@ -3,7 +3,7 @@ import { constant, constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { Lens } from 'monocle-ts';
 import { Object } from 'ts-toolbelt';
 
-import { assertUnreachable, debug } from '../../lib';
+import { assertUnreachable } from '../../lib';
 import { Bid, ContractBid, eqBid, isContractBid, makeShape, Shape } from '../bridge';
 import { Suit, suits } from '../deck';
 import { serializedBidL } from '../serialization';
@@ -146,7 +146,6 @@ const otherBid = (bid: Bid) =>
   pipe(
     S.gets(flow(
       siblingsL.get,
-      debug,
       RA.findFirst(sb => eqBid.equals(sb.bid, bid)),
       O.map(sb => sb.syntax))),
     optionT.alt(S.Monad)(() => S.gets(flow(
@@ -332,22 +331,24 @@ const expandBid =
         /* don't eta reduce this, there is a null bug somewhere in the lib */
         cb => S.modify(pathL.modify(RA.prepend(cb)))))))
 
-const expandPeers = <X, L, R>(tree: T.Tree<S.State<X, E.Either<L, R>>>) =>
-  pipe(tree,
-  T.fold((s, bs: ReadonlyArray<S.State<X, T.Tree<E.Either<L, R>>>>) => 
+const traversePeers =
+  S.chainFirst((t: T.Tree<E.Either<SyntaxError, ConstrainedBid>>) =>
+    pipe(t.value,
+      E.fold(
+        flow(constVoid, ofS),
+        cb => S.modify(traversedL.modify(RA.append(cb))))))
+
+const expandPeers =
+  T.fold((s: S.State<ExpandBidContext, E.Either<SyntaxError, ConstrainedBid>>, bs: ReadonlyArray<S.State<ExpandBidContext, T.Tree<E.Either<SyntaxError, ConstrainedBid>>>>) => 
     pipe(s,
       S.bindTo('result'),
       S.apS('context', S.get()),
       S.map(({ result, context }) =>
         T.make(result,
           pipe(bs,
-            S.sequenceArray,
+            S.traverseArray(traversePeers),
             S.evaluate(context),
-            RA.toArray))))))
-
-const expandTree = flow(
-  expandBid,
-  expandPeers)
+            RA.toArray)))))
 
 const collectErrors = <L, R>(forest: Forest<E.Either<L, R>>) =>
   pipe(forest,
@@ -357,6 +358,6 @@ const collectErrors = <L, R>(forest: Forest<E.Either<L, R>>) =>
 export const expandForest = (forest: Forest<SyntacticBid>): these.These<ReadonlyArray<SyntaxError>, Forest<ConstrainedBid>> =>
   pipe(forest,
     extendForestWithSiblings(eqSyntacticBid),
-    S.traverseArray(expandTree),
+    S.traverseArray(flow(expandBid, expandPeers, traversePeers)),
     S.evaluate(zeroContext),
     collectErrors)
