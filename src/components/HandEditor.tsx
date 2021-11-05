@@ -10,8 +10,7 @@ import { AuctionPositionType, getResult, selectHand, setHand } from '../reducers
 import DoubleDummyResultView from './core/DoubleDummyResultView';
 import HandView from './core/HandView';
 import { Option } from './core/Monad';
-
-// import SelectionGenerators from './SelectionGenerators';
+import SelectionGenerators from './SelectionGenerators';
 
 interface HandInputProps {
   type: AuctionPositionType
@@ -83,7 +82,7 @@ const HandEditor = () => {
           </tr>
         </tbody>
       </table>
-      {/* <SelectionGenerators /> */}
+      <SelectionGenerators />
       <p>
         <button type="button" onClick={getResultCallback}>Solution</button> 
         {result && <DoubleDummyResultView result={result} /> }

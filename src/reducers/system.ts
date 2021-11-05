@@ -5,6 +5,7 @@ import memoize from 'proxy-memoize';
 
 import { createEntityAdapter, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
+import { Bid, eqBid } from '../model/bridge';
 import { collectErrors, flatten, getAllLeafPaths, getPathUpTo, withImplicitPasses } from '../model/system';
 import { expandForest } from '../model/system/expander';
 import { validateTree } from '../model/system/validation';
@@ -118,7 +119,11 @@ const getCompleteForest = (bids: State['decodedBids']) =>
     RA.filterMap(tree.traverse(O.Applicative)(getCachedBidByKey(bids))),
     collectErrors)
 
-export const selectCompleteSyntaxForest = memoize(({ state, options }: { state: State, options?: { implicitPass: boolean }} ) =>
+interface OptionsState {
+  state: State
+  options?: { implicitPass: boolean }
+}
+export const selectCompleteSyntaxForest = memoize(({ state, options }: OptionsState ) =>
   pipe(state.system,
     getCompleteForest(state.decodedBids),
     TH.map(options?.implicitPass ? withImplicitPasses : identity)))
@@ -133,6 +138,16 @@ export const selectCompleteConstraintForest = memoize(
 export const selectAllCompleteBidPaths = memoize(
   flow(selectCompleteConstraintForest,
     TH.map(getAllLeafPaths)))
+
+export const selectCompleteBidPathUpToKey = memoize((state: KeyedState & OptionsState) =>
+  pipe(O.Do,
+    O.apS('path', O.fromEitherK(selectBidPathUpToKey)(state)),
+    O.apS('paths', pipe(state, selectCompleteConstraintForest, TH.getRight, O.map(getAllLeafPaths))),
+    O.chain(({ path, paths }) =>
+      pipe(paths,
+        RA.findFirst(cbPath =>
+          RA.getEq(pipe(eqBid, eq.contramap((b: { bid: Bid }) => b.bid)))
+            .equals(path, cbPath))))))
 
 export const selectSystemValid = memoize(
   flow(selectCompleteConstraintForest,
