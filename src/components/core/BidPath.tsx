@@ -1,8 +1,7 @@
 import { Fragment } from 'react';
 import styled from 'styled-components';
 
-import { ContractBid, NonContractBid } from '../../model/bridge';
-import { ConstrainedBid } from '../../model/system/core';
+import { Bid, ContractBid, NonContractBid } from '../../model/bridge';
 
 const SuitSpan = styled.span `
   &.S::after { content: "♠"; color: #0000FF; }
@@ -12,7 +11,7 @@ const SuitSpan = styled.span `
   &.N::after { content: "NT" }
 `
 
-const ContractBidView = (bid: ContractBid) =>
+const ContractBidView = ({ bid }: { bid: ContractBid }) =>
   <>
     <span>{bid.level}</span>
     <SuitSpan className={bid.strain}></SuitSpan>
@@ -21,17 +20,19 @@ const ContractBidView = (bid: ContractBid) =>
 const NonContractBidView = ({ bid }: { bid: NonContractBid }) =>
   <span>{bid}</span>
 
+export const BidView = ({ bid }: { bid: Bid }) =>
+  typeof bid === "string"
+    ? <NonContractBidView bid={bid} />
+    : <ContractBidView bid={bid} />
 interface Props {
-  path: ReadonlyArray<ConstrainedBid>
+  path: ReadonlyArray<Bid>
 }
 const BidPath = ({ path }: Props) => 
-  <>{path.map(b => b.bid ).map((bid, i) =>
+  <span>{path.map((bid, i) => 
     <Fragment key={i}>
       &nbsp;
-      {typeof bid === "string"
-        ? <NonContractBidView bid={bid} />
-        : <ContractBidView {...bid} />}
+      <BidView bid={bid} />
     </Fragment>)
-  }</>
+  }</span>
 
 export default BidPath

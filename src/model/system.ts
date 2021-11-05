@@ -1,4 +1,4 @@
-import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, show, these, tree as T } from 'fp-ts';
+import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, show, these as TH, tree as T } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 
 import { SyntacticBid } from './system/expander';
@@ -21,14 +21,13 @@ export const flatten = <A>(forest: Forest<A>) =>
       T.reduce<A, ReadonlyArray<A>>([], (items, a) =>
         pipe(items, RA.append(a)))))
 
-export const pathTree = <A>(forest: Forest<A>) : Forest<Path<A>> =>
+export const getPathForest = <A>(forest: Forest<A>) : Forest<Path<A>> =>
   pipe(forest,
     RA.map(flow(
       T.map(RNEA.of),
       T.fold((a, forest: ReadonlyArray<T.Tree<Path<A>>>) =>
         T.make(a, pipe(forest,
-          RA.map(T.map(path => RNEA.concat(path)(a))), RA.toArray))),
-      T.map(x => RNEA.tail(x) as RNEA.ReadonlyNonEmptyArray<A>))))
+          RA.map(T.map(path => RNEA.concat(path)(a))), RA.toArray))))))
 
 export const getAllLeafPaths = <A>(forest: Forest<A>): ReadonlyArray<Path<A>> =>
   pipe(forest,
@@ -86,9 +85,11 @@ export const withImplicitPasses =
         RA.append(T.make<SyntacticBid>({ bid: "Pass", syntax: { type: "Otherwise" }})),
         RA.toArray))))
 
-type ForestWithErrors<L, R> = these.These<ReadonlyArray<L>, Forest<R>>
+export type ForestWithErrors<L, R> = TH.These<ReadonlyArray<L>, Forest<R>>
 export const collectErrors = <L, R>(forest: Forest<E.Either<L, R>>): ForestWithErrors<L, R> =>
   pipe(forest,
-    RA.map(T.traverse(these.getApplicative(RA.getMonoid<L>()))(E.mapLeft(RA.of))),
-    RA.sequence(these.getApplicative(RA.getSemigroup<L>())))
+    RA.map(T.traverse(TH.getApplicative(RA.getMonoid<L>()))(E.mapLeft(RA.of))),
+    RA.sequence(TH.getApplicative(RA.getSemigroup<L>())))
       
+export const chainCollectedErrors = <A, B, E>(f: (a: A) => TH.These<ReadonlyArray<E>, B>) => (fa: TH.These<ReadonlyArray<E>, A>) =>
+  TH.getChain(RA.getSemigroup<E>()).chain(fa, f)

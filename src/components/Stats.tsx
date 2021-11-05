@@ -1,13 +1,12 @@
-import { boolean, either, readonlyNonEmptyArray, these } from 'fp-ts';
-import { constFalse, pipe } from 'fp-ts/lib/function';
-import { draw } from 'io-ts/lib/Decoder';
+import { readonlyNonEmptyArray, these } from 'fp-ts';
+import { pipe } from 'fp-ts/lib/function';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { serializedBidPathL } from '../model/serialization';
 import { average, getStats, stdev } from '../model/stats';
 import { BidPathResult, selectSatisfyStats } from '../reducers';
 import { generate, getResults, selectProgress, selectResultsByPath } from '../reducers/generator';
-import { selectAllCompleteBidPaths, selectErrors, selectSystemValid } from '../reducers/system';
+import { selectAllCompleteBidPaths } from '../reducers/system';
 import BidPath from './core/BidPath';
 import { DoubleDummyTableView } from './core/DoubleDummyResultView';
 
@@ -26,7 +25,7 @@ const StatsPath = ({ result }: StatsPathProps) => {
   const stdevs = stats && stdev(stats)
   return (
     <>
-      <BidPath path={result.path} />
+      <BidPath path={result.path.map(cb => cb.bid)} />
       : &nbsp;
       <span>{result.count.toString()}</span>
       {averages !== null && <section>
@@ -71,21 +70,10 @@ const Stats = () => {
   const count = useAppSelector(state => state.settings.generateCount)
   const dispatch = useAppDispatch()
   const rules = useAppSelector(state => selectAllCompleteBidPaths({ state: state.system, options: state.settings }))
-  const errors = useAppSelector(state => selectErrors(state.system))
-  const valid = useAppSelector(state => selectSystemValid({ state: state.system, options: state.settings }))
-  const showGenerate = !these.isLeft(valid)
+  const showGenerate = !these.isLeft(rules)
   return (
     <section>
       <h3>Stats</h3>
-      {!showGenerate && <div>
-        <p>Select the system and/or fix errors</p>
-        {rules === null && <p>No complete rules found or system not selected</p>}
-        {either.isLeft(valid) && <p>System is not valid</p>}
-        {errors.length > 0 && <div>
-          <h4>Errors</h4>
-          <ul>{errors.map((e, i) => <li key={i}><pre>{draw(e)}</pre></li>)}</ul>
-        </div>}
-      </div>}
       {showGenerate && <div>
         <button type="button" onClick={() => dispatch(generate(count))}>Generate deals</button>
         {generating ? <span>Generating...</span> : <span>Ready!</span>}

@@ -3,7 +3,7 @@ import JSONPretty from 'react-json-pretty';
 import styled from 'styled-components';
 
 import { useAppSelector } from '../app/hooks';
-import { selectCompleteConstraintForest, selectCompleteSyntaxForest, selectSystemValid } from '../reducers/system';
+import { selectCompleteConstraintForest, selectCompleteSyntaxForest } from '../reducers/system';
 
 const TreeDiv = styled.div `
   display: grid;
@@ -14,16 +14,10 @@ const SystemDetails = () => {
   const obj = useAppSelector(state => ({ state: state.system, options: state.settings }))
   const syntax = selectCompleteSyntaxForest(obj)
   const bidForest = selectCompleteConstraintForest(obj)
-  const valid = selectSystemValid(obj)
 
   return (
     <section>
       <h3>System</h3>
-      {these.isLeft(valid) && 
-        <div style={{float: "right"}}>
-          <h4>Errors</h4>
-          <JSONPretty data={valid} />
-        </div>}
       <TreeDiv>
         <div>
           <h4>Syntax Tree</h4>

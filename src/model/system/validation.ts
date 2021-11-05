@@ -4,32 +4,36 @@ import { apply, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
 import { assertUnreachable } from '../../lib';
 import { Bid, isGameLevel, isSlamLevel } from '../bridge';
 import { Forest, getAllLeafPaths, Path } from '../system';
-import { BidContext, bidL, ConstrainedBid, Constraint, ConstraintForce, ConstraintS, forceL, forceO, ofS, ordConstrainedBid, pathL, primarySuitL, secondarySuitL, zeroContext } from './core';
+import {
+    BidContext, bidL, ConstrainedBid, Constraint, ConstraintAnyShape, ConstraintForce, ConstraintPointRange, ConstraintS, ConstraintSpecificShape, ConstraintSuitRange, ConstraintSuitSecondary, forceL,
+    forceO, ofS, ordConstrainedBid, pathL, primarySuitL, secondarySuitL, zeroContext
+} from './core';
 
 interface SystemValidationErrorBidsOutOfOrder {
   type: "BidsOutOfOrder"
   left: ConstrainedBid
   right: ConstrainedBid
 }
-interface SystemValidationErrorOtherBidNotFound {
-  type: "OtherBidNotFound"
-  constraint: Constraint
-}
 interface SystemValidationErrorNoPrimaryBidDefined {
   type: "NoPrimaryBidDefined"
-  constraint: Constraint
+  constraint: ConstraintSuitSecondary
 }
-interface SystemValidationErrorLabelNotFound {
-  type: "LabelNotFound"
-  constraint: Constraint
+interface SystemValidationErrorSuitRangeInvalid {
+  type: "SuitRangeInvalid",
+  constraint: ConstraintSuitRange
 }
-interface SystemValidationErrorRangeInvalid {
-  type: "RangeInvalid",
-  constraint: Constraint
+interface SystemValidationErrorPointRangeInvalid {
+  type: "PointRangeInvalid",
+  constraint: ConstraintPointRange
 }
-interface SystemValidationErrorShapeInvalid {
-  type: "ShapeInvalid",
-  constraint: Constraint
+interface SystemValidationErrorSpecificShapeInvalid {
+  type: "SpecificShapeInvalid",
+  constraint: ConstraintSpecificShape
+}
+
+interface SystemValidationErrorAnyShapeInvalid {
+  type: "AnyShapeInvalid",
+  constraint: ConstraintAnyShape
 }
 interface SystemValidationErrorPassWhileForcing {
   type: "PassWhileForcing",
@@ -41,20 +45,21 @@ interface SystemValidationErrorNoBidDefinedButStillForcing {
 }
 
 type SystemValidationBidReason =
-  | SystemValidationErrorOtherBidNotFound
   | SystemValidationErrorNoPrimaryBidDefined
-  | SystemValidationErrorLabelNotFound
-  | SystemValidationErrorRangeInvalid
-  | SystemValidationErrorShapeInvalid
+  | SystemValidationErrorSuitRangeInvalid
+  | SystemValidationErrorPointRangeInvalid
+  | SystemValidationErrorSpecificShapeInvalid
+  | SystemValidationErrorAnyShapeInvalid
 type SystemValidationBidError = SystemValidationBidReason & {
   bid: Bid
 }
 
 export type SystemValidationError =
-  | SystemValidationBidError
+  ( SystemValidationBidError
   | SystemValidationErrorBidsOutOfOrder
   | SystemValidationErrorPassWhileForcing
-  | SystemValidationErrorNoBidDefinedButStillForcing
+  | SystemValidationErrorNoBidDefinedButStillForcing)
+  & { path: ReadonlyArray<Bid> }
 
 type SystemValidation = E.Either<SystemValidationError, void>
 type ValidateResult = S.State<BidContext, SystemValidation>
@@ -64,7 +69,7 @@ const bidPathSorted = (path: Path<ConstrainedBid>): SystemValidation =>
     RA.zip(RNEA.tail(path)),
     RA.traverse(E.Applicative)(([left, right]) =>
       !ord.lt(ordConstrainedBid)(left, right)
-      ? E.left({ type: "BidsOutOfOrder" as const, left, right })
+      ? E.left({ type: "BidsOutOfOrder" as const, left, right, path: pipe(path, RA.map(cb => cb.bid)) })
       : E.right(constVoid())),
     E.map(constVoid))
 
@@ -110,10 +115,15 @@ export const validateS = (c: Constraint): S.State<BidContext, E.Either<SystemVal
           E.map(constVoid))))
 
     case "PointRange":
+      return pipe(c,
+        E.fromPredicate(c => c.min <= c.max,
+          (): SystemValidationBidReason => ({ type: "PointRangeInvalid", constraint: c })),
+        E.map(constVoid),
+        ofS)
     case "SuitRange":
       return pipe(c,
         E.fromPredicate(c => c.min <= c.max,
-          (): SystemValidationBidReason => ({ type: "RangeInvalid", constraint: c })),
+          (): SystemValidationBidReason => ({ type: "SuitRangeInvalid", constraint: c })),
         E.map(constVoid),
         ofS)
         
@@ -121,14 +131,14 @@ export const validateS = (c: Constraint): S.State<BidContext, E.Either<SystemVal
       return pipe(c.suits,
         readonlyRecord.foldMap(ord.trivial)(number.MonoidSum)(identity),
         E.fromPredicate(n => n === 13,
-          (): SystemValidationBidReason => ({ type: "ShapeInvalid", constraint: c })),
+          (): SystemValidationBidReason => ({ type: "SpecificShapeInvalid", constraint: c })),
         E.map(constVoid),
         ofS)
         case "AnyShape":
       return pipe(c.counts,
         RA.foldMap(number.MonoidSum)(identity),
         E.fromPredicate(n => n === 13,
-          (): SystemValidationBidReason => ({ type: "ShapeInvalid", constraint: c })),
+          (): SystemValidationBidReason => ({ type: "AnyShapeInvalid", constraint: c })),
         E.map(constVoid),
         ofS)
 
@@ -177,8 +187,11 @@ const checkPassS : ValidateResult =
     S.ap(S.gets(bidL.get)),
     S.ap(S.gets(forceO.getOption)),
     S.chain(boolean.fold(
-      flow(() => S.gets(bidL.get), S.map(bid =>
-        E.left({ type: "PassWhileForcing" as const, bid }))),
+      flow(() => ofS({}),
+        S.apS('bid', S.gets(bidL.get)),
+        S.apS('path', S.gets(pathL.get)),
+        S.map(({ bid, path }) =>
+        E.left({ type: "PassWhileForcing" as const, bid, path }))),
       flow(constVoid, E.right, ofS))))
       
 
@@ -199,11 +212,13 @@ const pathIsSound = (path: Path<ConstrainedBid>) =>
         S.chain(() => checkPassS),
         S.chain(E.traverse(S.Applicative)(() =>
           pipe(ofS(info.constraint),
-            S.chainFirst(() => updateForceS),
+            S.apFirst(updateForceS),
             S.chain(validateS),
             S.map(E.mapLeft((r): SystemValidationBidError => ({ bid: info.bid, ...r })))))),
-        S.chainFirst(() => S.modify(pathL.modify(RA.prepend(info.bid)))),
-        S.map(e => E.flatten<SystemValidationError, void>(e)))),
+        S.apFirst(S.modify(pathL.modify(RA.prepend(info.bid)))),
+        S.map(flow(
+          E.map(E.mapLeft((err): SystemValidationError => ({ ...err, path: pipe(path, RA.map(b => b.bid)) }))),
+          E.flatten)))),
     S.map(RA.sequence(E.Applicative)),
     eitherT.chain(S.Monad)(() => checkFinal),
     S.evaluate(zeroContext))

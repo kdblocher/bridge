@@ -63,7 +63,7 @@ const labelRef = (s: SyntaxLabelRef) =>
       labelsL.get,
       RM.lookup(string.Eq)(s.name))),
     S.map(flow(
-      E.fromOption((): SyntaxErrorReason => "LabelNotFound"),
+      E.fromOption((): ExpandErrorReason => "LabelNotFound"),
       E.map(E.right))))
 
 interface SyntaxWrapper {
@@ -98,7 +98,7 @@ type SyntaxConnective =
   | SyntaxConjunction
   | SyntaxDisjunction
 
-const connective = ({ type, syntax }: SyntaxConnective): S.State<ExpandContext, E.Either<SyntaxErrorReason, E.Either<Constraint, Syntax>>> =>
+const connective = ({ type, syntax }: SyntaxConnective): S.State<ExpandContext, E.Either<ExpandErrorReason, E.Either<Constraint, Syntax>>> =>
   pipe(syntax,
     RNEA.traverse(S.Applicative)(expandOnce),
     S.map(flow(
@@ -116,7 +116,7 @@ const connective = ({ type, syntax }: SyntaxConnective): S.State<ExpandContext, 
                 syntax: [wrap({ type, constraints }), { type, syntax }]
               }))))))))
 
-type ExpandResult = E.Either<SyntaxError, ConstrainedBid>
+type ExpandResult = E.Either<ExpandError, ConstrainedBid>
 interface ExpandContext {
   bid: Bid
   pathReversed: ReadonlyArray<Bid>
@@ -155,7 +155,7 @@ const otherBid = (bid: Bid) =>
       labelsL.get,
       RM.lookup(string.Eq)(serializedBidL.get(bid))))),
     S.map(flow(
-      E.fromOption((): SyntaxErrorReason => "OtherBidNotFound"),
+      E.fromOption((): ExpandErrorReason => "OtherBidNotFound"),
       E.map(E.right))))
 
 interface SyntaxOtherwise {
@@ -214,7 +214,7 @@ const syntaxSemiBalanced : Syntax = {
   ])
 }
 
-const expandSpecifier = (specifier: SuitSpecifier): S.State<ExpandContext, E.Either<SyntaxErrorReason, Suit>> => {
+const expandSpecifier = (specifier: SuitSpecifier): S.State<ExpandContext, E.Either<ExpandErrorReason, Suit>> => {
   switch (specifier) {
     case "C":
     case "D":
@@ -225,32 +225,32 @@ const expandSpecifier = (specifier: SuitSpecifier): S.State<ExpandContext, E.Eit
       return pipe(
         S.gets(flow(bidL.get)),
         S.map(flow(
-          E.fromPredicate(isContractBid, (b): SyntaxErrorReason => "WildcardWithoutBid"),
-          E.chain(b => pipe(b.strain, E.fromPredicate(isSuit, (b): SyntaxErrorReason => "WildcardInNTContext"))))))
+          E.fromPredicate(isContractBid, (b): ExpandErrorReason => "WildcardWithoutBid"),
+          E.chain(b => pipe(b.strain, E.fromPredicate(isSuit, (b): ExpandErrorReason => "WildcardInNTContext"))))))
     default:
       return ofS(E.left("NotImplemented"));
   }
 }
 
-export type SyntaxErrorReason =
+export type ExpandErrorReason =
   | "NotImplemented"
   | "OtherBidNotFound"
   | "LabelNotFound"
   | "WildcardWithoutBid"
   | "WildcardInNTContext"
 
-export interface SyntaxError {
-  reason: SyntaxErrorReason
+export interface ExpandError {
+  reason: ExpandErrorReason
   syntax: Syntax
   path: ReadonlyArray<Bid>
 }
 
 export const pure = <A>(x: A) => pipe(x, E.right, E.right, ofS)
 
-const expandOnce = (s: Syntax): S.State<ExpandContext, E.Either<SyntaxErrorReason, E.Either<Constraint, Syntax>>> => {
+const expandOnce = (s: Syntax): S.State<ExpandContext, E.Either<ExpandErrorReason, E.Either<Constraint, Syntax>>> => {
   switch (s.type) {
     case "Wrapper":
-      return ofS<E.Either<SyntaxErrorReason, E.Either<Constraint, Syntax>>>(E.right(E.left(s.constraint)))
+      return ofS<E.Either<ExpandErrorReason, E.Either<Constraint, Syntax>>>(E.right(E.left(s.constraint)))
     case "Constant":
       return pure(wrap({ type: "Constant", value: s.value }))
     case "Conjunction":
@@ -297,7 +297,7 @@ const expandOnce = (s: Syntax): S.State<ExpandContext, E.Either<SyntaxErrorReaso
   }
 }
 
-const expand = (syntax: Syntax) : S.State<ExpandContext, E.Either<SyntaxErrorReason, Constraint>> =>
+const expand = (syntax: Syntax) : S.State<ExpandContext, E.Either<ExpandErrorReason, Constraint>> =>
   pipe(
     syntax,
     expandOnce,
@@ -326,7 +326,7 @@ const expandBid =
       S.apSecond(expand(syntax)),
       S.chain(e => pipe(
         S.gets(pathReversedL.get),
-        S.map(path => pipe(e, E.mapLeft((reason): SyntaxError => ({ reason, path, syntax })))))),
+        S.map(path => pipe(e, E.mapLeft((reason): ExpandError => ({ reason, path: RA.reverse(path), syntax })))))),
       S.map(E.map((constraint): ConstrainedBid => ({ bid, constraint })))))
 
 const traversePeers =

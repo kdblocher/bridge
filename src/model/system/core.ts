@@ -1,4 +1,7 @@
-import { either as E, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts';
+import {
+    either as E, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S,
+    string
+} from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
 import { apply, constant, constFalse, constTrue, flow, pipe } from 'fp-ts/lib/function';
 import { Lens, Optional } from 'monocle-ts';
@@ -7,7 +10,7 @@ import { assertUnreachable } from '../../lib';
 import { Bid, ContractBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, ordContractBid, Shape as AnyShape, SpecificShape } from '../bridge';
 import { eqRank, eqSuit, Hand, honors, ordRankAscending, Rank, Suit, suits } from '../deck';
 
-interface ConstraintPointRange {
+export interface ConstraintPointRange {
   type: "PointRange"
   min: number
   max: number
@@ -71,12 +74,12 @@ interface ConstraintNegation {
   constraint: Constraint
 }
 
-interface ConstraintAnyShape {
+export interface ConstraintAnyShape {
   type: "AnyShape"
   counts: AnyShape
 }
 
-interface ConstraintSpecificShape {
+export interface ConstraintSpecificShape {
   type: "SpecificShape",
   suits: SpecificShape
 }

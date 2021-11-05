@@ -1,4 +1,5 @@
 import Editor from './Editor';
+import Errors from './Errors';
 // import SelectionDetails from './SelectionDetails';
 import Settings from './Settings';
 import Stats from './Stats';
@@ -16,6 +17,7 @@ const App = () => {
           <Settings />
         </div>
         <div style={{clear: "both"}}>
+          <Errors />
           <Stats />
         </div>
       </div>

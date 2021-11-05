@@ -1,14 +1,16 @@
-import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, string, these as TH, tree } from 'fp-ts';
+import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, string, these as TH, tree as T } from 'fp-ts';
 import { flow, identity, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
+import { DecodeError } from 'io-ts/lib/Decoder';
 import memoize from 'proxy-memoize';
 
 import { createEntityAdapter, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
+import { debug } from '../lib';
 import { Bid, eqBid } from '../model/bridge';
-import { collectErrors, flatten, getAllLeafPaths, getPathUpTo, withImplicitPasses } from '../model/system';
-import { expandForest } from '../model/system/expander';
-import { validateTree } from '../model/system/validation';
+import { chainCollectedErrors, collectErrors, flatten, ForestWithErrors, getAllLeafPaths, getPathForest, getPathUpTo, Path, withImplicitPasses } from '../model/system';
+import { ExpandError, expandForest, SyntacticBid } from '../model/system/expander';
+import { SystemValidationError, validateTree } from '../model/system/validation';
 import { decodeBid } from '../parse';
 
 type BlockKey = string
@@ -21,7 +23,7 @@ interface DecodedBidItem {
 }
 const decodedBidAdapter = createEntityAdapter<DecodedBidItem>()
 
-type BlockTree = tree.Forest<BlockKey>
+type BlockTree = T.Forest<BlockKey>
 interface State {
   system: BlockTree
   decodedBids: ReturnType<typeof decodedBidAdapter.getInitialState>
@@ -37,7 +39,7 @@ export interface BlockKeyDescriptor {
   depth: number
 }
 const buildForest = (items: ReadonlyArray<BlockKeyDescriptor>): BlockTree => {
-  const root = tree.make<BlockKey>("ROOT")
+  const root = T.make<BlockKey>("ROOT")
   var parents = [root]
   items.forEach(item => {
     const curr = parents[item.depth + 1] = {
@@ -116,24 +118,39 @@ export const selectErrors = memoize(
 
 const getCompleteForest = (bids: State['decodedBids']) =>
   flow(
-    RA.filterMap(tree.traverse(O.Applicative)(getCachedBidByKey(bids))),
+    RA.filterMap(T.traverse(O.Applicative)(getCachedBidByKey(bids))),
     collectErrors)
 
 interface OptionsState {
   state: State
   options?: { implicitPass: boolean }
 }
-export const selectCompleteSyntaxForest = memoize(({ state, options }: OptionsState ) =>
+export const selectCompleteSyntaxForest = memoize(({ state, options }: OptionsState): ForestWithErrors<DecodeError, SyntacticBid> =>
   pipe(state.system,
     getCompleteForest(state.decodedBids),
     TH.map(options?.implicitPass ? withImplicitPasses : identity)))
 
-export const chainThese = <A, B, EB>(f: (a: A) => TH.These<ReadonlyArray<EB>, B>) => <EA>(fa: TH.These<ReadonlyArray<EA>, A>) =>
-  TH.getChain(RA.getSemigroup<EA | EB>()).chain(fa, f)
+interface SystemErrorParse { type: "Parse", error: DecodeError }
+interface SystemErrorSyntax { type: "Syntax", error: ExpandError }
+interface SystemErrorValidation { type: "Validation", error: SystemValidationError }
+export type SystemErrorWithPath = SystemErrorSyntax | SystemErrorValidation
+export type SystemError =
+  | SystemErrorParse
+  | SystemErrorSyntax
+  | SystemErrorValidation
 
 export const selectCompleteConstraintForest = memoize(
   flow(selectCompleteSyntaxForest,
-    chainThese(expandForest)))
+    TH.mapLeft(RA.map((error): SystemError => ({ type: "Parse", error }))), 
+    chainCollectedErrors(flow(
+      expandForest,
+      TH.mapLeft(RA.map((error): SystemError => ({ type: "Syntax", error }))))),
+    chainCollectedErrors(bidForest => pipe(
+      bidForest,
+      validateTree,
+      TH.bimap(
+        (error): ReadonlyArray<SystemError> => RA.of({ type: "Validation", error }),
+        () => bidForest)))))
 
 export const selectAllCompleteBidPaths = memoize(
   flow(selectCompleteConstraintForest,
@@ -149,10 +166,31 @@ export const selectCompleteBidPathUpToKey = memoize((state: KeyedState & Options
           RA.getEq(pipe(eqBid, eq.contramap((b: { bid: Bid }) => b.bid)))
             .equals(path, cbPath))))))
 
-export const selectSystemValid = memoize(
-  flow(selectCompleteConstraintForest,
-    TH.map(flow(validateTree, E.swap)),
-    TH.sequence(E.Applicative),
-    E.swap))
+const eqBidPath = pipe(eqBid, RA.getEq)
+export interface ErrorNode {
+  bid: Bid
+  path: Path<Bid>
+  errors: ReadonlyArray<SystemErrorWithPath>
+}
+export const selectErrorTree = memoize((options: OptionsState) =>
+  pipe(options,
+    selectCompleteSyntaxForest,
+    x => { return x },
+    TH.map(flow(
+      RA.map(T.map(sb => sb.bid)),
+      getPathForest,
+      RA.toArray,
+      pathForest => pipe(options,
+        selectCompleteConstraintForest,
+        TH.getLeft,
+        O.getOrElse(() => RA.zero()),
+        RA.filterMap(e => e.type !== "Parse" ? O.some(e) : O.none),
+        errors =>
+          pipe(pathForest,
+            RA.map(T.map((path): ErrorNode => { return ({
+              bid: pipe(path, RNEA.last),
+              path,
+              errors: pipe(errors, RA.filter(e => eqBidPath.equals(e.error.path, path)))
+            }) }))))))))
     
 export default slice.reducer
