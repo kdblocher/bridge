@@ -3,8 +3,9 @@ import { constant, flow, identity, pipe } from 'fp-ts/lib/function';
 
 import { assertUnreachable } from '../lib';
 import { Bid, Strain, zeroSpecificShape } from '../model/bridge';
-import { constConstraintFalse, constConstraintTrue, ConstrainedBid, Constraint, SuitComparisonOperator, SuitRangeSpecifier } from '../model/constraints';
 import { rankFromString, ranks, Suit } from '../model/deck';
+import { SuitComparisonOperator } from '../model/system/core';
+import { SuitSpecifier, SyntacticBid, Syntax, syntaxFalse, syntaxTrue, wrap } from '../model/system/expander';
 import * as AST from '../parse/bid.peg.g';
 
 const getConnectiveItems = (items: ReadonlyArray<AST.Constraint>) =>
@@ -14,13 +15,13 @@ const getConnectiveItems = (items: ReadonlyArray<AST.Constraint>) =>
       readonlyNonEmptyArray.map(constraint),
       either.fromPredicate(i => i.length > 1, i => i[0]))))
 
-const connective = (type: "Conjunction" | "Disjunction", zero: () => Constraint) =>
+const connective = (type: "Conjunction" | "Disjunction") =>
   flow(getConnectiveItems,
-    eitherT.match(option.Functor)(identity, constraints => ({
+    eitherT.match(option.Functor)(identity, syntax => ({
       type,
-      constraints
+      syntax
     }) as const),
-    option.getOrElse(zero))
+    option.getOrElse(type === "Conjunction" ? syntaxTrue : syntaxFalse))
 
 const suit = (s: AST.Suit) : Suit =>
   s.kind === AST.ASTKinds.Club    ? 'C' :
@@ -32,9 +33,12 @@ const strain = (s: AST.Strain) : Strain =>
   s.kind === AST.ASTKinds.Notrump ? 'N' :
   suit(s)
 
-const suitSpecifier = (s: AST.SuitRangeSpecifier) : SuitRangeSpecifier =>
-  // s.kind === AST.ASTKinds.Major ? "Major" :
-  // s.kind === AST.ASTKinds.Minor ? "Minor" :
+const suitSpecifier = (s: AST.SuitSpecifier) : SuitSpecifier =>
+  s.kind === AST.ASTKinds.Major ? "Major" :
+  s.kind === AST.ASTKinds.Minor ? "Minor" :
+  s.kind === AST.ASTKinds.OtherMajor ? "OtherMajor" :
+  s.kind === AST.ASTKinds.OtherMinor ? "OtherMinor" :
+  s.kind === AST.ASTKinds.Wildcard ? "Wildcard" :
   suit(s)
 
 const bindValueQualifier = (s: AST.BoundQualifier, value: number) => (type: 'min' | 'max') =>
@@ -45,25 +49,25 @@ const bindValueQualifier = (s: AST.BoundQualifier, value: number) => (type: 'min
       || (type === 'min' && s.kind === AST.ASTKinds.Plus)
       || (type === 'max' && s.kind === AST.ASTKinds.Minus)))
 
-const constraintList = (c: AST.ConstraintList) : Constraint =>
+const constraintList = (c: AST.ConstraintList) : Syntax =>
   pipe(c,
     readonlyArray.map(c => c.constraint),
-    connective("Conjunction", constConstraintFalse))
+    connective("Conjunction"))
 
-export const constraint = (c: AST.Constraint) : Constraint => {
+export const constraint = (c: AST.Constraint) : Syntax => {
   switch (c.kind) {
 
     case AST.ASTKinds.True:
-      return constConstraintTrue()
+      return syntaxTrue()
 
     case AST.ASTKinds.False:
-      return constConstraintFalse()
+      return syntaxFalse()
 
     case AST.ASTKinds.And:
       return pipe(
         c.constraints,
         readonlyArray.map(c => c.constraint),
-        connective("Conjunction", constConstraintTrue))
+        connective("Conjunction"))
 
     case AST.ASTKinds.Otherwise:
       return { type: "Otherwise" }
@@ -79,12 +83,12 @@ export const constraint = (c: AST.Constraint) : Constraint => {
               items => [head, ...flatten(items[0], ...items.slice(1))]))
       return pipe(
         flatten(c.left, c.right),
-        connective("Disjunction", constConstraintFalse))
+        connective("Disjunction"))
 
     case AST.ASTKinds.Not:
       return {
         type: "Negation",
-        constraint: constraint(c.constraint)
+        syntax: constraint(c.constraint)
       }
 
     case AST.ASTKinds.OtherBid:
@@ -97,18 +101,18 @@ export const constraint = (c: AST.Constraint) : Constraint => {
       }
 
     case AST.ASTKinds.PointRange:
-      return {
+      return wrap({
         type: "PointRange",
         min: c.lower.value,
         max: c.upper.value
-      }
+      })
 
     case AST.ASTKinds.PointBound:
-      return {
+      return wrap({
         type: "PointRange",
         min: pipe(bindValueQualifier(c.qualifier, c.value.value)('min'), option.getOrElse(constant(0))),
         max: pipe(bindValueQualifier(c.qualifier, c.value.value)('max'), option.getOrElse(constant(37))),
-      }
+      })
 
     case AST.ASTKinds.SuitRange:
       return {
@@ -122,15 +126,15 @@ export const constraint = (c: AST.Constraint) : Constraint => {
       return {
         type: "SuitComparison",
         op: c.op.v as SuitComparisonOperator,
-        left: suit(c.left),
-        right: suit(c.right)
+        left: suitSpecifier(c.left),
+        right: suitSpecifier(c.right)
       }
 
     case AST.ASTKinds.Primary:
     case AST.ASTKinds.Secondary:
       return {
         type: `Suit${c.kind}`,
-        suit: suit(c.suit)
+        suit: suitSpecifier(c.suit)
       }
 
     case AST.ASTKinds.SuitBound:
@@ -144,7 +148,7 @@ export const constraint = (c: AST.Constraint) : Constraint => {
     case AST.ASTKinds.SuitHonors:
       return {
         type: "SuitHonors",
-        suit: suit(c.suit),
+        suit: suitSpecifier(c.suit),
         honors: pipe(c.honors,
           readonlyArray.fromArray,
           readonlyArray.traverse(option.Applicative)(flow(h => h.v, rankFromString)),
@@ -154,37 +158,37 @@ export const constraint = (c: AST.Constraint) : Constraint => {
     case AST.ASTKinds.SuitTop:
       return {
         type: "SuitTop",
-        suit: suit(c.suit),
+        suit: suitSpecifier(c.suit),
         count: parseInt(c.x),
         minRank: ranks[ranks.length - parseInt(c.y)]
       }
 
     case AST.ASTKinds.AnyShape:
-      return {
+      return wrap({
         type: "AnyShape",
         counts: pipe(c.v, string.split(''), readonlyArray.map(parseInt)) as [number, number, number, number]
-      }
+      })
 
     case AST.ASTKinds.SpecificShape:
-      return {
+      return wrap({
         type: "SpecificShape",
         suits: pipe(zeroSpecificShape, readonlyRecord.mapWithIndex((s, _) => c[s].value))
-      }
+      })
 
     case AST.ASTKinds.Relay:
-      return {
+      return wrap({
         type: "Relay",
         bid: {
           level: c.bid.level.value,
           strain: strain(c.bid.strain)
         }
-      }
+      })
 
     case AST.ASTKinds.LabelDef:
       return {
         type: "LabelDef",
         name: c.label.v,
-        constraint: constraintList(c.constraints)
+        definition: constraintList(c.constraints)
       }
 
     case AST.ASTKinds.LabelRef:
@@ -192,9 +196,14 @@ export const constraint = (c: AST.Constraint) : Constraint => {
         type: "LabelRef",
         name: c.label.v
       }
+
+    case AST.ASTKinds.Balanced:
+    case AST.ASTKinds.SemiBalanced:
+    case AST.ASTKinds.Unbalanced:
+      return { type: c.kind }
     
     default:
-      return { type: c.kind }
+      return wrap({ type: c.kind })
   }
 }
 
@@ -212,12 +221,12 @@ export const bid = (bid: AST.Bid): Bid => {
   }
 }
 
-export const constrainedBid = (bidSpec: AST.BidSpec) : ConstrainedBid => ({
+export const constrainedBid = (bidSpec: AST.BidSpec) : SyntacticBid => ({
   bid: bid(bidSpec.bid),
-  constraint: pipe(
+  syntax: pipe(
     bidSpec.constraints?.constraints,
     option.fromNullable,
-    option.fold(constConstraintFalse, constraintList))
+    option.fold(syntaxFalse, constraintList))
 })
 
 export const parseBid = AST.parse
