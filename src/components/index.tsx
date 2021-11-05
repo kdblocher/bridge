@@ -27,8 +27,8 @@ const App = () => {
           &nbsp;|&nbsp;
           <a target="_blank" rel="noreferrer" href="https://github.com/kdblocher/bridge/issues/new">Report issue</a>
         </div>
-        {/* <TestHands /> */}
-        <SystemDetails />
+        <TestHands />
+        {/* <SystemDetails /> */}
         {/* <SelectionDetails /> */}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { either, these } from 'fp-ts';
+import { these } from 'fp-ts';
 import { identity, pipe } from 'fp-ts/lib/function';
 import JSONPretty from 'react-json-pretty';
 
@@ -18,7 +18,7 @@ const TestHands = () => {
       <HandEditor />
       {these.isLeft(valid) && <>
         <h4>Validation Error</h4>
-        <JSONPretty data={pipe(valid, either.foldW(identity, identity))} />
+        <JSONPretty data={pipe(valid, these.fold(identity, identity, identity))} />
       </>}
       {results !== null && <div>
         <h4>Results</h4>

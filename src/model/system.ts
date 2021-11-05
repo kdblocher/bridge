@@ -1,4 +1,4 @@
-import { eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, show, tree as T } from 'fp-ts';
+import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, show, these, tree as T } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 
 import { SyntacticBid } from './system/expander';
@@ -85,3 +85,9 @@ export const withImplicitPasses =
       : T.make(a, pipe(bs,
         RA.append(T.make<SyntacticBid>({ bid: "Pass", syntax: { type: "Otherwise" }})),
         RA.toArray))))
+
+export const collectErrors = <L, R>(forest: Forest<E.Either<L, R>>) =>
+  pipe(forest,
+    RA.map(T.traverse(these.getApplicative(RA.getMonoid<L>()))(E.mapLeft(RA.of))),
+    RA.sequence(these.getApplicative(RA.getSemigroup<L>())))
+      

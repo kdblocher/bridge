@@ -7,7 +7,7 @@ import { assertUnreachable } from '../../lib';
 import { Bid, ContractBid, eqBid, isContractBid, makeShape, Shape } from '../bridge';
 import { Suit, suits } from '../deck';
 import { serializedBidL } from '../serialization';
-import { extendForestWithSiblings, Forest, Path } from '../system';
+import { collectErrors, extendForestWithSiblings, Forest, Path } from '../system';
 import { ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue } from './core';
 
 export const ofS = <A>(x: A) => S.of<ExpandBidContext, A>(x)
@@ -349,11 +349,6 @@ const expandPeers =
             S.traverseArray(traversePeers),
             S.evaluate(context),
             RA.toArray)))))
-
-const collectErrors = <L, R>(forest: Forest<E.Either<L, R>>) =>
-  pipe(forest,
-    RA.map(T.traverse(these.getApplicative(RA.getMonoid<L>()))(E.mapLeft(RA.of))),
-    RA.sequence(these.getApplicative(RA.getSemigroup<L>())))
 
 export const expandForest = (forest: Forest<SyntacticBid>): these.These<ReadonlyArray<SyntaxError>, Forest<ConstrainedBid>> =>
   pipe(forest,
