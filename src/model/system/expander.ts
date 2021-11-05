@@ -1,16 +1,14 @@
-import { either as E, eitherT, option as O, readonlyArray as RA, readonlyMap as RM, readonlyNonEmptyArray as RNEA, separated, state as S, string, these, tree as T } from 'fp-ts';
+import { either as E, eitherT, eq, option as O, optionT, readonlyArray as RA, readonlyMap as RM, readonlyNonEmptyArray as RNEA, separated, state as S, string, these, tree as T } from 'fp-ts';
 import { constant, constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { Lens } from 'monocle-ts';
 import { Object } from 'ts-toolbelt';
 
-import { assertUnreachable } from '../../lib';
+import { assertUnreachable, debug } from '../../lib';
 import { Bid, ContractBid, eqBid, isContractBid, makeShape, Shape } from '../bridge';
 import { Suit, suits } from '../deck';
 import { serializedBidL } from '../serialization';
-import { Forest } from '../system';
-import {
-    ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue
-} from './core';
+import { extendForestWithSiblings, Forest } from '../system';
+import { ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue } from './core';
 
 export const ofS = <A>(x: A) => S.of<ExpandBidContext, A>(x)
 
@@ -119,33 +117,43 @@ const connective = ({ type, syntax }: SyntaxConnective): S.State<ExpandBidContex
 interface ExpandBidContext {
   bid: Bid
   path: ReadonlyArray<ConstrainedBid>
-  peers: ReadonlyArray<ConstrainedBid>
+  siblings: ReadonlyArray<SyntacticBid>
+  traversed: ReadonlyArray<ConstrainedBid>
   labels: ReadonlyMap<string, Syntax>
 }
 const zeroContext: ExpandBidContext = {
   bid: "Pass",
   path: [],
-  peers: RA.empty,
+  siblings: RA.empty,
+  traversed: RA.empty,
   labels: RM.empty
 }
 
 const contextL = Lens.fromProp<ExpandBidContext>()
 const bidL = contextL('bid')
 const pathL = contextL('path')
-const peersL = contextL('peers')
+const siblingsL = contextL('siblings')
+const traversedL = contextL('traversed')
 const labelsL = contextL('labels')
 
 interface SyntaxOtherBid {
   type: "OtherBid",
   bid: ContractBid
 }
+const eqSyntacticBid = pipe(eqBid, eq.contramap((sb: SyntacticBid) => sb.bid));
+
 const otherBid = (bid: Bid) =>
   pipe(
     S.gets(flow(
+      siblingsL.get,
+      RA.findFirst(sb => eqBid.equals(sb.bid, bid)),
+      O.map(sb => sb.syntax))),
+    optionT.alt(S.Monad)(() => S.gets(flow(
       labelsL.get,
-      E.fromOptionK((): SyntaxError => "OtherBidNotFound")(
-        RM.lookup(string.Eq)(serializedBidL.get(bid))))),
-    S.map(E.map(E.right)))
+      RM.lookup(string.Eq)(serializedBidL.get(bid))))),
+    S.map(flow(
+      E.fromOption((): SyntaxError => "OtherBidNotFound"),
+      E.map(E.right))))
 
 interface SyntaxOtherwise {
   type: "Otherwise"
@@ -153,7 +161,7 @@ interface SyntaxOtherwise {
 const otherwise = pipe(
   S.gets(bidL.get),
   S.chain(bid => S.gets(flow(
-    peersL.get,
+    traversedL.get,
     RA.takeLeftWhile(cb => !eqBid.equals(cb.bid, bid)),
     RA.map(cb => cb.constraint)))),
   S.map(flow(
@@ -295,12 +303,17 @@ export type SyntacticBid = {
 }
 
 const expandBid = 
-  T.map(({ bid, syntax }: SyntacticBid) =>
-    pipe(syntax,
-      expand,
+  T.map(({ bid, syntax, siblings }: SyntacticBid & { siblings? : ReadonlyArray<SyntacticBid> }) =>
+    pipe(
+      ofS(syntax),
+      S.apFirst(S.modify(bidL.set(bid))),
+      S.apFirst(S.modify(labelsL.modify(RM.upsertAt(string.Eq)(serializedBidL.get(bid), syntax)))),
+      S.apFirst(pipe(siblings, O.fromNullable, O.fold(flow(constVoid, ofS), flow(siblingsL.set, S.modify)))),
+      S.chain(expand),
       S.map(E.map((constraint): ConstrainedBid => ({ bid, constraint }))),
       S.chainFirst(E.foldW(
         flow(constVoid, ofS),
+        /* don't eta reduce this, there is a null bug somewhere in the lib */
         cb => S.modify(pathL.modify(RA.prepend(cb)))))))
 
 const expandPeers =
@@ -326,6 +339,7 @@ const collectErrors = (forest: Forest<E.Either<SyntaxError, ConstrainedBid>>) =>
 
 export const expandForest = (forest: Forest<SyntacticBid>): these.These<ReadonlyArray<SyntaxError>, Forest<ConstrainedBid>> =>
   pipe(forest,
+    extendForestWithSiblings(eqSyntacticBid),
     S.traverseArray(expandTree),
     S.evaluate(zeroContext),
     collectErrors)
