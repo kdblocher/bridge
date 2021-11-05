@@ -86,7 +86,8 @@ export const withImplicitPasses =
         RA.append(T.make<SyntacticBid>({ bid: "Pass", syntax: { type: "Otherwise" }})),
         RA.toArray))))
 
-export const collectErrors = <L, R>(forest: Forest<E.Either<L, R>>) =>
+type ForestWithErrors<L, R> = these.These<ReadonlyArray<L>, Forest<R>>
+export const collectErrors = <L, R>(forest: Forest<E.Either<L, R>>): ForestWithErrors<L, R> =>
   pipe(forest,
     RA.map(T.traverse(these.getApplicative(RA.getMonoid<L>()))(E.mapLeft(RA.of))),
     RA.sequence(these.getApplicative(RA.getSemigroup<L>())))

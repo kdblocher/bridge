@@ -7,10 +7,12 @@ import { assertUnreachable } from '../../lib';
 import { Bid, ContractBid, eqBid, isContractBid, makeShape, Shape } from '../bridge';
 import { Suit, suits } from '../deck';
 import { serializedBidL } from '../serialization';
-import { collectErrors, extendForestWithSiblings, Forest, Path } from '../system';
-import { ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue } from './core';
+import { collectErrors, extendForestWithSiblings, Forest } from '../system';
+import {
+    ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue
+} from './core';
 
-export const ofS = <A>(x: A) => S.of<ExpandBidContext, A>(x)
+export const ofS = <A>(x: A) => S.of<ExpandContext, A>(x)
 
 export type SuitContextSpecifier = "Wildcard" | "Major" | "Minor" | "OtherMajor" | "OtherMinor"
 export type SuitSpecifier = SuitContextSpecifier | Suit
@@ -96,7 +98,7 @@ type SyntaxConnective =
   | SyntaxConjunction
   | SyntaxDisjunction
 
-const connective = ({ type, syntax }: SyntaxConnective): S.State<ExpandBidContext, E.Either<SyntaxErrorReason, E.Either<Constraint, Syntax>>> =>
+const connective = ({ type, syntax }: SyntaxConnective): S.State<ExpandContext, E.Either<SyntaxErrorReason, E.Either<Constraint, Syntax>>> =>
   pipe(syntax,
     RNEA.traverse(S.Applicative)(expandOnce),
     S.map(flow(
@@ -114,24 +116,25 @@ const connective = ({ type, syntax }: SyntaxConnective): S.State<ExpandBidContex
                 syntax: [wrap({ type, constraints }), { type, syntax }]
               }))))))))
 
-interface ExpandBidContext {
+type ExpandResult = E.Either<SyntaxError, ConstrainedBid>
+interface ExpandContext {
   bid: Bid
-  path: ReadonlyArray<ConstrainedBid>
+  pathReversed: ReadonlyArray<Bid>
   siblings: ReadonlyArray<SyntacticBid>
-  traversed: ReadonlyArray<ConstrainedBid>
+  traversed: ReadonlyArray<ExpandResult>
   labels: ReadonlyMap<string, Syntax>
 }
-const zeroContext: ExpandBidContext = {
+const zeroContext: ExpandContext = {
   bid: "Pass",
-  path: [],
+  pathReversed: [],
   siblings: RA.empty,
   traversed: RA.empty,
   labels: RM.empty
 }
 
-const contextL = Lens.fromProp<ExpandBidContext>()
+const contextL = Lens.fromProp<ExpandContext>()
 const bidL = contextL('bid')
-const pathL = contextL('path')
+const pathReversedL = contextL('pathReversed')
 const siblingsL = contextL('siblings')
 const traversedL = contextL('traversed')
 const labelsL = contextL('labels')
@@ -162,6 +165,7 @@ const otherwise = pipe(
   S.gets(bidL.get),
   S.chain(bid => S.gets(flow(
     traversedL.get,
+    RA.rights,
     RA.takeLeftWhile(cb => !eqBid.equals(cb.bid, bid)),
     RA.map(cb => cb.constraint)))),
   S.map(flow(
@@ -210,7 +214,7 @@ const syntaxSemiBalanced : Syntax = {
   ])
 }
 
-const expandSpecifier = (specifier: SuitSpecifier): S.State<ExpandBidContext, E.Either<SyntaxErrorReason, Suit>> => {
+const expandSpecifier = (specifier: SuitSpecifier): S.State<ExpandContext, E.Either<SyntaxErrorReason, Suit>> => {
   switch (specifier) {
     case "C":
     case "D":
@@ -237,13 +241,13 @@ export type SyntaxErrorReason =
 
 export interface SyntaxError {
   reason: SyntaxErrorReason
-  // syntax: Syntax
-  path: Path<Bid>
+  syntax: Syntax
+  path: ReadonlyArray<Bid>
 }
 
 export const pure = <A>(x: A) => pipe(x, E.right, E.right, ofS)
 
-const expandOnce = (s: Syntax): S.State<ExpandBidContext, E.Either<SyntaxErrorReason, E.Either<Constraint, Syntax>>> => {
+const expandOnce = (s: Syntax): S.State<ExpandContext, E.Either<SyntaxErrorReason, E.Either<Constraint, Syntax>>> => {
   switch (s.type) {
     case "Wrapper":
       return ofS<E.Either<SyntaxErrorReason, E.Either<Constraint, Syntax>>>(E.right(E.left(s.constraint)))
@@ -293,13 +297,13 @@ const expandOnce = (s: Syntax): S.State<ExpandBidContext, E.Either<SyntaxErrorRe
   }
 }
 
-const expand = (syntax: Syntax) : S.State<ExpandBidContext, E.Either<SyntaxErrorReason, Constraint>> =>
+const expand = (syntax: Syntax) : S.State<ExpandContext, E.Either<SyntaxErrorReason, Constraint>> =>
   pipe(
     syntax,
     expandOnce,
     S.chain(flow(
       E.mapLeft(E.left),
-      E.chain(cont => pipe(cont, E.mapLeft(c => E.right(c)))),
+      E.chain(flow(E.mapLeft(c => E.right(c)))),
       E.fold(ofS, expand))))
 
 export type SyntacticBid = {
@@ -307,52 +311,47 @@ export type SyntacticBid = {
   syntax: Syntax
 }
 
+const modifyContext = <T>(...modifiers: ReadonlyArray<(c: T) => T>) =>
+  pipe(modifiers, S.traverseArray(S.modify), S.map(constVoid))
+
 const expandBid = 
-  T.map(({ bid, syntax, siblings }: SyntacticBid & { siblings? : ReadonlyArray<SyntacticBid> }) =>
+  T.map(({ bid, syntax, siblings }: SyntacticBid & { siblings : ReadonlyArray<SyntacticBid> }) =>
     pipe(
-      ofS(syntax),
-      S.apFirst(S.modify(bidL.set(bid))),
-      S.apFirst(S.modify(labelsL.modify(RM.upsertAt(string.Eq)(serializedBidL.get(bid), syntax)))),
-      S.apFirst(pipe(siblings, O.fromNullable, O.fold(flow(constVoid, ofS), flow(siblingsL.set, S.modify)))),
-      S.chain(expand),
+      modifyContext(
+        bidL.set(bid),
+        pathReversedL.modify(RA.prepend(bid)),
+        siblingsL.set(siblings),
+        labelsL.modify(RM.upsertAt(string.Eq)(serializedBidL.get(bid), syntax)),
+      ),
+      S.apSecond(expand(syntax)),
       S.chain(e => pipe(
-        S.gets(pathL.get),
-        S.map(flow(
-          RA.map(cb => cb.bid),
-          RA.prepend(bid),
-          path => pipe(e, E.mapLeft((reason): SyntaxError => ({
-            reason,
-            // syntax,
-            path
-          }))))))),
-      S.map(E.map((constraint): ConstrainedBid => ({ bid, constraint }))),
-      S.chainFirst(E.foldW(
-        flow(constVoid, ofS),
-        /* don't eta reduce this, there is a null bug somewhere in the lib */
-        cb => S.modify(pathL.modify(RA.prepend(cb)))))))
+        S.gets(pathReversedL.get),
+        S.map(path => pipe(e, E.mapLeft((reason): SyntaxError => ({ reason, path, syntax })))))),
+      S.map(E.map((constraint): ConstrainedBid => ({ bid, constraint })))))
 
 const traversePeers =
-  S.chainFirst((t: T.Tree<E.Either<SyntaxError, ConstrainedBid>>) =>
-    pipe(t.value,
-      E.fold(
-        flow(constVoid, ofS),
-        cb => S.modify(traversedL.modify(RA.append(cb))))))
+  S.chainFirst((t: T.Tree<ExpandResult>) =>
+    modifyContext(
+      traversedL.modify(RA.append(t.value)),
+      pathReversedL.modify(flow(RA.tail, O.getOrElseW(() => RA.empty)))))
 
+type ExpandedBid = S.State<ExpandContext, ExpandResult>
 const expandPeers =
-  T.fold((s: S.State<ExpandBidContext, E.Either<SyntaxError, ConstrainedBid>>, bs: ReadonlyArray<S.State<ExpandBidContext, T.Tree<E.Either<SyntaxError, ConstrainedBid>>>>) => 
-    pipe(s,
+  T.fold((expandedBid: ExpandedBid, expandedChildForest: ReadonlyArray<S.State<ExpandContext, T.Tree<ExpandResult>>>) => 
+    pipe(expandedBid,
       S.bindTo('result'),
       S.apS('context', S.get()),
       S.map(({ result, context }) =>
         T.make(result,
-          pipe(bs,
+          pipe(expandedChildForest,
             S.traverseArray(traversePeers),
             S.evaluate(context),
             RA.toArray)))))
 
-export const expandForest = (forest: Forest<SyntacticBid>): these.These<ReadonlyArray<SyntaxError>, Forest<ConstrainedBid>> =>
+export const expandForest = (forest: Forest<SyntacticBid>) =>
   pipe(forest,
     extendForestWithSiblings(eqSyntacticBid),
-    S.traverseArray(flow(expandBid, expandPeers, traversePeers)),
+    RA.map(flow(expandBid, expandPeers)),
+    S.traverseArray(traversePeers),
     S.evaluate(zeroContext),
     collectErrors)

@@ -1,4 +1,4 @@
-import { either, these } from 'fp-ts';
+import { these } from 'fp-ts';
 import JSONPretty from 'react-json-pretty';
 import styled from 'styled-components';
 
