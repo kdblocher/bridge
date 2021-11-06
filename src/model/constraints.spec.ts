@@ -2,12 +2,11 @@ import * as fc from 'fast-check';
 import { boolean, option as O, readonlyArray as RA, readonlyRecord as RR, these as TH, tree as T } from 'fp-ts';
 import { constFalse, flow, pipe } from 'fp-ts/lib/function';
 
-import { decodeBid, decodeHand } from '../parse';
+import { decodeBid } from '../parse';
 import { parseBid } from '../parse/bid';
 import * as tests from './constraints.testdata';
 import { getOrdGroupedHand, groupHandBySuits, rankStrings } from './deck';
 import { handA } from './deck.spec';
-import { serializedHandL } from './serialization';
 import { Constraint, satisfies } from './system/core';
 import { expandForest, SyntacticBid } from './system/expander';
 
@@ -34,7 +33,7 @@ const encodeHand = flow(
 
 describe('decode', () => {
   pipe(tests.decodeTests,
-    RR.mapWithIndex((name, { value, actual }) => {
+    RR.mapWithIndex((name, { value, expected }) => {
       const bid = "1C: " + value
       describe(name, () => {
         test("parses", () => {
@@ -44,7 +43,7 @@ describe('decode', () => {
           expect(expandSingleBid(bid)._tag).toEqual("Some")
         })
         test("implies", () => {
-          expect(pipe(expandSingleBid(bid))).toStrictEqual<O.Option<Constraint>>(O.of(actual))
+          expect(pipe(expandSingleBid(bid))).toStrictEqual<O.Option<Constraint>>(O.of(expected))
         })
       })
     }))
@@ -52,20 +51,20 @@ describe('decode', () => {
 
 describe('constraint propositions', () => {
   pipe(tests.constraintPropositionTests,
-    RR.mapWithIndex((name, { value, actual }) => {
+    RR.mapWithIndex((name, { value, expected }) => {
       test(name, () => fc.assert(
         fc.property(fc.context(), handA, (ctx, hand) => {
           ctx.log(encodeHand(hand))
           return boolean.BooleanAlgebra.implies(
             satisfies(value)(hand),
-            satisfies(actual)(hand))
+            satisfies(expected)(hand))
         })))
     }))
 })
 
 describe('syntax propositions', () => {
   pipe(tests.syntaxPropositionTests,
-    RR.mapWithIndex((name, { value, actual }) => {
+    RR.mapWithIndex((name, { value, expected }) => {
       const sb: SyntacticBid = { bid: { level: 1, strain: "C" }, syntax: value }
       describe(name, () => {
         test("expands", () => {
@@ -80,7 +79,7 @@ describe('syntax propositions', () => {
                 constFalse,
                 c => boolean.BooleanAlgebra.implies(
                   satisfies(c)(hand),
-                  satisfies(actual)(hand))))
+                  satisfies(expected)(hand))))
         })))
       })
     }))
