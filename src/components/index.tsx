@@ -3,7 +3,7 @@ import Errors from './Errors';
 // import SelectionDetails from './SelectionDetails';
 import Settings from './Settings';
 import Stats from './Stats';
-import SystemDetails from './SystemDetails';
+// import SystemDetails from './SystemDetails';
 import TestHands from './TestHands';
 
 const App = () => {

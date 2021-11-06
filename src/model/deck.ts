@@ -1,9 +1,9 @@
 import { either, eq, number, option, ord, readonlyArray, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, string } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import * as t from 'io-ts';
-import { browserCrypto, shuffle } from 'random-js';
-import { ordAscending, ordDescending } from '../lib';
+import { MersenneTwister19937, shuffle } from 'random-js';
 
+import { ordAscending, ordDescending } from '../lib';
 
 export const suits = ['C', 'D', 'H', 'S'] as const
 export type Suit = typeof suits[number]
@@ -37,8 +37,6 @@ export interface Card {
   suit: Suit
   rank: Rank
 }
-export const cardToString = (c: Card) =>
-  `${c.suit}${RankC.encode(c.rank)}`
 export const eqCard : eq.Eq<Card> = eq.struct({
   suit: eqSuit,
   rank: eqRank
@@ -77,5 +75,6 @@ export const groupHandBySuits = (hand: Hand) : GroupedHand =>
 
 export type Deck = RNEA.ReadonlyNonEmptyArray<Card>
 
+export const engine = { engine: MersenneTwister19937.autoSeed() }
 export const newDeck = () : Deck =>
-  shuffle(browserCrypto, [...cards]) as unknown as Deck
+  shuffle(engine.engine, [...cards]) as unknown as Deck

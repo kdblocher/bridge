@@ -1,14 +1,12 @@
-import {
-    either as E, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S,
-    string
-} from 'fp-ts';
+import { either as E, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
 import { apply, constant, constFalse, constTrue, flow, pipe } from 'fp-ts/lib/function';
 import { Lens, Optional } from 'monocle-ts';
 
 import { assertUnreachable } from '../../lib';
-import { Bid, ContractBid, eqShape, getHandShape, getHandSpecificShape, getHcp, groupHandBySuit, isContractBid, ordContractBid, Shape as AnyShape, SpecificShape } from '../bridge';
-import { eqRank, eqSuit, Hand, honors, ordRankAscending, Rank, Suit, suits } from '../deck';
+import { Bid, ContractBid, isContractBid, ordContractBid } from '../bridge';
+import { eqRank, eqSuit, groupHandBySuits, Hand, honors, ordRankAscending, Rank, Suit, suits } from '../deck';
+import { AnyShape, eqShape, getHandShape, getHandSpecificShape, getHcp, SpecificShape } from '../evaluation';
 
 export interface ConstraintPointRange {
   type: "PointRange"
@@ -183,11 +181,10 @@ const toRankSet = readonlySet.fromReadonlyArray(eqRank)
 
 const suitHonors = (suitHonors: ConstraintSuitHonors) =>
   flow(
-    groupHandBySuit,
+    groupHandBySuits,
     readonlyRecord.lookup(suitHonors.suit),
     O.fold(constFalse, cards => {
       const cardSet = pipe(cards,
-        RA.map(c => c.rank),
         toRankSet,
         readonlySet.intersection(eqRank)(toRankSet(honors)))
       const honorSet = pipe(suitHonors.honors, toRankSet)
@@ -195,10 +192,9 @@ const suitHonors = (suitHonors: ConstraintSuitHonors) =>
     }))
 
 const suitTop = (suitTop: ConstraintSuitTop) =>
-  flow(groupHandBySuit,
+  flow(groupHandBySuits,
     readonlyRecord.lookup(suitTop.suit),
     O.fold(constFalse, flow(
-      RA.map(c => c.rank),
       RA.filter(r => ordRankAscending.compare(r, suitTop.minRank) >= 0),
       cards => cards.length >= suitTop.count)))
 
