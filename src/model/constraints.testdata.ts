@@ -5,7 +5,7 @@ import { Syntax } from './system/expander';
 
 export type DecodeTest = {
   value: string
-  actual: Constraint
+  expected: Constraint
 }
 
 export const decodeTests: readonlyRecord.ReadonlyRecord<string, DecodeTest> = {
@@ -13,8 +13,8 @@ export const decodeTests: readonlyRecord.ReadonlyRecord<string, DecodeTest> = {
   // Make sure plus operator works as expected
   hcpPlusSyntax:
   {
-    "value": "7+",
-    "actual":
+    value: "7+",
+    expected:
     {
       "type": "PointRange",
       "min": 7,
@@ -25,8 +25,8 @@ export const decodeTests: readonlyRecord.ReadonlyRecord<string, DecodeTest> = {
   // Make sure minus operator works as expected
   hcpMinusSyntax:
   {
-    "value": "7-",
-    "actual":
+    value: "7-",
+    expected:
     {
       "type": "PointRange",
       "min": 0,
@@ -38,8 +38,8 @@ export const decodeTests: readonlyRecord.ReadonlyRecord<string, DecodeTest> = {
   // Suit length equality operator
   suitEqualitySyntax:
   {
-    "value": "5=H",
-    "actual":
+    value: "5=H",
+    expected:
     {
       "type": "SuitRange",
       "min": 5,
@@ -51,8 +51,8 @@ export const decodeTests: readonlyRecord.ReadonlyRecord<string, DecodeTest> = {
   // Suit length plus operator
   suitPlusSyntax:
   {
-    "value": "4+H",
-    "actual":
+    value: "4+H",
+    expected:
     {
       "type": "SuitRange",
       "min": 4,
@@ -64,8 +64,8 @@ export const decodeTests: readonlyRecord.ReadonlyRecord<string, DecodeTest> = {
   // Suit length minus operator
   suitMinusSyntax:
   {
-    "value": "4-H",
-    "actual":
+    value: "4-H",
+    expected:
     {
       "type": "SuitRange",
       "min": 4,
@@ -77,8 +77,8 @@ export const decodeTests: readonlyRecord.ReadonlyRecord<string, DecodeTest> = {
   // Suit length range operator
   suitRangeSyntax:
   {
-    "value": "5-6H",
-    "actual":
+    value: "5-6H",
+    expected:
     {
       "type": "SuitRange",
       "min": 5,
@@ -90,38 +90,38 @@ export const decodeTests: readonlyRecord.ReadonlyRecord<string, DecodeTest> = {
 
 interface ConstraintPropositionTest {
   value: Constraint
-  actual: Constraint
+  expected: Constraint
 }
 
-export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, ConstraintPropositionTest> = {
+export const constraintPropositionTests: readonlyRecord.ReadonlyRecord<string, ConstraintPropositionTest> = {
 
   // Min should never be more than max
   hcpReversal:
   {
-    "value":
+    value:
     {
       "type": "PointRange",
       "min": 7,
       "max": 0
     },
-    "actual": {
+    expected: {
       "type": "Constant",
-      "value": false
+      value: false
     }
   },
   // Reversed suit range should not generate anything
   suitReversal:
   {
-    "value":
+    value:
     {
       "type": "SuitRange",
       "min": 6,
       "max": 5,
       "suit": "H"
     },
-    "actual": {
+    expected: {
       "type": "Constant",
-      "value": false
+      value: false
     }
   },
 
@@ -132,7 +132,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
   // If you have two diamonds, and fewer clubs, it had better be one or zero
   suitCompareLessThanOperator:
   {
-    "value":
+    value:
     {
       "type": "Conjunction",
       "constraints": [
@@ -150,7 +150,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
         }
       ]
     },
-    "actual":
+    expected:
     {
       "type": "SuitRange",
       "min": 0,
@@ -163,7 +163,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
   // If you have two diamonds, and same or fewer clubs, it zero to two.
   suitCompareLessThanOrEqualOperator:
   {
-    "value":
+    value:
     {
       "type": "Conjunction",
       "constraints": [
@@ -181,7 +181,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
         }
       ]
     },
-    "actual":
+    expected:
     {
       "type": "SuitRange",
       "min": 0,
@@ -195,7 +195,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
   // If you have two hearts, and same spades, it had better be two.
   suitCompareEqualOperator:
   {
-    "value":
+    value:
     {
       "type": "Conjunction",
       "constraints": [
@@ -213,7 +213,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
         }
       ]
     },
-    "actual":
+    expected:
     {
       "type": "SuitRange",
       "min": 2,
@@ -226,7 +226,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
   // If you have two spades, and same or greater than hearts, you have zero or one hearts.
   suitCompareGreaterThanOrEqualOperator:
   {
-    "value":
+    value:
     {
       "type": "Conjunction",
       "constraints": [
@@ -244,7 +244,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
         }
       ]
     },
-    "actual":
+    expected:
     {
       "type": "SuitRange",
       "min": 0,
@@ -257,7 +257,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
   // If you have two spades, and more spades than hearts, it had better be zero or one.
   suitCompareGreaterThanOperator:
   {
-    "value":
+    value:
     {
       "type": "Conjunction",
       "constraints": [
@@ -275,7 +275,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
         }
       ]
     },
-    "actual":
+    expected:
     {
       "type": "SuitRange",
       "min": 0,
@@ -288,7 +288,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
   // If you have four spades, equal hearts to spades, and equal diamonds to hearts, you should have four diamonds.
   multpleSuitCompareEqualOperator:
   {
-    "value":
+    value:
     {
       "type": "Conjunction",
       "constraints": [
@@ -312,7 +312,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
         }
       ]
     },
-    "actual":
+    expected:
     {
       "type": "SpecificShape",
       "suits":
@@ -328,7 +328,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
   // You cannot have two secondary suits 
   twoSecondarySuits:
   {
-    "value":
+    value:
     {
       "type": "Conjunction",
       "constraints": [
@@ -342,16 +342,16 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
         }
       ]
     },
-    "actual": {
+    expected: {
       "type": "Constant",
-      "value": false
+      value: false
     }
   },
 
   // You cannot have the same suit be both primary and secondary
   sameSuitPrimaryAndSecondary:
   {
-    "value":
+    value:
     {
       "type": "Conjunction",
       "constraints": [
@@ -365,16 +365,16 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
         }
       ]
     },
-    "actual": {
+    expected: {
       "type": "Constant",
-      "value": false
+      value: false
     }
   },
 
   // Make sure a secondary five card suit does not prevent a higher five card suit from being primary
   setPrimaryAsHigherSuit:
   {
-    "value":
+    value:
     {
       "type": "Conjunction",
       "constraints": [
@@ -390,7 +390,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
         }
       ]
     },
-    "actual":
+    expected:
     {
       "type": "SuitRange",
       "min": 5,
@@ -402,7 +402,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
   // Correllary to previous test.  Make sure a five card higher ranking suit results in a six plus card primary
   setPrimaryAsLowerSuit:
   {
-    "value":
+    value:
     {
       "type": "Conjunction",
       "constraints": [
@@ -418,7 +418,7 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
         }
       ]
     },
-    "actual":
+    expected:
     {
       "type": "SuitRange",
       "min": 6,
@@ -431,19 +431,19 @@ export const constraintPropositionTests : readonlyRecord.ReadonlyRecord<string, 
 
 interface ExpansionTest {
   value: Syntax
-  actual: Constraint
+  expected: Constraint
 }
 
-export const syntaxPropositionTests : readonlyRecord.ReadonlyRecord<string, ExpansionTest> = {
+export const syntaxPropositionTests: readonlyRecord.ReadonlyRecord<string, ExpansionTest> = {
   // ////////////////  Distribution tests   /////////////////
   // // Verify balanced shapes
   distBalanced:
   {
-    "value":
+    value:
     {
       "type": "Balanced"
     },
-    "actual":
+    expected:
     {
       "type": "Conjunction",
       "constraints": [
@@ -481,11 +481,11 @@ export const syntaxPropositionTests : readonlyRecord.ReadonlyRecord<string, Expa
   // Verify semibalanced shapes
   distSemiBalanced:
   {
-    "value":
+    value:
     {
       "type": "SemiBalanced"
     },
-    "actual":
+    expected:
     {
       "type": "Conjunction",
       "constraints": [
@@ -514,11 +514,11 @@ export const syntaxPropositionTests : readonlyRecord.ReadonlyRecord<string, Expa
   // Verify unbalanced shapes
   distUnBalanced:
   {
-    "value":
+    value:
     {
       "type": "Unbalanced"
     },
-    "actual":
+    expected:
     {
       "type": "Disjunction",
       "constraints": [
