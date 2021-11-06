@@ -1,8 +1,7 @@
-import { eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, tree as T } from 'fp-ts';
+import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, show, these as TH, tree as T } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 
-import { ConstrainedBid, Constraint } from '../model/constraints';
-import { Bid, eqBid } from './bridge';
+import { SyntacticBid } from './system/expander';
 
 export type Path<A> = RNEA.ReadonlyNonEmptyArray<A>
 export type Paths<A> = RNEA.ReadonlyNonEmptyArray<Path<A>>
@@ -22,14 +21,13 @@ export const flatten = <A>(forest: Forest<A>) =>
       T.reduce<A, ReadonlyArray<A>>([], (items, a) =>
         pipe(items, RA.append(a)))))
 
-export const pathTree = <A>(forest: Forest<A>) : Forest<Path<A>> =>
+export const getPathForest = <A>(forest: Forest<A>) : Forest<Path<A>> =>
   pipe(forest,
     RA.map(flow(
       T.map(RNEA.of),
       T.fold((a, forest: ReadonlyArray<T.Tree<Path<A>>>) =>
         T.make(a, pipe(forest,
-          RA.map(T.map(path => RNEA.concat(path)(a))), RA.toArray))),
-      T.map(x => RNEA.tail(x) as RNEA.ReadonlyNonEmptyArray<A>))))
+          RA.map(T.map(path => RNEA.concat(path)(a))), RA.toArray))))))
 
 export const getAllLeafPaths = <A>(forest: Forest<A>): ReadonlyArray<Path<A>> =>
   pipe(forest,
@@ -41,39 +39,57 @@ export const getAllLeafPaths = <A>(forest: Forest<A>): ReadonlyArray<Path<A>> =>
             RNEA.foldMap(RNEA.getSemigroup<Path<A>>())(RNEA.map(RA.prepend(node))))))),
     RA.filterMap(RNEA.fromReadonlyArray))
 
-const extendWithSiblingsTree = <A>(eqA: eq.Eq<A>) => (siblings: ReadonlyArray<A>) => (t: T.Tree<A>) : T.Tree<A & { siblings: ReadonlyArray<A> }> =>
+export const getForestFromLeafPaths = <A, F extends show.Show<A>>(show: F) => (paths: ReadonlyArray<Path<A>>): Forest<A> =>
+  pipe(paths,
+    RNEA.fromReadonlyArray,
+    O.fold(
+      () => RA.empty,
+      flow(
+        RNEA.groupBy(flow(RNEA.head, show.show)),
+        readonlyRecord.toReadonlyArray,
+        RA.map(flow(
+          readonlyTuple.snd,
+          paths => T.make(
+            RNEA.head(RNEA.head(paths)),
+            pipe(paths,
+              RNEA.map(flow(
+                RNEA.tail,
+                RNEA.fromReadonlyArray)),
+              RA.compact,
+              getForestFromLeafPaths(show),
+              RA.toArray)))))))
+
+const extendTreeWithSiblings = <A>(eqA: eq.Eq<A>) => (siblings: ReadonlyArray<A>) => (t: T.Tree<A>) : T.Tree<A & { siblings: ReadonlyArray<A> }> =>
   T.make(
     ({ ...t.value, siblings }),
     pipe(t.forest, RA.map(u =>
       pipe(t.forest,
         RA.map(t => t.value),
         RA.difference(eqA)([u.value]), // end null hack
-        extendWithSiblingsTree(eqA))(u)),
+        extendTreeWithSiblings(eqA))(u)),
       RA.toArray))
 
-const extendWithSiblingsForest = <A>(eqA: eq.Eq<A>) => (forest: Forest<A>) =>
+export const extendForestWithSiblings = <A>(eqA: eq.Eq<A>) => (forest: Forest<A>) =>
   pipe(forest, RA.map(t =>
     pipe(forest,
       RA.map(t => t.value),
       RA.difference(eqA)([t.value]),
-      extendWithSiblingsTree(eqA))(t)))
-export interface BidInfo {
-  bid: Bid
-  siblings: ReadonlyArray<ConstrainedBid>
-  constraint: Constraint
-}
-export type BidPath = Path<BidInfo>
-export type BidPaths = Paths<BidInfo>
-export type BidTree = Forest<BidInfo>
-
-export const getBidInfo : (f: Forest<ConstrainedBid>) => Forest<BidInfo> =
-  extendWithSiblingsForest(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid))
+      extendTreeWithSiblings(eqA))(t)))
 
 export const withImplicitPasses =
   RA.map(
-    T.fold((a: ConstrainedBid, bs: T.Forest<ConstrainedBid>) =>
+    T.fold((a: SyntacticBid, bs: T.Forest<SyntacticBid>) =>
       bs.length === 0 || pipe(bs, RA.exists(t => t.value.bid === "Pass"))
       ? T.make(a, bs)
       : T.make(a, pipe(bs,
-        RA.append(T.make<ConstrainedBid>({ bid: "Pass", constraint: { type: "Otherwise" }})),
+        RA.append(T.make<SyntacticBid>({ bid: "Pass", syntax: { type: "Otherwise" }})),
         RA.toArray))))
+
+export type ForestWithErrors<L, R> = TH.These<ReadonlyArray<L>, Forest<R>>
+export const collectErrors = <L, R>(forest: Forest<E.Either<L, R>>): ForestWithErrors<L, R> =>
+  pipe(forest,
+    RA.map(T.traverse(TH.getApplicative(RA.getMonoid<L>()))(E.mapLeft(RA.of))),
+    RA.sequence(TH.getApplicative(RA.getSemigroup<L>())))
+      
+export const chainCollectedErrors = <A, B, E>(f: (a: A) => TH.These<ReadonlyArray<E>, B>) => (fa: TH.These<ReadonlyArray<E>, A>) =>
+  TH.getChain(RA.getSemigroup<E>()).chain(fa, f)
