@@ -1,63 +1,59 @@
-import { either, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, separated, tree } from 'fp-ts';
+import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, string, these as TH, tree as T } from 'fp-ts';
 import { flow, identity, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
+import { DecodeError } from 'io-ts/lib/Decoder';
+import memoize from 'proxy-memoize';
 
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createEntityAdapter, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
+import { debug } from '../lib';
 import { Bid, eqBid } from '../model/bridge';
-import { ConstrainedBid, validateTree } from '../model/constraints';
-import { BidTree, extendWithSiblings, filterIncomplete, getAllLeafPaths, pathsWithoutRoot } from '../model/system';
+import { chainCollectedErrors, collectErrors, flatten, ForestWithErrors, getAllLeafPaths, getPathForest, getPathUpTo, Path, withImplicitPasses } from '../model/system';
+import { ExpandError, expandForest, SyntacticBid } from '../model/system/expander';
+import { SystemValidationError, validateTree } from '../model/system/validation';
 import { decodeBid } from '../parse';
 
+type BlockKey = string
+const eqBlockKey : eq.Eq<BlockKey> = string.Eq
+
 export type DecodedBid = ReturnType<typeof decodeBid>
-interface Node {
-  blockKey: string
-  text: string
-  bid: O.Option<DecodedBid>
+interface DecodedBidItem {
+  id: BlockKey
+  value: DecodedBid
+}
+const decodedBidAdapter = createEntityAdapter<DecodedBidItem>()
+
+type BlockTree = T.Forest<BlockKey>
+interface State {
+  system: BlockTree
+  decodedBids: ReturnType<typeof decodedBidAdapter.getInitialState>
 }
 
-type State = {
-  system: tree.Tree<Node>
-}
-const getRoot = () => tree.make<Node>({ blockKey: "root", text: "root", bid: O.none })
 const initialState: State = {
-  system: getRoot()
+  system: [],
+  decodedBids: decodedBidAdapter.getInitialState()
 }
 
-const getPath = (blockKey: string) =>
-  pathsWithoutRoot(O.Functor)((node: Node, paths: ReadonlyArray<O.Option<RNEA.ReadonlyNonEmptyArray<Node>>>) => {
-    if (node.blockKey === blockKey) {
-      return O.some([node])
-    } else {
-      return pipe(paths, RA.findFirstMap(O.map(RA.prepend(node))))
-    }
-  })
-
-const flatten =
-  tree.reduce<Node, ReadonlyArray<Node>>([], (items, a) =>
-    pipe(items, RA.append(a)))
-
-export interface BlockItem {
-  key: string
-  text: string
+export interface BlockKeyDescriptor {
+  key: BlockKey
   depth: number
 }
-
-const buildTree = (items: ReadonlyArray<BlockItem>) => {
-  const root = getRoot()
+const buildForest = (items: ReadonlyArray<BlockKeyDescriptor>): BlockTree => {
+  const root = T.make<BlockKey>("ROOT")
   var parents = [root]
   items.forEach(item => {
     const curr = parents[item.depth + 1] = {
       forest: [],
-      value: {
-        blockKey: item.key,
-        text: item.text,
-        bid: O.some(decodeBid(item.text))
-      }
+      value: item.key
     }
     parents[item.depth].forest.push(curr)
   })
-  return root
+  return root.forest
+}
+
+export interface BlockItem {
+  key: string
+  text: string
 }
 
 const name = 'system'
@@ -65,92 +61,136 @@ const slice = createSlice({
   name,
   initialState,
   reducers: {
-    setSystem: (state, action: PayloadAction<ReadonlyArray<BlockItem>>) => {
-      state.system = pipe(buildTree(action.payload), castDraft)
+    setSystem: (state, action: PayloadAction<ReadonlyArray<BlockKeyDescriptor>>) => {
+      state.system = pipe(buildForest(action.payload), castDraft)
+    },
+    removeConstraintsByBlockKey: (state, action: PayloadAction<RNEA.ReadonlyNonEmptyArray<BlockKey>>) => {
+      decodedBidAdapter.removeMany(state.decodedBids, action.payload)
+    },
+    cacheSystemConstraints: (state, action: PayloadAction<RNEA.ReadonlyNonEmptyArray<BlockItem>>) => {
+      decodedBidAdapter.setMany(state.decodedBids, pipe(
+        action.payload,
+        RNEA.map(i => ({ id: i.key, value: decodeBid(i.text) }))))
     }
   }
 })
 
-export const { setSystem } = slice.actions
+export const { setSystem, removeConstraintsByBlockKey, cacheSystemConstraints } = slice.actions
 
-export const selectNodeByKey = (state: State, blockKey: string) =>
+const constrainedBidSelectors = decodedBidAdapter.getSelectors()
+
+interface KeyedState {
+  state: State
+  key: BlockKey
+}
+
+export const selectPathUpToKey = memoize(({ state, key }: KeyedState) =>
+  pipe(state.system,
+    getPathUpTo(eqBlockKey)(key)))
+
+const getCachedBidByKey = (constrainedBids: State['decodedBids']) => (key: BlockKey) =>
+  pipe(
+    O.fromNullableK(constrainedBidSelectors.selectById)(constrainedBids, key),
+    O.map(i => i.value))
+
+export const selectBidByKey = memoize(({ state, key }: KeyedState) =>
+  pipe(key,
+    getCachedBidByKey(state.decodedBids),
+    O.chain(O.fromEither)))
+
+export const selectBidPathUpToKey = memoize(({ state, key }: KeyedState) =>
   pipe(
     state.system,
-    getPath(blockKey),
-    O.chain(RA.last),
-    O.toNullable)
+    getPathUpTo(eqBlockKey)(key),
+    O.getOrElse(() => RA.zero()),
+    RA.filterMap(getCachedBidByKey(state.decodedBids)),
+    RA.sequence(E.Applicative)))
 
-export const selectPathByKey = (state: State, blockKey: string) =>
-  pipe(
-    state.system,
-    getPath(blockKey),
-    O.toNullable)
-
-export const selectBidsByKey = (state: State, blockKey: string) =>
-  pipe(
-    getPath(blockKey)(state.system),
-    O.getOrElse(() => [] as ReadonlyArray<Node>),
-    RA.map(n => n.bid),
-    RA.compact,
-    RA.sequence(either.Applicative))
-
-export const selectRules = (state: State) =>
-  pipe(
-    state.system,
+export const selectRules = memoize((state: State) =>
+  pipe(state.system,
     flatten,
-    RA.map(n => n.bid),
-    RA.compact,
-  )
+    RA.filterMap(getCachedBidByKey(state.decodedBids))))
 
-export const selectErrors =
+export const selectErrors = memoize(
   flow(
     selectRules,
-    RA.separate,
-    separated.left)
+    RA.lefts))
 
-const getCompleteByTree =
+const getCompleteForest = (bids: State['decodedBids']) =>
   flow(
-    tree.map((n: Node) => n.bid),
-    filterIncomplete)
+    RA.filterMap(T.traverse(O.Applicative)(getCachedBidByKey(bids))),
+    collectErrors)
 
-const getCompleteTree = (state: State) =>
-  getCompleteByTree(state.system)
+interface OptionsState {
+  state: State
+  options?: { implicitPass: boolean }
+}
+export const selectCompleteSyntaxForest = memoize(({ state, options }: OptionsState): ForestWithErrors<DecodeError, SyntacticBid> =>
+  pipe(state.system,
+    getCompleteForest(state.decodedBids),
+    TH.map(options?.implicitPass ? withImplicitPasses : identity)))
 
-export const selectCompleteByKey = (state: State, blockKey: string) =>
-  pipe(selectPathByKey(state, blockKey),
-    O.fromNullable,
-    O.chain(nodes => pipe(
-      tree.unfoldTree([getRoot().value, ...nodes], ([n0, ...ns]) => {
-        // debugger
-        return [n0, ns.length === 0 ? [] : [ns]]
-      }),
-      getCompleteByTree,
-      extendWithSiblings(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid)),
-      getAllLeafPaths,
-      RA.head)),
-    O.toNullable)
+interface SystemErrorParse { type: "Parse", error: DecodeError }
+interface SystemErrorSyntax { type: "Syntax", error: ExpandError }
+interface SystemErrorValidation { type: "Validation", error: SystemValidationError }
+export type SystemErrorWithPath = SystemErrorSyntax | SystemErrorValidation
+export type SystemError =
+  | SystemErrorParse
+  | SystemErrorSyntax
+  | SystemErrorValidation
 
-const withImplicitPasses =
-  tree.fold((a: ConstrainedBid, bs: tree.Forest<ConstrainedBid>) =>
-    bs.length === 0 || pipe(bs, RA.exists(t => t.value.bid === "Pass"))
-    ? tree.make(a, bs)
-    : tree.make(a, pipe(bs,
-      RA.append(tree.make<ConstrainedBid>({ bid: "Pass", constraint: { type: "Otherwise" }})),
-      RA.toArray)))
+export const selectCompleteConstraintForest = memoize(
+  flow(selectCompleteSyntaxForest,
+    TH.mapLeft(RA.map((error): SystemError => ({ type: "Parse", error }))), 
+    chainCollectedErrors(flow(
+      expandForest,
+      TH.mapLeft(RA.map((error): SystemError => ({ type: "Syntax", error }))))),
+    chainCollectedErrors(bidForest => pipe(
+      bidForest,
+      validateTree,
+      TH.bimap(
+        (error): ReadonlyArray<SystemError> => RA.of({ type: "Validation", error }),
+        () => bidForest)))))
 
-export const selectCompleteBidSubtree = (state: State, options?: { implicitPass: boolean }) : BidTree =>
-  pipe(state,
-    getCompleteTree,
-    options?.implicitPass ? withImplicitPasses : identity,
-    extendWithSiblings(eq.contramap<Bid, ConstrainedBid>(c => c.bid)(eqBid)))
+export const selectAllCompleteBidPaths = memoize(
+  flow(selectCompleteConstraintForest,
+    TH.map(getAllLeafPaths)))
 
-export const selectAllCompleteBidPaths =
-  flow(selectCompleteBidSubtree,
-    getAllLeafPaths)
+export const selectCompleteBidPathUpToKey = memoize((state: KeyedState & OptionsState) =>
+  pipe(O.Do,
+    O.apS('path', O.fromEitherK(selectBidPathUpToKey)(state)),
+    O.apS('paths', pipe(state, selectCompleteConstraintForest, TH.getRight, O.map(getAllLeafPaths))),
+    O.chain(({ path, paths }) =>
+      pipe(paths,
+        RA.findFirst(cbPath =>
+          RA.getEq(pipe(eqBid, eq.contramap((b: { bid: Bid }) => b.bid)))
+            .equals(path, cbPath))))))
 
-export const selectSystemValid =
-  flow(selectCompleteBidSubtree,
-    validateTree)
+const eqBidPath = pipe(eqBid, RA.getEq)
+export interface ErrorNode {
+  bid: Bid
+  path: Path<Bid>
+  errors: ReadonlyArray<SystemErrorWithPath>
+}
+export const selectErrorTree = memoize((options: OptionsState) =>
+  pipe(options,
+    selectCompleteSyntaxForest,
+    x => { return x },
+    TH.map(flow(
+      RA.map(T.map(sb => sb.bid)),
+      getPathForest,
+      RA.toArray,
+      pathForest => pipe(options,
+        selectCompleteConstraintForest,
+        TH.getLeft,
+        O.getOrElse(() => RA.zero()),
+        RA.filterMap(e => e.type !== "Parse" ? O.some(e) : O.none),
+        errors =>
+          pipe(pathForest,
+            RA.map(T.map((path): ErrorNode => { return ({
+              bid: pipe(path, RNEA.last),
+              path,
+              errors: pipe(errors, RA.filter(e => eqBidPath.equals(e.error.path, path)))
+            }) }))))))))
     
-
 export default slice.reducer

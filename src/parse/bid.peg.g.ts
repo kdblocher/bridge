@@ -4,21 +4,20 @@
 * BidSpec := bid=Bid constraints=BidSpecConstraintList?
 * BidSpecConstraintList := ': ' constraints=ConstraintList
 * Bid := ContractBid | NonContractBid
-* ContractBid := level=Digit specifier=BidSpecifier
-* BidSpecifier := Wildcard | SuitSpecifier
-* Wildcard := v='x'
-* SuitSpecifier := Major | Minor | Strain
+* ContractBid := level=Digit specifier=StrainSpecifier
+* StrainSpecifier := Wildcard | Major | Minor | Strain
+* Wildcard := v='X'
 * Major := v='M'
 * Minor := v='m'
 * NonContractBid := Pass
 * Pass := v='P'
 * Strain := Suit | Notrump
 * Suit := Club | Diamond | Heart | Spade
-* Club := v='[Cc♣♧]'
-* Diamond := v='[Dd♦♢]'
-* Heart := v='[Hh♥♡]'
-* Spade := v='[Ss♠♤]'
-* Notrump := v='[Nn]' '[Tt]'?
+* Club := v='C'
+* Diamond := v='D'
+* Heart := v='H'
+* Spade := v='S'
+* Notrump := v='N' 'T'?
 * Honor := v='[AKQJT]'
 * ConstraintList := ConstraintListItem+
 * ConstraintListItem := constraint=Constraint ' '?
@@ -39,6 +38,8 @@
 *   | PointRange
 *   | PointBound
 *   | OtherBid
+*   | LabelDef
+*   | LabelRef
 * Const := True | False
 * True := v='true'
 * False := v='false'
@@ -48,15 +49,15 @@
 * Otherwise := v='else'
 * PointRange := lower=Number '-' upper=Number
 * PointBound := value=Number qualifier=BoundQualifier
-* SuitRange := lower=Digit '-' upper=Digit suit=SuitRangeSpecifier
-* SuitBound := value=Number qualifier=BoundQualifier suit=SuitRangeSpecifier
-* SuitRangeSpecifier := Suit //| Major | Minor | OtherMajor | OtherMinor
-* // OtherMajor := v='oM'
-* // OtherMinor := v='om'
-* SuitComparison := left=Suit op=SuitComparisonOperator right=Suit
+* SuitRange := lower=Digit '-' upper=Digit suit=SuitSpecifier
+* SuitBound := value=Number qualifier=BoundQualifier suit=SuitSpecifier
+* SuitSpecifier := Wildcard | Major | Minor | OtherMajor | OtherMinor | Suit
+* OtherMajor := v='oM'
+* OtherMinor := v='om'
+* SuitComparison := left=SuitSpecifier op=SuitComparisonOperator right=SuitSpecifier
 * SuitComparisonOperator := v='<' | v='<=' | v='=' | v='>=' | v='>'
-* SuitHonors := suit=Suit honors=Honor+
-* SuitTop := suit=Suit x='[0-5]' '/' y='[1-5]'
+* SuitHonors := suit=SuitSpecifier honors=Honor+
+* SuitTop := suit=SuitSpecifier x='[0-5]' '/' y='[1-5]'
 * BoundQualifier := Plus | Minus | Equals
 * Plus := v='\+'
 * Minus := v='\-'
@@ -69,13 +70,16 @@
 * AnyShape := v='[0-9]{4}' '\*'
 * SpecificShape := S=Digit H=Digit D=Digit C=Digit
 * SuitRank := Primary | Secondary
-* Primary := suit=Suit '1'
-* Secondary := suit=Suit '2'
+* Primary := suit=SuitSpecifier '1'
+* Secondary := suit=SuitSpecifier '2'
 * Response := ForceOneRound | ForceGame | ForceSlam | Relay
 * ForceOneRound := v='F1'
 * ForceGame := v='FG'
 * ForceSlam := v='FS'
 * Relay := '->' bid=OtherBid
+* LabelDef := '\'' label=Label '\': ' constraints=ConstraintList
+* LabelRef := '\'' label=Label '\''
+* Label := v='[0-9a-zA-z-_]+'
 * Digit := literal='[0-9]'
 *   .value = number { return parseInt(literal) }
 * Number := literal='[0-9]+'
@@ -93,12 +97,11 @@ export enum ASTKinds {
     Bid_1 = "Bid_1",
     Bid_2 = "Bid_2",
     ContractBid = "ContractBid",
-    BidSpecifier_1 = "BidSpecifier_1",
-    BidSpecifier_2 = "BidSpecifier_2",
+    StrainSpecifier_1 = "StrainSpecifier_1",
+    StrainSpecifier_2 = "StrainSpecifier_2",
+    StrainSpecifier_3 = "StrainSpecifier_3",
+    StrainSpecifier_4 = "StrainSpecifier_4",
     Wildcard = "Wildcard",
-    SuitSpecifier_1 = "SuitSpecifier_1",
-    SuitSpecifier_2 = "SuitSpecifier_2",
-    SuitSpecifier_3 = "SuitSpecifier_3",
     Major = "Major",
     Minor = "Minor",
     NonContractBid = "NonContractBid",
@@ -133,6 +136,8 @@ export enum ASTKinds {
     Constraint_14 = "Constraint_14",
     Constraint_15 = "Constraint_15",
     Constraint_16 = "Constraint_16",
+    Constraint_17 = "Constraint_17",
+    Constraint_18 = "Constraint_18",
     Const_1 = "Const_1",
     Const_2 = "Const_2",
     True = "True",
@@ -147,7 +152,14 @@ export enum ASTKinds {
     PointBound = "PointBound",
     SuitRange = "SuitRange",
     SuitBound = "SuitBound",
-    SuitRangeSpecifier = "SuitRangeSpecifier",
+    SuitSpecifier_1 = "SuitSpecifier_1",
+    SuitSpecifier_2 = "SuitSpecifier_2",
+    SuitSpecifier_3 = "SuitSpecifier_3",
+    SuitSpecifier_4 = "SuitSpecifier_4",
+    SuitSpecifier_5 = "SuitSpecifier_5",
+    SuitSpecifier_6 = "SuitSpecifier_6",
+    OtherMajor = "OtherMajor",
+    OtherMinor = "OtherMinor",
     SuitComparison = "SuitComparison",
     SuitComparisonOperator_1 = "SuitComparisonOperator_1",
     SuitComparisonOperator_2 = "SuitComparisonOperator_2",
@@ -185,6 +197,9 @@ export enum ASTKinds {
     ForceGame = "ForceGame",
     ForceSlam = "ForceSlam",
     Relay = "Relay",
+    LabelDef = "LabelDef",
+    LabelRef = "LabelRef",
+    Label = "Label",
     Digit = "Digit",
     Number = "Number",
     $EOF = "$EOF",
@@ -208,19 +223,17 @@ export type Bid_2 = NonContractBid;
 export interface ContractBid {
     kind: ASTKinds.ContractBid;
     level: Digit;
-    specifier: BidSpecifier;
+    specifier: StrainSpecifier;
 }
-export type BidSpecifier = BidSpecifier_1 | BidSpecifier_2;
-export type BidSpecifier_1 = Wildcard;
-export type BidSpecifier_2 = SuitSpecifier;
+export type StrainSpecifier = StrainSpecifier_1 | StrainSpecifier_2 | StrainSpecifier_3 | StrainSpecifier_4;
+export type StrainSpecifier_1 = Wildcard;
+export type StrainSpecifier_2 = Major;
+export type StrainSpecifier_3 = Minor;
+export type StrainSpecifier_4 = Strain;
 export interface Wildcard {
     kind: ASTKinds.Wildcard;
     v: string;
 }
-export type SuitSpecifier = SuitSpecifier_1 | SuitSpecifier_2 | SuitSpecifier_3;
-export type SuitSpecifier_1 = Major;
-export type SuitSpecifier_2 = Minor;
-export type SuitSpecifier_3 = Strain;
 export interface Major {
     kind: ASTKinds.Major;
     v: string;
@@ -271,7 +284,7 @@ export interface ConstraintListItem {
     kind: ASTKinds.ConstraintListItem;
     constraint: Constraint;
 }
-export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8 | Constraint_9 | Constraint_10 | Constraint_11 | Constraint_12 | Constraint_13 | Constraint_14 | Constraint_15 | Constraint_16;
+export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8 | Constraint_9 | Constraint_10 | Constraint_11 | Constraint_12 | Constraint_13 | Constraint_14 | Constraint_15 | Constraint_16 | Constraint_17 | Constraint_18;
 export type Constraint_1 = Const;
 export type Constraint_2 = Or;
 export type Constraint_3 = And;
@@ -288,6 +301,8 @@ export type Constraint_13 = SuitRank;
 export type Constraint_14 = PointRange;
 export type Constraint_15 = PointBound;
 export type Constraint_16 = OtherBid;
+export type Constraint_17 = LabelDef;
+export type Constraint_18 = LabelRef;
 export type Const = Const_1 | Const_2;
 export type Const_1 = True;
 export type Const_2 = False;
@@ -333,20 +348,34 @@ export interface SuitRange {
     kind: ASTKinds.SuitRange;
     lower: Digit;
     upper: Digit;
-    suit: SuitRangeSpecifier;
+    suit: SuitSpecifier;
 }
 export interface SuitBound {
     kind: ASTKinds.SuitBound;
     value: Number;
     qualifier: BoundQualifier;
-    suit: SuitRangeSpecifier;
+    suit: SuitSpecifier;
 }
-export type SuitRangeSpecifier = Suit;
+export type SuitSpecifier = SuitSpecifier_1 | SuitSpecifier_2 | SuitSpecifier_3 | SuitSpecifier_4 | SuitSpecifier_5 | SuitSpecifier_6;
+export type SuitSpecifier_1 = Wildcard;
+export type SuitSpecifier_2 = Major;
+export type SuitSpecifier_3 = Minor;
+export type SuitSpecifier_4 = OtherMajor;
+export type SuitSpecifier_5 = OtherMinor;
+export type SuitSpecifier_6 = Suit;
+export interface OtherMajor {
+    kind: ASTKinds.OtherMajor;
+    v: string;
+}
+export interface OtherMinor {
+    kind: ASTKinds.OtherMinor;
+    v: string;
+}
 export interface SuitComparison {
     kind: ASTKinds.SuitComparison;
-    left: Suit;
+    left: SuitSpecifier;
     op: SuitComparisonOperator;
-    right: Suit;
+    right: SuitSpecifier;
 }
 export type SuitComparisonOperator = SuitComparisonOperator_1 | SuitComparisonOperator_2 | SuitComparisonOperator_3 | SuitComparisonOperator_4 | SuitComparisonOperator_5;
 export interface SuitComparisonOperator_1 {
@@ -371,12 +400,12 @@ export interface SuitComparisonOperator_5 {
 }
 export interface SuitHonors {
     kind: ASTKinds.SuitHonors;
-    suit: Suit;
+    suit: SuitSpecifier;
     honors: Honor[];
 }
 export interface SuitTop {
     kind: ASTKinds.SuitTop;
-    suit: Suit;
+    suit: SuitSpecifier;
     x: string;
     y: string;
 }
@@ -435,11 +464,11 @@ export type SuitRank_1 = Primary;
 export type SuitRank_2 = Secondary;
 export interface Primary {
     kind: ASTKinds.Primary;
-    suit: Suit;
+    suit: SuitSpecifier;
 }
 export interface Secondary {
     kind: ASTKinds.Secondary;
-    suit: Suit;
+    suit: SuitSpecifier;
 }
 export type Response = Response_1 | Response_2 | Response_3 | Response_4;
 export type Response_1 = ForceOneRound;
@@ -461,6 +490,19 @@ export interface ForceSlam {
 export interface Relay {
     kind: ASTKinds.Relay;
     bid: OtherBid;
+}
+export interface LabelDef {
+    kind: ASTKinds.LabelDef;
+    label: Label;
+    constraints: ConstraintList;
+}
+export interface LabelRef {
+    kind: ASTKinds.LabelRef;
+    label: Label;
+}
+export interface Label {
+    kind: ASTKinds.Label;
+    v: string;
 }
 export class Digit {
     public kind: ASTKinds.Digit = ASTKinds.Digit;
@@ -562,28 +604,36 @@ export class Parser {
         return this.run<ContractBid>($$dpth,
             () => {
                 let $scope$level: Nullable<Digit>;
-                let $scope$specifier: Nullable<BidSpecifier>;
+                let $scope$specifier: Nullable<StrainSpecifier>;
                 let $$res: Nullable<ContractBid> = null;
                 if (true
                     && ($scope$level = this.matchDigit($$dpth + 1, $$cr)) !== null
-                    && ($scope$specifier = this.matchBidSpecifier($$dpth + 1, $$cr)) !== null
+                    && ($scope$specifier = this.matchStrainSpecifier($$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.ContractBid, level: $scope$level, specifier: $scope$specifier};
                 }
                 return $$res;
             });
     }
-    public matchBidSpecifier($$dpth: number, $$cr?: ErrorTracker): Nullable<BidSpecifier> {
-        return this.choice<BidSpecifier>([
-            () => this.matchBidSpecifier_1($$dpth + 1, $$cr),
-            () => this.matchBidSpecifier_2($$dpth + 1, $$cr),
+    public matchStrainSpecifier($$dpth: number, $$cr?: ErrorTracker): Nullable<StrainSpecifier> {
+        return this.choice<StrainSpecifier>([
+            () => this.matchStrainSpecifier_1($$dpth + 1, $$cr),
+            () => this.matchStrainSpecifier_2($$dpth + 1, $$cr),
+            () => this.matchStrainSpecifier_3($$dpth + 1, $$cr),
+            () => this.matchStrainSpecifier_4($$dpth + 1, $$cr),
         ]);
     }
-    public matchBidSpecifier_1($$dpth: number, $$cr?: ErrorTracker): Nullable<BidSpecifier_1> {
+    public matchStrainSpecifier_1($$dpth: number, $$cr?: ErrorTracker): Nullable<StrainSpecifier_1> {
         return this.matchWildcard($$dpth + 1, $$cr);
     }
-    public matchBidSpecifier_2($$dpth: number, $$cr?: ErrorTracker): Nullable<BidSpecifier_2> {
-        return this.matchSuitSpecifier($$dpth + 1, $$cr);
+    public matchStrainSpecifier_2($$dpth: number, $$cr?: ErrorTracker): Nullable<StrainSpecifier_2> {
+        return this.matchMajor($$dpth + 1, $$cr);
+    }
+    public matchStrainSpecifier_3($$dpth: number, $$cr?: ErrorTracker): Nullable<StrainSpecifier_3> {
+        return this.matchMinor($$dpth + 1, $$cr);
+    }
+    public matchStrainSpecifier_4($$dpth: number, $$cr?: ErrorTracker): Nullable<StrainSpecifier_4> {
+        return this.matchStrain($$dpth + 1, $$cr);
     }
     public matchWildcard($$dpth: number, $$cr?: ErrorTracker): Nullable<Wildcard> {
         return this.run<Wildcard>($$dpth,
@@ -591,28 +641,12 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<Wildcard> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:x)`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:X)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.Wildcard, v: $scope$v};
                 }
                 return $$res;
             });
-    }
-    public matchSuitSpecifier($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier> {
-        return this.choice<SuitSpecifier>([
-            () => this.matchSuitSpecifier_1($$dpth + 1, $$cr),
-            () => this.matchSuitSpecifier_2($$dpth + 1, $$cr),
-            () => this.matchSuitSpecifier_3($$dpth + 1, $$cr),
-        ]);
-    }
-    public matchSuitSpecifier_1($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_1> {
-        return this.matchMajor($$dpth + 1, $$cr);
-    }
-    public matchSuitSpecifier_2($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_2> {
-        return this.matchMinor($$dpth + 1, $$cr);
-    }
-    public matchSuitSpecifier_3($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_3> {
-        return this.matchStrain($$dpth + 1, $$cr);
     }
     public matchMajor($$dpth: number, $$cr?: ErrorTracker): Nullable<Major> {
         return this.run<Major>($$dpth,
@@ -694,7 +728,7 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<Club> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:[Cc♣♧])`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:C)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.Club, v: $scope$v};
                 }
@@ -707,7 +741,7 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<Diamond> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:[Dd♦♢])`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:D)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.Diamond, v: $scope$v};
                 }
@@ -720,7 +754,7 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<Heart> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:[Hh♥♡])`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:H)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.Heart, v: $scope$v};
                 }
@@ -733,7 +767,7 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<Spade> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:[Ss♠♤])`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:S)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.Spade, v: $scope$v};
                 }
@@ -746,8 +780,8 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<Notrump> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:[Nn])`, $$dpth + 1, $$cr)) !== null
-                    && ((this.regexAccept(String.raw`(?:[Tt])`, $$dpth + 1, $$cr)) || true)
+                    && ($scope$v = this.regexAccept(String.raw`(?:N)`, $$dpth + 1, $$cr)) !== null
+                    && ((this.regexAccept(String.raw`(?:T)`, $$dpth + 1, $$cr)) || true)
                 ) {
                     $$res = {kind: ASTKinds.Notrump, v: $scope$v};
                 }
@@ -803,6 +837,8 @@ export class Parser {
                 () => this.matchConstraint_14($$dpth + 1, $$cr),
                 () => this.matchConstraint_15($$dpth + 1, $$cr),
                 () => this.matchConstraint_16($$dpth + 1, $$cr),
+                () => this.matchConstraint_17($$dpth + 1, $$cr),
+                () => this.matchConstraint_18($$dpth + 1, $$cr),
             ]);
         };
         const $scope$pos = this.mark();
@@ -877,6 +913,12 @@ export class Parser {
     }
     public matchConstraint_16($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_16> {
         return this.matchOtherBid($$dpth + 1, $$cr);
+    }
+    public matchConstraint_17($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_17> {
+        return this.matchLabelDef($$dpth + 1, $$cr);
+    }
+    public matchConstraint_18($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_18> {
+        return this.matchLabelRef($$dpth + 1, $$cr);
     }
     public matchConst($$dpth: number, $$cr?: ErrorTracker): Nullable<Const> {
         return this.choice<Const>([
@@ -1023,13 +1065,13 @@ export class Parser {
             () => {
                 let $scope$lower: Nullable<Digit>;
                 let $scope$upper: Nullable<Digit>;
-                let $scope$suit: Nullable<SuitRangeSpecifier>;
+                let $scope$suit: Nullable<SuitSpecifier>;
                 let $$res: Nullable<SuitRange> = null;
                 if (true
                     && ($scope$lower = this.matchDigit($$dpth + 1, $$cr)) !== null
                     && this.regexAccept(String.raw`(?:-)`, $$dpth + 1, $$cr) !== null
                     && ($scope$upper = this.matchDigit($$dpth + 1, $$cr)) !== null
-                    && ($scope$suit = this.matchSuitRangeSpecifier($$dpth + 1, $$cr)) !== null
+                    && ($scope$suit = this.matchSuitSpecifier($$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.SuitRange, lower: $scope$lower, upper: $scope$upper, suit: $scope$suit};
                 }
@@ -1041,32 +1083,83 @@ export class Parser {
             () => {
                 let $scope$value: Nullable<Number>;
                 let $scope$qualifier: Nullable<BoundQualifier>;
-                let $scope$suit: Nullable<SuitRangeSpecifier>;
+                let $scope$suit: Nullable<SuitSpecifier>;
                 let $$res: Nullable<SuitBound> = null;
                 if (true
                     && ($scope$value = this.matchNumber($$dpth + 1, $$cr)) !== null
                     && ($scope$qualifier = this.matchBoundQualifier($$dpth + 1, $$cr)) !== null
-                    && ($scope$suit = this.matchSuitRangeSpecifier($$dpth + 1, $$cr)) !== null
+                    && ($scope$suit = this.matchSuitSpecifier($$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.SuitBound, value: $scope$value, qualifier: $scope$qualifier, suit: $scope$suit};
                 }
                 return $$res;
             });
     }
-    public matchSuitRangeSpecifier($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitRangeSpecifier> {
+    public matchSuitSpecifier($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier> {
+        return this.choice<SuitSpecifier>([
+            () => this.matchSuitSpecifier_1($$dpth + 1, $$cr),
+            () => this.matchSuitSpecifier_2($$dpth + 1, $$cr),
+            () => this.matchSuitSpecifier_3($$dpth + 1, $$cr),
+            () => this.matchSuitSpecifier_4($$dpth + 1, $$cr),
+            () => this.matchSuitSpecifier_5($$dpth + 1, $$cr),
+            () => this.matchSuitSpecifier_6($$dpth + 1, $$cr),
+        ]);
+    }
+    public matchSuitSpecifier_1($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_1> {
+        return this.matchWildcard($$dpth + 1, $$cr);
+    }
+    public matchSuitSpecifier_2($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_2> {
+        return this.matchMajor($$dpth + 1, $$cr);
+    }
+    public matchSuitSpecifier_3($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_3> {
+        return this.matchMinor($$dpth + 1, $$cr);
+    }
+    public matchSuitSpecifier_4($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_4> {
+        return this.matchOtherMajor($$dpth + 1, $$cr);
+    }
+    public matchSuitSpecifier_5($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_5> {
+        return this.matchOtherMinor($$dpth + 1, $$cr);
+    }
+    public matchSuitSpecifier_6($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitSpecifier_6> {
         return this.matchSuit($$dpth + 1, $$cr);
+    }
+    public matchOtherMajor($$dpth: number, $$cr?: ErrorTracker): Nullable<OtherMajor> {
+        return this.run<OtherMajor>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<OtherMajor> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:oM)`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.OtherMajor, v: $scope$v};
+                }
+                return $$res;
+            });
+    }
+    public matchOtherMinor($$dpth: number, $$cr?: ErrorTracker): Nullable<OtherMinor> {
+        return this.run<OtherMinor>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<OtherMinor> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:om)`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.OtherMinor, v: $scope$v};
+                }
+                return $$res;
+            });
     }
     public matchSuitComparison($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitComparison> {
         return this.run<SuitComparison>($$dpth,
             () => {
-                let $scope$left: Nullable<Suit>;
+                let $scope$left: Nullable<SuitSpecifier>;
                 let $scope$op: Nullable<SuitComparisonOperator>;
-                let $scope$right: Nullable<Suit>;
+                let $scope$right: Nullable<SuitSpecifier>;
                 let $$res: Nullable<SuitComparison> = null;
                 if (true
-                    && ($scope$left = this.matchSuit($$dpth + 1, $$cr)) !== null
+                    && ($scope$left = this.matchSuitSpecifier($$dpth + 1, $$cr)) !== null
                     && ($scope$op = this.matchSuitComparisonOperator($$dpth + 1, $$cr)) !== null
-                    && ($scope$right = this.matchSuit($$dpth + 1, $$cr)) !== null
+                    && ($scope$right = this.matchSuitSpecifier($$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.SuitComparison, left: $scope$left, op: $scope$op, right: $scope$right};
                 }
@@ -1150,11 +1243,11 @@ export class Parser {
     public matchSuitHonors($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitHonors> {
         return this.run<SuitHonors>($$dpth,
             () => {
-                let $scope$suit: Nullable<Suit>;
+                let $scope$suit: Nullable<SuitSpecifier>;
                 let $scope$honors: Nullable<Honor[]>;
                 let $$res: Nullable<SuitHonors> = null;
                 if (true
-                    && ($scope$suit = this.matchSuit($$dpth + 1, $$cr)) !== null
+                    && ($scope$suit = this.matchSuitSpecifier($$dpth + 1, $$cr)) !== null
                     && ($scope$honors = this.loop<Honor>(() => this.matchHonor($$dpth + 1, $$cr), false)) !== null
                 ) {
                     $$res = {kind: ASTKinds.SuitHonors, suit: $scope$suit, honors: $scope$honors};
@@ -1165,12 +1258,12 @@ export class Parser {
     public matchSuitTop($$dpth: number, $$cr?: ErrorTracker): Nullable<SuitTop> {
         return this.run<SuitTop>($$dpth,
             () => {
-                let $scope$suit: Nullable<Suit>;
+                let $scope$suit: Nullable<SuitSpecifier>;
                 let $scope$x: Nullable<string>;
                 let $scope$y: Nullable<string>;
                 let $$res: Nullable<SuitTop> = null;
                 if (true
-                    && ($scope$suit = this.matchSuit($$dpth + 1, $$cr)) !== null
+                    && ($scope$suit = this.matchSuitSpecifier($$dpth + 1, $$cr)) !== null
                     && ($scope$x = this.regexAccept(String.raw`(?:[0-5])`, $$dpth + 1, $$cr)) !== null
                     && this.regexAccept(String.raw`(?:/)`, $$dpth + 1, $$cr) !== null
                     && ($scope$y = this.regexAccept(String.raw`(?:[1-5])`, $$dpth + 1, $$cr)) !== null
@@ -1361,10 +1454,10 @@ export class Parser {
     public matchPrimary($$dpth: number, $$cr?: ErrorTracker): Nullable<Primary> {
         return this.run<Primary>($$dpth,
             () => {
-                let $scope$suit: Nullable<Suit>;
+                let $scope$suit: Nullable<SuitSpecifier>;
                 let $$res: Nullable<Primary> = null;
                 if (true
-                    && ($scope$suit = this.matchSuit($$dpth + 1, $$cr)) !== null
+                    && ($scope$suit = this.matchSuitSpecifier($$dpth + 1, $$cr)) !== null
                     && this.regexAccept(String.raw`(?:1)`, $$dpth + 1, $$cr) !== null
                 ) {
                     $$res = {kind: ASTKinds.Primary, suit: $scope$suit};
@@ -1375,10 +1468,10 @@ export class Parser {
     public matchSecondary($$dpth: number, $$cr?: ErrorTracker): Nullable<Secondary> {
         return this.run<Secondary>($$dpth,
             () => {
-                let $scope$suit: Nullable<Suit>;
+                let $scope$suit: Nullable<SuitSpecifier>;
                 let $$res: Nullable<Secondary> = null;
                 if (true
-                    && ($scope$suit = this.matchSuit($$dpth + 1, $$cr)) !== null
+                    && ($scope$suit = this.matchSuitSpecifier($$dpth + 1, $$cr)) !== null
                     && this.regexAccept(String.raw`(?:2)`, $$dpth + 1, $$cr) !== null
                 ) {
                     $$res = {kind: ASTKinds.Secondary, suit: $scope$suit};
@@ -1455,6 +1548,51 @@ export class Parser {
                     && ($scope$bid = this.matchOtherBid($$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.Relay, bid: $scope$bid};
+                }
+                return $$res;
+            });
+    }
+    public matchLabelDef($$dpth: number, $$cr?: ErrorTracker): Nullable<LabelDef> {
+        return this.run<LabelDef>($$dpth,
+            () => {
+                let $scope$label: Nullable<Label>;
+                let $scope$constraints: Nullable<ConstraintList>;
+                let $$res: Nullable<LabelDef> = null;
+                if (true
+                    && this.regexAccept(String.raw`(?:\')`, $$dpth + 1, $$cr) !== null
+                    && ($scope$label = this.matchLabel($$dpth + 1, $$cr)) !== null
+                    && this.regexAccept(String.raw`(?:\': )`, $$dpth + 1, $$cr) !== null
+                    && ($scope$constraints = this.matchConstraintList($$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.LabelDef, label: $scope$label, constraints: $scope$constraints};
+                }
+                return $$res;
+            });
+    }
+    public matchLabelRef($$dpth: number, $$cr?: ErrorTracker): Nullable<LabelRef> {
+        return this.run<LabelRef>($$dpth,
+            () => {
+                let $scope$label: Nullable<Label>;
+                let $$res: Nullable<LabelRef> = null;
+                if (true
+                    && this.regexAccept(String.raw`(?:\')`, $$dpth + 1, $$cr) !== null
+                    && ($scope$label = this.matchLabel($$dpth + 1, $$cr)) !== null
+                    && this.regexAccept(String.raw`(?:\')`, $$dpth + 1, $$cr) !== null
+                ) {
+                    $$res = {kind: ASTKinds.LabelRef, label: $scope$label};
+                }
+                return $$res;
+            });
+    }
+    public matchLabel($$dpth: number, $$cr?: ErrorTracker): Nullable<Label> {
+        return this.run<Label>($$dpth,
+            () => {
+                let $scope$v: Nullable<string>;
+                let $$res: Nullable<Label> = null;
+                if (true
+                    && ($scope$v = this.regexAccept(String.raw`(?:[0-9a-zA-z-_]+)`, $$dpth + 1, $$cr)) !== null
+                ) {
+                    $$res = {kind: ASTKinds.Label, v: $scope$v};
                 }
                 return $$res;
             });

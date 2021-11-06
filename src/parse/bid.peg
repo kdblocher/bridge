@@ -3,10 +3,9 @@ BidSpec := bid=Bid constraints=BidSpecConstraintList?
 BidSpecConstraintList := ': ' constraints=ConstraintList
 Bid := ContractBid | NonContractBid
 
-ContractBid := level=Digit specifier=BidSpecifier
-BidSpecifier := Wildcard | SuitSpecifier
-Wildcard := v='x'
-SuitSpecifier := Major | Minor | Strain
+ContractBid := level=Digit specifier=StrainSpecifier
+StrainSpecifier := Wildcard | Major | Minor | Strain
+Wildcard := v='X'
 Major := v='M'
 Minor := v='m'
 
@@ -15,11 +14,11 @@ Pass := v='P'
 
 Strain := Suit | Notrump
 Suit := Club | Diamond | Heart | Spade
-Club := v='[Cc♣♧]'
-Diamond := v='[Dd♦♢]'
-Heart := v='[Hh♥♡]'
-Spade := v='[Ss♠♤]'
-Notrump := v='[Nn]' '[Tt]'?
+Club := v='C'
+Diamond := v='D'
+Heart := v='H'
+Spade := v='S'
+Notrump := v='N' 'T'?
 
 Honor := v='[AKQJT]'
 
@@ -42,6 +41,8 @@ Constraint :=
   | PointRange
   | PointBound
   | OtherBid
+  | LabelDef
+  | LabelRef
 
 Const := True | False
 True := v='true'
@@ -55,17 +56,17 @@ Otherwise := v='else'
 PointRange := lower=Number '-' upper=Number
 PointBound := value=Number qualifier=BoundQualifier
 
-SuitRange := lower=Digit '-' upper=Digit suit=SuitRangeSpecifier
-SuitBound := value=Number qualifier=BoundQualifier suit=SuitRangeSpecifier
-SuitRangeSpecifier := Suit //| Major | Minor | OtherMajor | OtherMinor
-// OtherMajor := v='oM'
-// OtherMinor := v='om'
+SuitRange := lower=Digit '-' upper=Digit suit=SuitSpecifier
+SuitBound := value=Number qualifier=BoundQualifier suit=SuitSpecifier
+SuitSpecifier := Wildcard | Major | Minor | OtherMajor | OtherMinor | Suit
+OtherMajor := v='oM'
+OtherMinor := v='om'
 
-SuitComparison := left=Suit op=SuitComparisonOperator right=Suit
+SuitComparison := left=SuitSpecifier op=SuitComparisonOperator right=SuitSpecifier
 SuitComparisonOperator := v='<' | v='<=' | v='=' | v='>=' | v='>'
 
-SuitHonors := suit=Suit honors=Honor+
-SuitTop := suit=Suit x='[0-5]' '/' y='[1-5]'
+SuitHonors := suit=SuitSpecifier honors=Honor+
+SuitTop := suit=SuitSpecifier x='[0-5]' '/' y='[1-5]'
 
 BoundQualifier := Plus | Minus | Equals
 Plus := v='\+'
@@ -82,14 +83,18 @@ AnyShape := v='[0-9]{4}' '\*'
 SpecificShape := S=Digit H=Digit D=Digit C=Digit
 
 SuitRank := Primary | Secondary
-Primary := suit=Suit '1'
-Secondary := suit=Suit '2'
+Primary := suit=SuitSpecifier '1'
+Secondary := suit=SuitSpecifier '2'
 
 Response := ForceOneRound | ForceGame | ForceSlam | Relay
 ForceOneRound := v='F1'
 ForceGame := v='FG'
 ForceSlam := v='FS'
 Relay := '->' bid=OtherBid
+
+LabelDef := '\'' label=Label '\': ' constraints=ConstraintList
+LabelRef := '\'' label=Label '\''
+Label := v='[0-9a-zA-z-_]+'
 
 Digit := literal='[0-9]'
   .value = number { return parseInt(literal) }

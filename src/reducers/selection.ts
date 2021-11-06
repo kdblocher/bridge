@@ -4,17 +4,18 @@ import { tailRec } from 'fp-ts/lib/ChainRec';
 import { constFalse, constTrue, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import { WritableDraft } from 'immer/dist/internal';
-import * as D from 'io-ts/Decoder';
+import memoize from 'proxy-memoize';
 import { O } from 'ts-toolbelt';
 
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { Board, deal } from '../model/bridge';
-import { Constraint, satisfies, satisfiesPath } from '../model/constraints';
 import { eqCard, Hand, newDeck, ordCardDescending } from '../model/deck';
 import { getHcp } from '../model/evaluation';
 import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL, serializedBoardL, SerializedHand, serializedHandL } from '../model/serialization';
-import { BidPath } from '../model/system';
+import { Path, Paths } from '../model/system';
+import { ConstrainedBid } from '../model/system/core';
+import { satisfiesPath } from '../model/system/satisfaction';
 import { decodeHand } from '../parse';
 import { observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
@@ -83,7 +84,7 @@ const genUntilCondition = (limit: option.Option<number>) => (condition: predicat
     }
   })
 
-const genMatchingOf = (length: predicate.Predicate<number>) => (paths: readonlyNonEmptyArray.ReadonlyNonEmptyArray<BidPath>) =>
+const genMatchingOf = (length: predicate.Predicate<number>) => (paths: Paths<ConstrainedBid>) =>
   genUntilCondition(option.some(10000))(hands =>
     pipe(paths,
       readonlyArray.partition(satisfiesPath(...hands)),
@@ -108,29 +109,29 @@ const slice = createSlice({
         genUntilCondition(option.none)(constTrue),
         option.map(setHands(state)))
     },
-    getHandsMatchingPath: (state, action: PayloadAction<BidPath>) => {
+    getHandsMatchingPath: (state, action: PayloadAction<Path<ConstrainedBid>>) => {
       pipe(
         genUntilCondition(option.some(10000))(hands =>
           satisfiesPath(...hands)(action.payload)),
         option.map(setHands(state)))
     },
     genHandsNotMatchingAnyOf: {
-      reducer: (state, action: PayloadAction<readonlyNonEmptyArray.ReadonlyNonEmptyArray<BidPath>, string, number>) => {
+      reducer: (state, action: PayloadAction<readonlyNonEmptyArray.ReadonlyNonEmptyArray<Path<ConstrainedBid>>, string, number>) => {
         pipe(
           genUntilCondition(option.some(10000))(hands =>
             getHcp(hands[0]) >= action.meta
             && pipe(action.payload, readonlyArray.every(predicate.not(satisfiesPath(...hands))))),
           option.map(setHands(state)))
       },
-      prepare: (payload: readonlyNonEmptyArray.ReadonlyNonEmptyArray<BidPath>, openerMinHcp: number) =>
+      prepare: (payload: readonlyNonEmptyArray.ReadonlyNonEmptyArray<Path<ConstrainedBid>>, openerMinHcp: number) =>
         ({ payload, meta: openerMinHcp })
     },
-    genHandsMatchingExactlyOneOf: (state, action: PayloadAction<readonlyNonEmptyArray.ReadonlyNonEmptyArray<BidPath>>) => {
+    genHandsMatchingExactlyOneOf: (state, action: PayloadAction<readonlyNonEmptyArray.ReadonlyNonEmptyArray<Path<ConstrainedBid>>>) => {
       pipe(
         genMatchingOf(l => l === 1)(action.payload),
         option.map(setHands(state)))
     },
-    genHandsMatchingMoreThanOneOf: (state, action: PayloadAction<readonlyNonEmptyArray.ReadonlyNonEmptyArray<BidPath>>) => {
+    genHandsMatchingMoreThanOneOf: (state, action: PayloadAction<readonlyNonEmptyArray.ReadonlyNonEmptyArray<Path<ConstrainedBid>>>) => {
       pipe(
         genMatchingOf(l => l > 1)(action.payload),
         option.map(setHands(state)))
@@ -148,18 +149,11 @@ export { getResult };
 
 export default slice.reducer
 
-export const selectBlockKey = (state: State) =>
+export const selectBlockKey = memoize((state: State) =>
   pipe(state.selectedBlockKey,
-    option.toNullable)
+    option.toNullable))
 
-export const selectTestConstraint = (state: State, constraint: Constraint) : boolean =>
-  pipe(state.opener,
-    either.fromNullable(D.error(undefined, "No hand defined yet")),
-    either.flatten,
-    decodedSerializedHandL.reverseGet,
-    either.exists(satisfies(constraint)))
-
-export const selectHand = (state: State, type: AuctionPositionType) : option.Option<Hand> =>
+export const selectHand = memoize(({ state, type } : {state: State, type: AuctionPositionType}) : option.Option<Hand> =>
   pipe(state[type],
     option.fromNullable,
-    option.chain(flow(decodedSerializedHandL.reverseGet, option.fromEither)))
+    option.chain(flow(decodedSerializedHandL.reverseGet, option.fromEither))))

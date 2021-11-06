@@ -2,6 +2,7 @@ import { magma, number, option, readonlyArray, readonlyNonEmptyArray, readonlyRe
 import { observable, observableEither } from 'fp-ts-rxjs';
 import { constant, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
+import memoize from 'proxy-memoize';
 import { Epic } from 'redux-observable';
 import { bufferCount, concatWith, EMPTY, filter, from } from 'rxjs';
 
@@ -12,7 +13,8 @@ import { maxProcessors } from '../lib/concurrency';
 import { transpose } from '../model/analyze';
 import { makeBoard } from '../model/bridge';
 import { SerializedBidPath, serializedBidPathL, serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
-import { BidPath } from '../model/system';
+import { Path } from '../model/system';
+import { ConstrainedBid } from '../model/system/core';
 import { ping, postDeals, putDeals } from '../services/server';
 import { observeDealsParallel, observeDealsSerial, observeResultsParallel, observeResultsSerial } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
@@ -46,7 +48,7 @@ const slice = createSlice({
       state.deals = pipe(state.deals, readonlyTuple.mapSnd(constant(action.payload)), castDraft)
       state.working = true
     },
-    getResults: (state, action: PayloadAction<{ path: BidPath, deals: Deals }>) => {
+    getResults: (state, action: PayloadAction<{ path: Path<ConstrainedBid>, deals: Deals }>) => {
       state.results = pipe(state.results, readonlyTuple.mapSnd(constant(action.payload.deals.length)), castDraft)
       state.working = true
     },
@@ -145,23 +147,23 @@ export const saveSolutionsToApiEpic: Epic<AnyAction> = (action$, state$) =>
       observableEither.fromTaskEither)),
     observable.chain(_ => EMPTY))    
         
-export const selectAllDeals = (state: State) =>
+export const selectAllDeals = memoize((state: State) =>
   pipe(state.deals,
-    readonlyTuple.fst)
+    readonlyTuple.fst))
 
-export const selectAllNorthSouthPairs =
+export const selectAllNorthSouthPairs = memoize(
   flow(
     selectAllDeals,
     readonlyArray.map(flow(
       serializedDealL.reverseGet,
-      deal => [deal.N, deal.S] as const)))
+      deal => [deal.N, deal.S] as const))))
 
-export const selectProgress = (state: State) => ({
+export const selectProgress = memoize((state: State) => ({
   deals: state.deals[1],
   results: state.results[1],
-})
+}))
 
-export const selectResultsByPath = (state: State, path: SerializedBidPath) =>
+export const selectResultsByPath = memoize(({ state, path }: { state: State, path: SerializedBidPath }) =>
   pipe(state.results[0],
     readonlyRecord.lookup(path),
-    option.toNullable)
+    option.toNullable))

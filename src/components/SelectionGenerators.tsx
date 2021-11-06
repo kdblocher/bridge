@@ -1,11 +1,12 @@
-import { option, readonlyNonEmptyArray } from 'fp-ts';
+import { option, readonlyNonEmptyArray, these } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 import { useState } from 'react';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { BidPaths } from '../model/system';
-import { genHandsMatchingExactlyOneOf, genHandsMatchingMoreThanOneOf, genHandsNotMatchingAnyOf, genOnce, getHandsMatchingPath, selectBlockKey } from '../reducers/selection';
-import { selectAllCompleteBidPaths, selectCompleteByKey } from '../reducers/system';
+import { Paths } from '../model/system';
+import { ConstrainedBid } from '../model/system/core';
+import { genHandsMatchingExactlyOneOf, genHandsMatchingMoreThanOneOf, genHandsNotMatchingAnyOf, genOnce, getHandsMatchingPath } from '../reducers/selection';
+import { selectAllCompleteBidPaths, selectCompleteBidPathUpToKey } from '../reducers/system';
 
 const GenerateOnce = () => {
   const dispatch = useAppDispatch()
@@ -15,7 +16,7 @@ const GenerateOnce = () => {
 }
 
 interface GenerateSystemProps {
-  bidPaths: BidPaths | null
+  bidPaths: Paths<ConstrainedBid> | null
 }
 
 const GenerateMatchZero = ({ bidPaths }: GenerateSystemProps) => {
@@ -49,8 +50,10 @@ const GenerateMatchMany = ({ bidPaths }: GenerateSystemProps) => {
 }
 
 const GenerateMatchSelected = () => {
-  const blockKey = useAppSelector(state => selectBlockKey(state.selection))
-  const bidPath = useAppSelector(state => blockKey !== null ? selectCompleteByKey(state.system, blockKey) : null)
+  const selected = useAppSelector(state => state.selection.selectedBlockKey)
+  const bidPath = useAppSelector(state => pipe(selected,
+    option.chain(key => selectCompleteBidPathUpToKey({ state: state.system, key })),
+    option.toNullable))
   const dispatch = useAppDispatch()
   return <>
     {bidPath && <button type="button" onClick={() => dispatch(getHandsMatchingPath(bidPath))}>Selected</button>}
@@ -59,9 +62,10 @@ const GenerateMatchSelected = () => {
 
 const SelectionGenerators = () => {
   const bidPaths = useAppSelector(state =>
-    pipe(selectAllCompleteBidPaths(state.system, state.settings),
-      readonlyNonEmptyArray.fromReadonlyArray,
-      option.toNullable)) 
+    pipe(selectAllCompleteBidPaths({ state: state.system, options: state.settings }),
+      these.getRight,
+      option.chain(readonlyNonEmptyArray.fromReadonlyArray),
+      option.toNullable))
   return (
     <section>
       <h4>Generate Hands</h4>
