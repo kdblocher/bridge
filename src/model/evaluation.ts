@@ -11,12 +11,12 @@ export const getHcp =
     readonlySet.toReadonlyArray(ordCardDescending),
     readonlyArray.foldMap(number.MonoidSum)(c => getRankHcp(c.rank)))
 
-export type Shape = readonly [number, number, number, number]
-export const zeroShape: Shape = [0, 0, 0, 0]
-export const sortShape = (s: Shape) => pipe(s, readonlyArray.sort(ord.reverse(number.Ord))) as Shape
-export const makeShape = (...counts: Shape) =>
+export type AnyShape = readonly [number, number, number, number]
+export const zeroShape: AnyShape = [0, 0, 0, 0]
+export const sortShape = (s: AnyShape) => pipe(s, readonlyArray.sort(ord.reverse(number.Ord))) as AnyShape
+export const makeShape = (...counts: AnyShape) =>
   pipe(counts, sortShape)
-export const eqShape : eq.Eq<Shape> =
+export const eqShape : eq.Eq<AnyShape> =
   eq.contramap(sortShape)(readonlyArray.getEq(number.Eq))
 
 export type SpecificShape = Record<Suit, number>
@@ -35,10 +35,10 @@ export const getHandSpecificShape = (hand: Hand) : SpecificShape =>
     readonlyRecord.union(semigroup.first<number>())(zeroSpecificShape),
     (suits: readonlyRecord.ReadonlyRecord<Suit, number>) => suits)
 
-export const getHandShape = (hand: Hand) : Shape =>
+export const getHandShape = (hand: Hand) : AnyShape =>
   pipe(hand,
     getHandSpecificShape,
     readonlyRecord.toReadonlyArray,
     readonlyArray.map(readonlyTuple.snd),
     suitCounts => readonlyArray.mapWithIndex((idx, _) =>
-      pipe(suitCounts, readonlyArray.lookup(idx), option.getOrElse(() => 0)))(zeroShape)) as Shape
+      pipe(suitCounts, readonlyArray.lookup(idx), option.getOrElse(() => 0)))(zeroShape)) as AnyShape

@@ -6,7 +6,6 @@ import memoize from 'proxy-memoize';
 
 import { createEntityAdapter, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-import { debug } from '../lib';
 import { Bid, eqBid } from '../model/bridge';
 import { chainCollectedErrors, collectErrors, flatten, ForestWithErrors, getAllLeafPaths, getPathForest, getPathUpTo, Path, withImplicitPasses } from '../model/system';
 import { ExpandError, expandForest, SyntacticBid } from '../model/system/expander';

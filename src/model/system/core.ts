@@ -6,7 +6,7 @@ import { Lens, Optional } from 'monocle-ts';
 import { assertUnreachable } from '../../lib';
 import { Bid, ContractBid, isContractBid, ordContractBid } from '../bridge';
 import { eqRank, eqSuit, groupHandBySuits, Hand, honors, ordRankAscending, Rank, Suit, suits } from '../deck';
-import { eqShape, getHandShape, getHandSpecificShape, getHcp, Shape as AnyShape, SpecificShape } from '../evaluation';
+import { AnyShape, eqShape, getHandShape, getHandSpecificShape, getHcp, SpecificShape } from '../evaluation';
 
 export interface ConstraintPointRange {
   type: "PointRange"
