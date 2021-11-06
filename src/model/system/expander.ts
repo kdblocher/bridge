@@ -4,13 +4,12 @@ import { Lens } from 'monocle-ts';
 import { Object } from 'ts-toolbelt';
 
 import { assertUnreachable } from '../../lib';
-import { Bid, ContractBid, eqBid, isContractBid, makeShape, Shape } from '../bridge';
+import { Bid, ContractBid, eqBid, isContractBid } from '../bridge';
 import { Suit, suits } from '../deck';
+import { AnyShape, makeShape } from '../evaluation';
 import { serializedBidL } from '../serialization';
 import { collectErrors, extendForestWithSiblings, Forest } from '../system';
-import {
-    ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue
-} from './core';
+import { ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue } from './core';
 
 export const ofS = <A>(x: A) => S.of<ExpandContext, A>(x)
 
@@ -194,7 +193,7 @@ export type Syntax =
   | SyntaxOtherwise
 
 const wrapShapes =
-  RNEA.map((counts: Shape): Syntax =>
+  RNEA.map((counts: AnyShape): Syntax =>
     wrap({ type: "AnyShape", counts }))
 
 const syntaxBalanced : Syntax = {

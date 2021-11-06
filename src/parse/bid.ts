@@ -2,8 +2,9 @@ import { either, eitherT, option, readonlyArray, readonlyNonEmptyArray, readonly
 import { constant, flow, identity, pipe } from 'fp-ts/lib/function';
 
 import { assertUnreachable } from '../lib';
-import { Bid, Strain, zeroSpecificShape } from '../model/bridge';
+import { Bid, Strain } from '../model/bridge';
 import { rankFromString, ranks, Suit } from '../model/deck';
+import { zeroSpecificShape } from '../model/evaluation';
 import { SuitComparisonOperator } from '../model/system/core';
 import { SuitSpecifier, SyntacticBid, Syntax, syntaxFalse, syntaxTrue, wrap } from '../model/system/expander';
 import * as AST from '../parse/bid.peg.g';

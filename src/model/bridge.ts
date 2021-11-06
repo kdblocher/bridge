@@ -1,8 +1,8 @@
-import { apply, eq, number, option, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet as RS, readonlyTuple as RT, refinement, semigroup, string } from 'fp-ts';
+import { apply, eq, number, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet as RS, readonlyTuple as RT, refinement, string } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 
 import { ordAscending } from '../lib';
-import { Card, Deck, eqCard, Hand, ordCardDescending, Suit, suits } from './deck';
+import { Deck, eqCard, Hand, suits } from './deck';
 
 export const directions = ['N', 'E', 'S', 'W'] as const
 export type Direction = typeof directions[number]
@@ -147,51 +147,3 @@ export interface BoardWithAuction extends Board {
 export interface BoardWithCompletedAuction extends BoardWithAuction {
   auction: CompletedAuction
 }
-
-export const getCardHcp = (card: Card) =>
-  Math.max(0, card.rank - 10)
-
-export const getHcp =
-  flow(
-    RS.toReadonlyArray(ordCardDescending),
-    RA.foldMap(number.MonoidSum)(getCardHcp))
-
-export type Shape = readonly [number, number, number, number]
-export const zeroShape: Shape = [0, 0, 0, 0]
-export const sortShape = (s: Shape) => pipe(s, RA.sort(ord.reverse(number.Ord))) as Shape
-export const makeShape = (...counts: Shape) =>
-  pipe(counts, sortShape)
-export const eqShape : eq.Eq<Shape> =
-  eq.contramap(sortShape)(RA.getEq(number.Eq))
-
-export type SpecificShape = Record<Suit, number>
-export const makeSpecificShape = (s: number, h: number, d: number, c: number) : SpecificShape => ({
-  S: s,
-  H: h,
-  D: d,
-  C: c
-})
-export const zeroSpecificShape = makeSpecificShape(0, 0, 0, 0)
-
-export const groupHandBySuit = (hand: Hand) =>
-  pipe(hand,
-    RS.toReadonlyArray(ordCardDescending),
-    RNEA.fromReadonlyArray,
-    option.fold(() => readonlyRecord.empty, flow(
-      RNEA.groupBy(c => c.suit),
-      readonlyRecord.mapWithIndex((s: Suit, cards: RNEA.ReadonlyNonEmptyArray<Card>) => cards))))
-
-export const getHandSpecificShape = (hand: Hand) : SpecificShape =>
-  pipe(hand,
-    groupHandBySuit,
-    readonlyRecord.map(x => x.length),
-    readonlyRecord.union(semigroup.first<number>())(zeroSpecificShape),
-    (suits: readonlyRecord.ReadonlyRecord<Suit, number>) => suits)
-
-export const getHandShape = (hand: Hand) : Shape =>
-  pipe(hand,
-    getHandSpecificShape,
-    readonlyRecord.toReadonlyArray,
-    RA.map(RT.snd),
-    suitCounts => RA.mapWithIndex((idx, _) =>
-      pipe(suitCounts, RA.lookup(idx), option.getOrElse(() => 0)))(zeroShape)) as Shape

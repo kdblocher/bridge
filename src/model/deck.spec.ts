@@ -1,8 +1,10 @@
 import * as fc from 'fast-check';
-import { readonlyArray, readonlySet } from 'fp-ts';
-import { flow } from 'fp-ts/lib/function';
-import { Card, cards, Deck, eqCard, Hand, ordCardDescending, Rank, ranks, Suit, suits } from './deck';
+import { applicative, apply, eq, number, ord, readonlyArray, readonlyRecord, readonlySet } from 'fp-ts';
+import { constVoid, flow, pipe } from 'fp-ts/lib/function';
+import { MersenneTwister19937, nativeMath } from 'random-js';
 
+import { eqDeal } from './bridge';
+import { Card, cards, Deck, engine, eqCard, eqRank, groupHandBySuits, Hand, newDeck, ordCardDescending, Rank, ranks, Suit, suits } from './deck';
 
 export const suitA: fc.Arbitrary<Suit> =
   fc.constantFrom(...suits)
@@ -35,3 +37,29 @@ test('orders cards descending', () => fc.assert(
       cs =>
         eqCard.equals(cs[0], spadeAce) &&
         eqCard.equals(cs[cs.length - 1], clubTwo)))))
+
+test('grouping hands preserves count', () => fc.assert(
+  fc.property(handA, hand =>
+    pipe(hand,
+      groupHandBySuits,
+      readonlyRecord.foldMap(ord.trivial)(number.MonoidSum)(ranks => ranks.length),
+      length => length === pipe(hand, readonlySet.toReadonlyArray(ord.trivial), x => x.length)))))
+
+test('grouping and ungrouping returns same hand', () => fc.assert(
+  fc.property(handA, hand =>
+    pipe(hand,
+      groupHandBySuits,
+      readonlyRecord.foldMapWithIndex(ord.trivial)(readonlySet.getUnionMonoid(eqCard))((suit, ranks) =>
+        pipe(ranks, readonlyArray.map(rank => ({ suit, rank })), readonlySet.fromReadonlyArray(eqCard))),
+      hand2 => readonlySet.getEq(eqCard).equals(hand, hand2)))))
+
+test('new deck every time', () =>
+  fc.assert(
+    fc.property(fc.constant(10000), fc.integer(), (count, seed) => {
+      engine.engine = MersenneTwister19937.seed(seed)
+      return pipe(readonlyArray.replicate(count, newDeck),
+        readonlyArray.ap(readonlyArray.of(constVoid)),
+        readonlySet.fromReadonlyArray(readonlyArray.getEq(eqCard)),
+        readonlySet.toReadonlyArray(ord.trivial),
+        x => x.length === count)
+    }), { numRuns: 1 }))

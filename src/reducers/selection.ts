@@ -9,8 +9,9 @@ import { O } from 'ts-toolbelt';
 
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-import { Board, deal, getHcp } from '../model/bridge';
+import { Board, deal } from '../model/bridge';
 import { eqCard, Hand, newDeck, ordCardDescending } from '../model/deck';
+import { getHcp } from '../model/evaluation';
 import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL, serializedBoardL, SerializedHand, serializedHandL } from '../model/serialization';
 import { Path, Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
