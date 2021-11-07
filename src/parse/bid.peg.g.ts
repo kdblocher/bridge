@@ -55,7 +55,7 @@
 * OtherMajor := v='oM'
 * OtherMinor := v='om'
 * SuitComparison := left=SuitSpecifier op=SuitComparisonOperator right=SuitSpecifier
-* SuitComparisonOperator := v='<' | v='<=' | v='=' | v='>=' | v='>'
+* SuitComparisonOperator := v='<=' | v='>=' | v='=' | v='<' | v='>'
 * SuitHonors := suit=SuitSpecifier honors=Honor+
 * SuitTop := suit=SuitSpecifier x='[0-5]' '/' y='[1-5]'
 * BoundQualifier := Plus | Minus | Equals
@@ -1181,7 +1181,7 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<SuitComparisonOperator_1> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:<)`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:<=)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.SuitComparisonOperator_1, v: $scope$v};
                 }
@@ -1194,7 +1194,7 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<SuitComparisonOperator_2> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:<=)`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:>=)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.SuitComparisonOperator_2, v: $scope$v};
                 }
@@ -1220,7 +1220,7 @@ export class Parser {
                 let $scope$v: Nullable<string>;
                 let $$res: Nullable<SuitComparisonOperator_4> = null;
                 if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:>=)`, $$dpth + 1, $$cr)) !== null
+                    && ($scope$v = this.regexAccept(String.raw`(?:<)`, $$dpth + 1, $$cr)) !== null
                 ) {
                     $$res = {kind: ASTKinds.SuitComparisonOperator_4, v: $scope$v};
                 }
