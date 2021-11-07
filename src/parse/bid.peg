@@ -63,7 +63,7 @@ OtherMajor := v='oM'
 OtherMinor := v='om'
 
 SuitComparison := left=SuitSpecifier op=SuitComparisonOperator right=SuitSpecifier
-SuitComparisonOperator := v='<' | v='<=' | v='=' | v='>=' | v='>'
+SuitComparisonOperator := v='<=' | v='>=' | v='=' | v='<' | v='>'
 
 SuitHonors := suit=SuitSpecifier honors=Honor+
 SuitTop := suit=SuitSpecifier x='[0-5]' '/' y='[1-5]'
