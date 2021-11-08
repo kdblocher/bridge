@@ -538,7 +538,7 @@ export const syntaxPropositionTests: readonlyRecord.ReadonlyRecord<string, Expan
     }
   },
 
-  // Verify unbalanced shapes
+  // Verify unbalanced shapes  (anyting with singleton or void, or 7222)
   distUnBalanced:
   {
     value:
@@ -572,6 +572,15 @@ export const syntaxPropositionTests: readonlyRecord.ReadonlyRecord<string, Expan
           "min": 0,
           "max": 1,
           "suit": "S"
+        },
+        {
+          "type": "AnyShape",
+          "counts": [
+            7,
+            2,
+            2,
+            2
+          ]
         }
       ]
     }
