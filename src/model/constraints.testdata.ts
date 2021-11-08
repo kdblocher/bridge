@@ -68,8 +68,8 @@ export const decodeTests: readonlyRecord.ReadonlyRecord<string, DecodeTest> = {
     expected:
     {
       "type": "SuitRange",
-      "min": 4,
-      "max": 0,
+      "min": 0,
+      "max": 4,
       "suit": "H"
     }
   },
@@ -445,7 +445,7 @@ export const syntaxPropositionTests: readonlyRecord.ReadonlyRecord<string, Expan
     },
     expected:
     {
-      "type": "Conjunction",
+      "type": "Disjunction",
       "constraints": [
         {
           "type": "AnyShape",
@@ -478,7 +478,7 @@ export const syntaxPropositionTests: readonlyRecord.ReadonlyRecord<string, Expan
     }
   },
 
-  // Verify semibalanced shapes
+  // Verify semibalanced shapes  (includes all balanced hands as well)
   distSemiBalanced:
   {
     value:
@@ -487,7 +487,7 @@ export const syntaxPropositionTests: readonlyRecord.ReadonlyRecord<string, Expan
     },
     expected:
     {
-      "type": "Conjunction",
+      "type": "Disjunction",
       "constraints": [
         {
           "type": "AnyShape",
@@ -504,6 +504,33 @@ export const syntaxPropositionTests: readonlyRecord.ReadonlyRecord<string, Expan
             6,
             3,
             2,
+            2
+          ]
+        },
+        {
+          "type": "AnyShape",
+          "counts": [
+            4,
+            3,
+            3,
+            3
+          ]
+        },
+        {
+          "type": "AnyShape",
+          "counts": [
+            4,
+            4,
+            3,
+            2
+          ]
+        },
+        {
+          "type": "AnyShape",
+          "counts": [
+            5,
+            3,
+            3,
             2
           ]
         }
