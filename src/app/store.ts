@@ -1,7 +1,8 @@
-import { Action, AnyAction, ThunkAction, configureStore } from '@reduxjs/toolkit';
-import reducer, { rootEpic } from '../reducers';
-
 import { createEpicMiddleware } from 'redux-observable';
+
+import { Action, AnyAction, configureStore, ThunkAction } from '@reduxjs/toolkit';
+
+import reducer, { rootEpic } from '../reducers';
 
 type R = typeof reducer
 export type RootState = { [K in keyof R]: ReturnType<R[K]> }
@@ -9,7 +10,7 @@ export type RootState = { [K in keyof R]: ReturnType<R[K]> }
 const epicMiddleware = createEpicMiddleware<AnyAction, AnyAction, RootState>()
 export const store = configureStore({
   reducer: reducer,
-  middleware: (getDefaultMiddleware => [...getDefaultMiddleware(), epicMiddleware])
+  middleware: getDefaultMiddleware => getDefaultMiddleware().concat(epicMiddleware)
 })
 epicMiddleware.run(rootEpic)
 

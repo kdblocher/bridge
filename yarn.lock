@@ -4306,11 +4306,14 @@ __metadata:
     "@types/styled-components": ^5.1.14
     arquero: ^4.8.7
     babel-plugin-styled-components: ^1.13.2
+    comlink: ^4.3.1
     comlink-loader: ^2.0.0
     draft-js: ^0.11.7
+    eslint-config-react-app: ^6.0.0
     fast-check: ^2.18.0
     fp-ts: ^2.11.4
     fp-ts-rxjs: ^0.6.15
+    immer: ^9.0.6
     io-ts: ^2.2.16
     monocle-ts: ^2.3.11
     proxy-memoize: ^0.3.7
@@ -4329,6 +4332,7 @@ __metadata:
     tspeg: ^3.2.0
     typescript: "*"
     uuid-tool: ^2.0.3
+    worker-loader: ^3.0.8
   languageName: unknown
   linkType: soft
 
@@ -4999,7 +5003,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"comlink@npm:^4.2.0":
+"comlink@npm:^4.2.0, comlink@npm:^4.3.1":
   version: 4.3.1
   resolution: "comlink@npm:4.3.1"
   checksum: 557360a6558708c55aff74a25f834bfb9bfca8a42444682c4d5aead57681534a0206202be2a2760b4de124c3ba6d485b08978b6d5469cb3d26bf1438ee28a4f1
@@ -8252,7 +8256,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"immer@npm:^9.0.1":
+"immer@npm:^9.0.1, immer@npm:^9.0.6":
   version: 9.0.6
   resolution: "immer@npm:9.0.6"
   checksum: 75da22f3b32f3f14604eb389b4f50e84a14f2e42f306f0cbe4d2969aed54ec7fda9a7e9ca42ebae2ba73ec9bb6ec1001fafbac535accaf03860054ab0f7e8388
@@ -16201,6 +16205,18 @@ __metadata:
   peerDependencies:
     webpack: ^3.0.0 || ^4.0.0-alpha.0 || ^4.0.0
   checksum: 76fbb5a6ce1054c473d81b4f5f6cb482b3ec1d13d943786f0f6a29220d6f24e396b55f73b8e31659100a12e66e60ed237807bc42b9835da8bcb1bd283759e204
+  languageName: node
+  linkType: hard
+
+"worker-loader@npm:^3.0.8":
+  version: 3.0.8
+  resolution: "worker-loader@npm:3.0.8"
+  dependencies:
+    loader-utils: ^2.0.0
+    schema-utils: ^3.0.0
+  peerDependencies:
+    webpack: ^4.0.0 || ^5.0.0
+  checksum: 84f4a7eeb2a1d8b9704425837e017c91eedfae67ac89e0b866a2dcf283323c1dcabe0258196278b7d5fd0041392da895c8a0c59ddf3a94f1b2e003df68ddfec3
   languageName: node
   linkType: hard
 
