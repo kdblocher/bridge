@@ -60,19 +60,25 @@ const BidErrorsView = ({ bid, errors }: ErrorProps) =>
     {errors.length === 0 && "none"}
   </div>
 
-interface ErrorForestProps {
-  forest: Forest<ErrorNode>
+interface ErrorGridProps {
+  errors: ReadonlyArray<ErrorNode>
 }
-const ErrorForest = ({ forest }: ErrorForestProps) => {
-  const flattenedForest = useMemo(() => pipe(forest, RA.chain(T.foldMap(RA.getMonoid<ErrorNode>())(RA.of))), [forest])
-  return <GridContainer>
-    {flattenedForest.map(({ bid, path, errors }) => 
+export const ErrorGrid = ({ errors }: ErrorGridProps) =>
+  <GridContainer>
+    {errors.map(({ bid, path, errors }) => 
       <Fragment key={serializedBidPathL.get(path)}>
         <BidPath path={path} />
         <BidErrorsView bid={bid} errors={errors} />
       </Fragment>
     )}
   </GridContainer>
+
+interface ErrorForestProps {
+  forest: Forest<ErrorNode>
+}
+const ErrorForest = ({ forest }: ErrorForestProps) => {
+  const flattenedForest = useMemo(() => pipe(forest, RA.chain(T.foldMap(RA.getMonoid<ErrorNode>())(RA.of))), [forest])
+  return <ErrorGrid errors={flattenedForest} />
 }
 
 const Errors = () => {
