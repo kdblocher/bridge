@@ -165,6 +165,10 @@ export const selectCompleteBidPathUpToKey = memoize((state: KeyedState & Options
           RA.getEq(pipe(eqBid, eq.contramap((b: { bid: Bid }) => b.bid)))
             .equals(path, cbPath))))))
 
+export const selectCompleteBidByKey = flow(
+  selectCompleteBidPathUpToKey,
+  O.map(RNEA.last))
+
 const eqBidPath = pipe(eqBid, RA.getEq)
 export interface ErrorNode {
   bid: Bid
@@ -186,10 +190,21 @@ export const selectErrorTree = memoize((options: OptionsState) =>
         RA.filterMap(e => e.type !== "Parse" ? O.some(e) : O.none),
         errors =>
           pipe(pathForest,
-            RA.map(T.map((path): ErrorNode => { return ({
+            RA.map(T.map((path): ErrorNode => ({
               bid: pipe(path, RNEA.last),
               path,
               errors: pipe(errors, RA.filter(e => eqBidPath.equals(e.error.path, path)))
-            }) }))))))))
+            })))))))))
+
+export const selectErrorsByKey = memoize((state: KeyedState & OptionsState) =>
+  pipe(O.Do,
+    O.apS('errors', pipe(state,
+      selectErrorTree,
+      TH.getRight)),
+    O.apS('sb', selectBidByKey(state)),
+    O.fold(() => RA.empty,
+      ({ sb, errors }) => pipe(errors,
+        flatten,
+        RA.filter(e => eqBid.equals(sb.bid, e.bid))))))
     
 export default slice.reducer
