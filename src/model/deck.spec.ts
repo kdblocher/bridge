@@ -15,10 +15,10 @@ export const cardA: fc.Arbitrary<Card> =
     .map(([suit,  rank ]) =>
          ({suit,  rank }))
 export const cardsA: fc.Arbitrary<ReadonlyArray<Card>> =
-  fc.array(cardA)
+  fc.set(cardA, { compare: eqCard.equals })
 
 export const handA : fc.Arbitrary<Hand> =
-  fc.array(cardA, { minLength: 13, maxLength: 13 })
+  fc.set(cardA, { minLength: 13, maxLength: 13, compare: eqCard.equals })
     .map(readonlySet.fromReadonlyArray(eqCard))
 
 const spadeAce: Card = { suit: "S", rank: ranks[ranks.length - 1] }
