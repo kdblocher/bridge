@@ -1,5 +1,5 @@
 import * as fc from 'fast-check';
-import { boolean, option as O, readonlyArray as RA, readonlyRecord as RR, these as TH, tree as T } from 'fp-ts';
+import { boolean, either, option as O, readonlyArray as RA, readonlyRecord as RR, state, these as TH, tree as T } from 'fp-ts';
 import { constFalse, flow, pipe } from 'fp-ts/lib/function';
 
 import { decodeBid } from '../parse';
@@ -7,8 +7,9 @@ import { parseBid } from '../parse/bid';
 import * as tests from './constraints.testdata';
 import { getOrdGroupedHand, groupHandBySuits, rankStrings } from './deck';
 import { handA } from './deck.spec';
-import { Constraint, satisfies } from './system/core';
+import { Constraint, satisfies, zeroContext } from './system/core';
 import { expandForest, SyntacticBid } from './system/expander';
+import { validateS } from './system/validation';
 
 const expandSingleSyntacticBid = (bid: SyntacticBid) =>
   pipe(bid,
@@ -56,8 +57,10 @@ describe('constraint propositions', () => {
         fc.property(fc.context(), handA, (ctx, hand) => {
           ctx.log(encodeHand(hand))
           return boolean.BooleanAlgebra.implies(
-            satisfies(value)(hand),
-            satisfies(expected)(hand))
+            pipe(value, validateS, state.evaluate(zeroContext), either.isRight),
+            boolean.BooleanAlgebra.implies(
+              satisfies(value)(hand),
+              satisfies(expected)(hand)))
         })))
     }))
 })
