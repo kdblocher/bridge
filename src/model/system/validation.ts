@@ -5,8 +5,8 @@ import { assertUnreachable } from '../../lib';
 import { Bid, isGameLevel, isSlamLevel } from '../bridge';
 import { Forest, getAllLeafPaths, Path } from '../system';
 import {
-    BidContext, bidL, ConstrainedBid, Constraint, ConstraintAnyShape, ConstraintForce, ConstraintPointRange, ConstraintS, ConstraintSpecificShape, ConstraintSuitRange, ConstraintSuitSecondary, forceL,
-    forceO, ofS, ordConstrainedBid, pathL, primarySuitL, secondarySuitL, zeroContext
+    BidContext, bidL, ConstrainedBid, Constraint, ConstraintAnyShape, ConstraintForce, ConstraintPointRange, ConstraintS, ConstraintSpecificShape, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, forceL, forceO, ofS, ordConstrainedBid, pathL, primarySuitL, secondarySuitL,
+    zeroContext
 } from './core';
 
 interface SystemValidationErrorBidsOutOfOrder {
@@ -14,8 +14,16 @@ interface SystemValidationErrorBidsOutOfOrder {
   left: ConstrainedBid
   right: ConstrainedBid
 }
-interface SystemValidationErrorNoPrimaryBidDefined {
-  type: "NoPrimaryBidDefined"
+interface SystemValidationErrorNoPrimarySuitDefined {
+  type: "NoPrimarySuitDefined"
+  constraint: ConstraintSuitSecondary
+}
+interface SystemValidationErrorPrimarySuitAlreadyDefined {
+  type: "PrimarySuitAlreadyDefined"
+  constraint: ConstraintSuitPrimary
+}
+interface SystemValidationErrorSamePrimaryAndSecondarySuit {
+  type: "SamePrimaryAndSecondarySuit"
   constraint: ConstraintSuitSecondary
 }
 interface SystemValidationErrorSuitRangeInvalid {
@@ -45,7 +53,9 @@ interface SystemValidationErrorNoBidDefinedButStillForcing {
 }
 
 type SystemValidationBidReason =
-  | SystemValidationErrorNoPrimaryBidDefined
+  | SystemValidationErrorNoPrimarySuitDefined
+  | SystemValidationErrorPrimarySuitAlreadyDefined
+  | SystemValidationErrorSamePrimaryAndSecondarySuit
   | SystemValidationErrorSuitRangeInvalid
   | SystemValidationErrorPointRangeInvalid
   | SystemValidationErrorSpecificShapeInvalid
@@ -104,14 +114,19 @@ export const validateS = (c: Constraint): S.State<BidContext, E.Either<SystemVal
 
     case "SuitPrimary":
       return pipe(
-        S.modify(primarySuitL.set(O.some(c.suit))),
-        S.map(() => E.right(constVoid())))
+        S.gets(primarySuitL.get),
+        S.chain(O.fold(
+          () => pipe(
+            S.modify(primarySuitL.set(O.some(c.suit))),
+            S.map(() => E.right(constVoid()))),
+          () => ofS(E.left({ type: "PrimarySuitAlreadyDefined", constraint: c })))))
     case "SuitSecondary":
       return pipe(
         S.modify(secondarySuitL.set(O.some(c.suit))),
         S.chain(() => S.gets(context => context.primarySuit)),
         S.map(flow(
-          E.fromOption((): SystemValidationBidReason => ({ type: "NoPrimaryBidDefined", constraint: c })),
+          E.fromOption((): SystemValidationBidReason => ({ type: "NoPrimarySuitDefined", constraint: c })),
+          E.chainFirst(E.fromPredicate(suit => c.suit !== suit, (): SystemValidationBidReason => ({ type: "SamePrimaryAndSecondarySuit", constraint: c }))),
           E.map(constVoid))))
 
     case "PointRange":
