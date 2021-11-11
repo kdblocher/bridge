@@ -17,7 +17,7 @@ import { Path, Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { satisfiesPath } from '../model/system/satisfaction';
 import { decodeHand } from '../parse';
-import { observeResultsSerial } from '../workers';
+import { observeResults } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 
 const name = 'selection'
@@ -66,7 +66,7 @@ const getResult = createAsyncThunk('abc', ({ opener, responder}: Hands) =>
     genBoardFromHands(serializedHandL.reverseGet(opener), serializedHandL.reverseGet(responder)),
     serializedBoardL.get,
     readonlyNonEmptyArray.of,
-    observeResultsSerial,
+    observeResults,
     observable.toTask,
     t => t()))
 
