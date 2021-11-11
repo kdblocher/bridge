@@ -6083,6 +6083,11 @@ icss-utils@^4.0.0, icss-utils@^4.1.1:
   dependencies:
     postcss "^7.0.14"
 
+idb@^6.1.5:
+  version "6.1.5"
+  resolved "https://registry.yarnpkg.com/idb/-/idb-6.1.5.tgz#dbc53e7adf1ac7c59f9b2bf56e00b4ea4fce8c7b"
+  integrity sha512-IJtugpKkiVXQn5Y+LteyBCNk1N8xpGV3wWZk9EVtZWH8DYkjBn0bX1XnGP9RkyZF0sAcywa6unHqSWKe7q4LGw==
+
 identity-obj-proxy@3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/identity-obj-proxy/-/identity-obj-proxy-3.0.0.tgz#94d2bda96084453ef36fbc5aaec37e0f79f1fc14"
@@ -11528,6 +11533,11 @@ url@^0.11.0:
   dependencies:
     punycode "1.3.2"
     querystring "0.2.0"
+
+use-async-selector@^0.2.7:
+  version "0.2.7"
+  resolved "https://registry.yarnpkg.com/use-async-selector/-/use-async-selector-0.2.7.tgz#edf0d86cf27e339b73be175e8659f1c782584099"
+  integrity sha512-QB6AWXI6zB3HG+quOoysrmZqPY9T5WOVp7hsYG/NcyqfBSAcEqIorf+w59yTKaXU+TL/iZlYhZu9IzJO59p0sQ==
 
 use@^3.1.0:
   version "3.1.1"

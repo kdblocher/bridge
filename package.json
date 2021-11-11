@@ -18,6 +18,7 @@
     "draft-js": "^0.11.7",
     "fp-ts": "^2.11.4",
     "fp-ts-rxjs": "^0.6.15",
+    "idb": "^6.1.5",
     "io-ts": "^2.2.16",
     "monocle-ts": "^2.3.11",
     "proxy-memoize": "^0.3.7",
@@ -33,6 +34,7 @@
     "styled-components": "^5.3.1",
     "ts-toolbelt": "^9.6.0",
     "typescript": "*",
+    "use-async-selector": "^0.2.7",
     "uuid-tool": "^2.0.3"
   },
   "scripts": {

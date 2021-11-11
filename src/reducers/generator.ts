@@ -1,10 +1,11 @@
-import { magma, number, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
+import { boolean, either, eq, magma, number, option as O, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlyTuple, semigroup, string, taskEither } from 'fp-ts';
 import { observable, observableEither } from 'fp-ts-rxjs';
 import { constant, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import memoize from 'proxy-memoize';
 import { Epic } from 'redux-observable';
-import { bufferCount, concatWith, EMPTY, filter, from } from 'rxjs';
+import { bufferCount, concatWith, EMPTY, filter, from, Observable, of, tap } from 'rxjs';
+import { UuidLike, UuidTool } from 'uuid-tool';
 
 import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
@@ -12,29 +13,35 @@ import { RootState } from '../app/store';
 import { transpose } from '../model/analyze';
 import { makeBoard } from '../model/bridge';
 import { SerializedBidPath, serializedBidPathL, serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
-import { Path } from '../model/system';
+import { Path, Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
+import { getDealsByJobId } from '../services/idb';
 import { ping, postDeals, putDeals } from '../services/server';
-import { observeDeals, observeResults } from '../workers';
+import { observeDeals, observeResults, observeSatisfies, SatisfiesResult } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 
 const name = 'generator'
 
 type Deals = ReadonlyArray<SerializedDeal>
 type Results = readonlyRecord.ReadonlyRecord<SerializedBidPath, readonlyNonEmptyArray.ReadonlyNonEmptyArray<DoubleDummyResult>>
+type Satisfies = readonlyRecord.ReadonlyRecord<SerializedBidPath, number>
 type Progress<T> = readonly [T, number]
+type JobId = UuidLike
 
 const getProgress = <T>(a: T): Progress<T> => [a, 0]
 const updateProgress = <T>(M: magma.Magma<T>) => (decrement: number) => (payload: T) => (progress: Progress<T>): Progress<T> =>
   pipe(progress,
     readonlyTuple.bimap(p => p - decrement, current => M.concat(current, payload)))
+
 interface State {
-  deals: Progress<Deals>
+  deals: Progress<either.Either<string, JobId>>
+  satisfies: Progress<Satisfies>
   results: Progress<Results>
   working: boolean
 }
 const initialState: State = {
-  deals: getProgress([]),
+  deals: getProgress(either.left("Initial")),
+  satisfies: getProgress({}),
   results: getProgress({}),
   working: false
 }
@@ -47,17 +54,31 @@ const slice = createSlice({
       state.deals = pipe(state.deals, readonlyTuple.mapSnd(constant(action.payload)), castDraft)
       state.working = true
     },
-    getResults: (state, action: PayloadAction<{ path: Path<ConstrainedBid>, deals: Deals }>) => {
-      state.results = pipe(state.results, readonlyTuple.mapSnd(constant(action.payload.deals.length)), castDraft)
-      state.working = true
-    },
     reportDeals: (state, action: PayloadAction<Deals>) => {
       state.deals = pipe(state.deals,
         updateProgress
-          (readonlyArray.getSemigroup<SerializedDeal>())
+          (either.getSemigroup<string, JobId>(semigroup.first<JobId>()))
           (action.payload.length)
-          (action.payload),
+          (either.left("Generating")),
         castDraft)
+    },
+
+    getSatisfies: (state, action: PayloadAction<{ paths: Paths<ConstrainedBid>, jobId: JobId }>) => {
+      state.satisfies = [{}, 0]
+      state.working = true
+    },
+    reportSatisfies: (state, action: PayloadAction<SatisfiesResult>) => {
+      state.satisfies = pipe(state.satisfies,
+        updateProgress
+          (readonlyRecord.getUnionSemigroup(number.MonoidSum))
+          (-1)
+          ({ [action.payload.path]: action.payload.count }),
+        castDraft)
+    },
+
+    getResults: (state, action: PayloadAction<{ path: Path<ConstrainedBid>, deals: Deals }>) => {
+      state.results = pipe(state.results, readonlyTuple.mapSnd(constant(action.payload.deals.length)), castDraft)
+      state.working = true
     },
     reportResults: (state, action: PayloadAction<Results>) => {
       state.results = pipe(state.results,
@@ -69,13 +90,19 @@ const slice = createSlice({
           (action.payload),
         castDraft)
     },
-    done: (state) => {
+
+    done: (state, action: PayloadAction<either.Either<string, JobId>>) => {
+      state.deals = pipe(state.deals, updateProgress
+        (either.getSemigroup<string, JobId>(semigroup.first<JobId>()))
+        (0)
+        (action.payload),
+        castDraft)
       state.working = false
     }
   }
 })
 
-export const { generate, getResults, reportDeals, reportResults, done } = slice.actions
+export const { generate, reportDeals, getSatisfies, reportSatisfies, getResults, reportResults, done } = slice.actions
 export default slice.reducer
 
 type E = Epic<AnyAction, AnyAction, RootState>
@@ -83,11 +110,25 @@ export const analyzeDealsEpic : E = (action$, state$) =>
   action$.pipe(
     filter(generate.match),
     observable.map(a => a.payload),
-    observable.chain(count =>
-      observeDeals(count).pipe(
-        bufferCount(1000),
-        observable.map(reportDeals),
-        concatWith([done()]))))
+    observable.chain(count => {
+      const jobId = UuidTool.newUuid()
+      return pipe(observeDeals(count, jobId),
+        observableEither.map(reportDeals),
+        observableEither.getOrElse((err): Observable<AnyAction> =>
+          of(done(either.left(err)))),
+        concatWith([done(either.right({ id: jobId }))]))
+    }))
+
+export const analyzeSatisfiesEpic : E = (action$, state$) =>
+  action$.pipe(
+    filter(getSatisfies.match),
+    observable.map(a => a.payload),
+    observable.chain(({ paths, jobId }) =>
+      pipe(observeSatisfies(paths)(jobId.id),
+        observableEither.map(reportSatisfies),
+        observableEither.getOrElse((err): Observable<AnyAction> =>
+          of(done(either.left(err)))),
+        concatWith([done(either.right(jobId))]))))
 
 export const analyzeResultsEpic : E = (action$, state$) =>
   action$.pipe(
@@ -101,18 +142,18 @@ export const analyzeResultsEpic : E = (action$, state$) =>
             makeBoard(i + 1),
             serializedBoardL.get)),
         readonlyNonEmptyArray.fromReadonlyArray,
-        option.fold(() => from([]), observeResults),
+        O.fold(() => from([]), observeResults),
         bufferCount(5),
         observable.map(flow(
           readonlyNonEmptyArray.fromReadonlyArray,
-          option.fold(
+          O.fold(
             () => reportResults({}),
             results => pipe(
               a.payload.path,
               readonlyNonEmptyArray.map(a => a.bid ),
               serializedBidPathL.get,
               path => reportResults(({ [path]: results })))))),
-        concatWith([done()]))))
+        concatWith([done(either.right({ id: "" }))]))))
 
 export const saveDealsToApiEpic: Epic<AnyAction> = (action$, state$) =>
   action$.pipe(
@@ -135,28 +176,47 @@ export const saveSolutionsToApiEpic: Epic<AnyAction> = (action$, state$) =>
     observableEither.chainFirst(flow(
       readonlyRecord.toReadonlyArray,
       readonlyArray.chain(readonlyTuple.snd),
-      readonlyArray.map(x => [serializedDealL.reverseGet(x.board.deal), pipe(x.results, transpose, option.some)] as const),
+      readonlyArray.map(x => [serializedDealL.reverseGet(x.board.deal), pipe(x.results, transpose, O.some)] as const),
       putDeals,
       observableEither.fromTaskEither)),
     observable.chain(_ => EMPTY))    
         
-export const selectAllDeals = memoize((state: State) =>
+export interface JobIdKeyedState {
+  state: State
+  jobId: JobId
+}
+const eqJobId: eq.Eq<JobId> = pipe(string.Eq, eq.contramap(uuid => uuid.id))
+export const selectAllDeals = memoize(({ state, jobId }: JobIdKeyedState) =>
   pipe(state.deals,
-    readonlyTuple.fst))
-
-export const selectAllNorthSouthPairs = memoize(
-  flow(
-    selectAllDeals,
-    readonlyArray.map(flow(
-      serializedDealL.reverseGet,
-      deal => [deal.N, deal.S] as const))))
+    readonlyTuple.fst,
+    e => either.elem(eqJobId)(jobId, e),
+    boolean.fold(
+      () => taskEither.of(readonlyArray.empty),
+      () => getDealsByJobId(jobId.id)))
+    ())
 
 export const selectProgress = memoize((state: State) => ({
   deals: state.deals[1],
+  satisfies: state.satisfies[1],
   results: state.results[1],
 }))
 
-export const selectResultsByPath = memoize(({ state, path }: { state: State, path: SerializedBidPath }) =>
+interface PathKeyedState {
+  state: State
+  path: SerializedBidPath
+}
+export const selectSatisfyCountByJobIdAndPath = memoize(({ state, jobId, path }: JobIdKeyedState & PathKeyedState) =>
+  pipe(state.deals,
+    readonlyTuple.fst,
+    e => either.elem(eqJobId)(jobId, e),
+    boolean.fold(
+      () => null,
+      () => pipe(
+        state.satisfies[0],
+        readonlyRecord.lookup(path),
+        O.toNullable))))
+
+export const selectResultsByPath = memoize(({ state, path }: PathKeyedState) =>
   pipe(state.results[0],
     readonlyRecord.lookup(path),
-    option.toNullable))
+    O.toNullable))

@@ -1,12 +1,26 @@
 // Due to the way comlink-loader works, types cannot be imported at the top level, and must be imported via (import "...") statements.
-
 declare module 'comlink-loader!./deal.worker' {
   type SerializedDeal = import ("../model/serialization").SerializedDeal
+  type Either<E, A> = import ('fp-ts').either.Either<E, A>
   class DealWorker extends Worker {
     constructor();
-    genDeals(count: number): Promise<ReadonlyArray<SerializedDeal>>;
+    genDeals(count: number, jobId?: string): Promise<Either<string, ReadonlyArray<SerializedDeal>>>;
   }
   export = DealWorker;
+}
+
+declare module 'comlink-loader!./satisfies.worker' {
+  type ConstrainedBid = import ("../model/system/core").ConstrainedBid
+  type SerializedHand = import ("../model/serialization").SerializedHand
+  type Path<A> = import ("../model/system").Path<A>
+  type Direction = import ("../model/bridge").Direction
+  type Either<E, A> = import ('fp-ts').either.Either<E, A>
+  class SatisfiesWorker extends Worker {
+    constructor();
+    satisfiesBatch(path: Path<ConstrainedBid>, batchId: string, openerDirection?: Direction, responderDirection?: Direction): Promise<Either<string, number>>;
+    satisfies(path: Path<ConstrainedBid>, opener: SerializedHand, responder: SerializedHand): Promise<boolean>;
+  }
+  export = SatisfiesWorker;
 }
 
 declare module 'comlink-loader!./dds.worker' {
