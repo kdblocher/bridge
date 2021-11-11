@@ -9,14 +9,13 @@ import { bufferCount, concatWith, EMPTY, filter, from } from 'rxjs';
 import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { RootState } from '../app/store';
-import { maxProcessors } from '../lib/concurrency';
 import { transpose } from '../model/analyze';
 import { makeBoard } from '../model/bridge';
 import { SerializedBidPath, serializedBidPathL, serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
 import { Path } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { ping, postDeals, putDeals } from '../services/server';
-import { observeDealsParallel, observeDealsSerial, observeResultsParallel, observeResultsSerial } from '../workers';
+import { observeDeals, observeResults } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 
 const name = 'generator'
@@ -84,13 +83,11 @@ export const analyzeDealsEpic : E = (action$, state$) =>
   action$.pipe(
     filter(generate.match),
     observable.map(a => a.payload),
-    observable.chain(flow(
-      count => count > maxProcessors
-        ? pipe(observeDealsParallel(count), observable.flatten)
-        : observeDealsSerial(count),
-      bufferCount(1000),
-      observable.map(reportDeals),
-      concatWith([done()]))))
+    observable.chain(count =>
+      observeDeals(count).pipe(
+        bufferCount(1000),
+        observable.map(reportDeals),
+        concatWith([done()]))))
 
 export const analyzeResultsEpic : E = (action$, state$) =>
   action$.pipe(
@@ -104,11 +101,7 @@ export const analyzeResultsEpic : E = (action$, state$) =>
             makeBoard(i + 1),
             serializedBoardL.get)),
         readonlyNonEmptyArray.fromReadonlyArray,
-        option.fold(() => from([]),
-          boards =>
-            a.payload.deals.length > maxProcessors
-            ? pipe(boards, observeResultsParallel, observable.flatten)
-            : pipe(boards, observeResultsSerial)),
+        option.fold(() => from([]), observeResults),
         bufferCount(5),
         observable.map(flow(
           readonlyNonEmptyArray.fromReadonlyArray,
