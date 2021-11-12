@@ -1,5 +1,5 @@
 import { either, option, predicate, readonlyArray, readonlyNonEmptyArray, readonlySet, separated } from 'fp-ts';
-import { observable } from 'fp-ts-rxjs';
+import { observable, observableEither } from 'fp-ts-rxjs';
 import { tailRec } from 'fp-ts/lib/ChainRec';
 import { constFalse, constTrue, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
@@ -17,7 +17,7 @@ import { Path, Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { satisfiesPath } from '../model/system/satisfaction';
 import { decodeHand } from '../parse';
-import { observeResults } from '../workers';
+import { observeSolutions } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 
 const name = 'selection'
@@ -61,14 +61,16 @@ const genBoardFromHands = (opener: Hand, responder: Hand) =>
       }
     }))
 
-const getResult = createAsyncThunk('abc', ({ opener, responder}: Hands) =>
+const getResult = createAsyncThunk<DoubleDummyResult, Hands, { rejectValue: string }>('abc', ({ opener, responder }, { rejectWithValue }) =>
   pipe(
     genBoardFromHands(serializedHandL.reverseGet(opener), serializedHandL.reverseGet(responder)),
     serializedBoardL.get,
-    readonlyNonEmptyArray.of,
-    observeResults,
-    observable.toTask,
-    t => t()))
+    readonlyArray.of,
+    observeSolutions,
+    observableEither.map(x => x[0]),
+    observable.map(either.getOrElseW(rejectWithValue)),
+    observable.toTask)
+  ())
 
 const genUntilCondition = (limit: option.Option<number>) => (condition: predicate.Predicate<readonly [Hand, Hand]>) =>
   tailRec(limit, l => {

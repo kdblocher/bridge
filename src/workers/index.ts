@@ -3,10 +3,10 @@
 import DDSWorker from 'comlink-loader!./dds.worker'; // inline loader
 import DealWorker from 'comlink-loader!./deal.worker'; // inline loader
 import SatisfiesWorker from 'comlink-loader!./satisfies.worker';
-import { either, readonlyArray, readonlyNonEmptyArray, separated, taskEither } from 'fp-ts';
+import { either, readonlyArray, readonlyNonEmptyArray, taskEither } from 'fp-ts';
 import { observable as Ob, observableEither as ObE } from 'fp-ts-rxjs';
-import { constVoid, flow, pipe } from 'fp-ts/lib/function';
-import { from, groupBy, mergeMap, partition, tap } from 'rxjs';
+import { flow, pipe } from 'fp-ts/lib/function';
+import { from, groupBy } from 'rxjs';
 
 import pool from '../lib/pool';
 import { SerializedBidPath, serializedBidPathL, SerializedBoard } from '../model/serialization';
@@ -15,11 +15,11 @@ import { ConstrainedBid } from '../model/system/core';
 import { getBatchIdsByJobId } from '../services/idb';
 
 const BATCH_SIZE = 100
-export const observeDeals = (count: number, jobId?: string) =>
+export const observeDeals = (count: number, collectionId?: string) =>
   pipe(
     readonlyArray.replicate(count / BATCH_SIZE, BATCH_SIZE),
     readonlyArray.append(count % BATCH_SIZE),
-    pool(() => new DealWorker(), w => b => w.genDeals(b, jobId)))
+    pool(() => new DealWorker(), w => b => w.genDeals(b, collectionId)))
 
 export interface SatisfiesResult {
   path: SerializedBidPath
@@ -46,6 +46,8 @@ export const observeSatisfies = (paths: Paths<ConstrainedBid>) =>
             ()))
       : group))
 
-export const observeResults = (boards: ReadonlyArray<SerializedBoard>) =>
+export const observeSolutions = (boards: ReadonlyArray<SerializedBoard>) =>
   pipe(boards,
-    pool(() => new DDSWorker(), w => b => w.getResult(b)))
+    pool(() => new DDSWorker(), w => b => w.getResult(b)),
+    ObE.fromObservable,
+    ObE.bimap(() => "", readonlyArray.of))

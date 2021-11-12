@@ -4,7 +4,7 @@ declare module 'comlink-loader!./deal.worker' {
   type Either<E, A> = import ('fp-ts').either.Either<E, A>
   class DealWorker extends Worker {
     constructor();
-    genDeals(count: number, jobId?: string): Promise<Either<string, ReadonlyArray<SerializedDeal>>>;
+    genDeals(count: number, correlationId?: string): Promise<Either<string, ReadonlyArray<SerializedDeal>>>;
   }
   export = DealWorker;
 }
@@ -15,9 +15,10 @@ declare module 'comlink-loader!./satisfies.worker' {
   type Path<A> = import ("../model/system").Path<A>
   type Direction = import ("../model/bridge").Direction
   type Either<E, A> = import ('fp-ts').either.Either<E, A>
+  type BatchId = string
   class SatisfiesWorker extends Worker {
     constructor();
-    satisfiesBatch(path: Path<ConstrainedBid>, batchId: string, openerDirection?: Direction, responderDirection?: Direction): Promise<Either<string, number>>;
+    satisfiesBatch(path: Path<ConstrainedBid>, batchId: BatchId, openerDirection?: Direction, responderDirection?: Direction): Promise<Either<string, number>>;
     satisfies(path: Path<ConstrainedBid>, opener: SerializedHand, responder: SerializedHand): Promise<boolean>;
   }
   export = SatisfiesWorker;

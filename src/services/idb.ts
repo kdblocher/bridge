@@ -11,7 +11,7 @@ interface DealDB extends DBSchema {
     value: {
       deal: SerializedDeal
       batchId: string
-      jobId?: string
+      collectionId?: string
     },
     indexes: {
       'batch': string,
@@ -33,12 +33,12 @@ const getDb =
         // db.deleteObjectStore("deal")
         const store = db.createObjectStore("deal")
         store.createIndex('batch', 'batchId')
-        store.createIndex('job', 'jobId')
+        store.createIndex('job', 'collectionId')
       }
     }),
     (): DbError => "OpenDatabaseFailed")
 
-export const insertDeals = (jobId?: string) => (deals: ReadonlyArray<SerializedDeal>) =>
+export const insertDeals = (collectionId?: string) => (deals: ReadonlyArray<SerializedDeal>) =>
   pipe(getDb,
     TE.map(db => db.transaction('deal', 'readwrite')),
     TE.chainFirst(tran => {
@@ -47,7 +47,7 @@ export const insertDeals = (jobId?: string) => (deals: ReadonlyArray<SerializedD
       TE.tryCatch(
         () => tran.store.put({
           deal,
-          jobId,
+          collectionId,
           batchId
         }, deal.id),
         (): DbError => "InsertError")))
@@ -57,14 +57,14 @@ export const insertDeals = (jobId?: string) => (deals: ReadonlyArray<SerializedD
 const getByIndex = <I extends IndexNames<DealDB, 'deal'>>(idx: I) => (id: string) =>
   TE.tryCatchK((db: IDBPDatabase<DealDB>) => db.getAllFromIndex('deal', idx, id), (): DbError => "SelectError")
 
-export const getDealsByJobId = (jobId: string) =>
+export const getDealsByJobId = (collectionId: string) =>
   pipe(getDb,
-    TE.chain(getByIndex('job')(jobId)),
+    TE.chain(getByIndex('job')(collectionId)),
     TE.map(RA.map(row => row.deal)))
 
-export const getBatchIdsByJobId = (jobId: string) =>
+export const getBatchIdsByJobId = (collectionId: string) =>
   pipe(getDb,
-    TE.chain(getByIndex('job')(jobId)),
+    TE.chain(getByIndex('job')(collectionId)),
     TE.map(flow(
       RA.map(row => row.batchId),
       RA.uniq(string.Eq))))
