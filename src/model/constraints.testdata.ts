@@ -1,4 +1,5 @@
 import { readonlyRecord } from 'fp-ts';
+import { Rank, rankFromString } from './deck';
 
 import { Constraint } from './system/core';
 import { Syntax } from './system/expander';
@@ -85,7 +86,48 @@ export const decodeTests: readonlyRecord.ReadonlyRecord<string, DecodeTest> = {
       "max": 6,
       "suit": "H"
     }
-  }
+  },
+  // Suit honor syntax
+  suitHonorSyntax:
+  {
+    value: "SA",
+    expected:
+    {
+      "type": "SuitHonors",
+      "suit": "S",
+      "honors": [
+        14 as Rank
+      ]
+    }
+  },
+
+  // Suit honor syntax for multiple cards
+  suiMultipletHonorSyntax:
+  {
+    value: "SAKQ",
+    expected:
+    {
+      "type": "SuitHonors",
+      "suit": "S",
+      "honors": [
+        14 as Rank,
+        13 as Rank,
+        12 as Rank
+      ]
+    }
+  },
+  // Top syntax
+  suitTopSyntax:
+  {
+    value: "S2/3",
+    expected:
+    {
+      "type": "SuitTop",
+      "suit": "S",
+      "count": 2,
+      "minRank": 12 as Rank
+    }
+  },
 }
 
 interface ConstraintPropositionTest {
@@ -425,8 +467,148 @@ export const constraintPropositionTests: readonlyRecord.ReadonlyRecord<string, C
       "max": 7,
       "suit": "D"
     }
-  }
-
+  },
+  //  Does Top two or three actually give you two of the top three honors
+  suitTopTwoOfThreeHonors:
+  {
+    value:
+    {
+      "type": "SuitTop",
+      "suit": "H",
+      "count": 2,
+      "minRank": 12 as Rank
+    },
+    expected:
+    {
+      "type": "Disjunction",
+      "constraints": [
+        {
+          "type": "SuitHonors",
+          "suit": "H",
+          "honors": [
+            14 as Rank,
+            13 as Rank
+          ]
+        },
+        {
+          "type": "SuitHonors",
+          "suit": "H",
+          "honors": [
+            14 as Rank,
+            12 as Rank
+          ]
+        },
+        {
+          "type": "SuitHonors",
+          "suit": "H",
+          "honors": [
+            13 as Rank,
+            12 as Rank
+          ]
+        }
+      ]
+    }
+  },
+  //  If you have two of top four, but not two of top three, you must have the Jack
+  multipleSuitTopHonorCombinations:
+  {
+    value:
+    {
+      "type": "Conjunction",
+      "constraints": [
+        {
+          "type": "SuitTop",
+          "suit": "D",
+          "count": 2,
+          "minRank": 11 as Rank
+        },
+        {
+          "type": "Negation",
+          "constraint": {
+            "type": "SuitTop",
+            "suit": "D",
+            "count": 2,
+            "minRank": 12 as Rank
+          }
+        }
+      ]
+    },
+    expected:
+    {
+      "type": "SuitHonors",
+      "suit": "D",
+      "honors": [
+        11 as Rank
+      ]
+    }
+  },
+  //  You cannot have more cards in your top than in the suit
+  suitTopMoreThanSuitTotal:
+  {
+    value:
+    {
+      "type": "Conjunction",
+      "constraints": [
+        {
+          "type": "SuitTop",
+          "suit": "C",
+          "count": 3,
+          "minRank": 10 as Rank
+        },
+        {
+          "type": "SuitRange",
+          "min": 2,
+          "max": 2,
+          "suit": "C"
+        }
+      ]
+    },
+    expected: {
+      "type": "Constant",
+      value: false
+    }
+  },
+  //  You cannot have two of top three honors, and 0-4 HCP
+  suitTopMoreThanHCP:
+  {
+    value:
+    {
+      "type": "Conjunction",
+      "constraints": [
+        {
+          "type": "PointRange",
+          "min": 0,
+          "max": 4
+        },
+        {
+          "type": "SuitTop",
+          "suit": "C",
+          "count": 2,
+          "minRank": 12 as Rank
+        }
+      ]
+    },
+    expected: {
+      "type": "Constant",
+      value: false
+    }
+  },
+  //  You cannot have three of the top two honors
+  suitTopMReversed:
+  {
+    value:
+    {
+      "type": "SuitTop",
+      "suit": "C",
+      "count": 3,
+      "minRank": 13 as Rank
+    },
+    expected: 
+    {
+      "type": "Constant",
+      value: false
+    }
+  },
 }
 
 interface ExpansionTest {
