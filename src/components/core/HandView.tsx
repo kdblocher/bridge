@@ -23,7 +23,7 @@ const RankView = ({ rank }: RankProps) =>
 const SuitList = styled.ol `
   white-space: nowrap;
   width: 15em;
-  margin: 0;
+  margin: 10px;
   padding-left: 0;
   list-style: decimal url(data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7) inside;
 `

@@ -1,6 +1,5 @@
 import { readonlyNonEmptyArray, these } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
-
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { serializedBidPathL } from '../model/serialization';
 import { average, getStats, stdev } from '../model/stats';
@@ -9,11 +8,24 @@ import { generate, getResults, selectProgress, selectResultsByPath } from '../re
 import { selectAllCompleteBidPaths } from '../reducers/system';
 import BidPath from './core/BidPath';
 import { DoubleDummyTableView } from './core/DoubleDummyResultView';
+import styled from 'styled-components';
+import Settings from './Settings';
 
 interface StatsPathProps {
   result: BidPathResult
 }
-const StatsPath = ({ result }: StatsPathProps) => {
+
+const StatsPath = ({ result }: StatsPathProps) => { 
+   const SectionFormat = styled.section `
+  border: 1px grey solid;
+  width: 300px;
+  padding: 10px;
+  margin: 10px 0px;
+`
+const SectionTitle = styled.h4 `
+  margin: 0px;
+  text-decoration: underline;
+`
   const dispatch = useAppDispatch()
   const dds = useAppSelector(state => pipe(
     result.path,
@@ -23,23 +35,33 @@ const StatsPath = ({ result }: StatsPathProps) => {
   const stats = dds && getStats(pipe(dds, readonlyNonEmptyArray.map(d => d.results)))
   const averages = stats && average(stats)
   const stdevs = stats && stdev(stats)
+
+  const AverageResultBox = ({ result }: StatsPathProps) =>
+    <>
+      {averages !== null && <div><SectionFormat>
+        <SectionTitle>Average</SectionTitle>
+        {averages !== null && <DoubleDummyTableView table={averages} />}
+      </SectionFormat>
+      </div>}
+    </>
+
+  const StdDevResultBox = ({ result }: StatsPathProps) =>
+    <>
+      {stdevs !== null && <SectionFormat>
+        <SectionTitle>Std. Dev.</SectionTitle>        
+        <DoubleDummyTableView table={stdevs} />
+      </SectionFormat>}
+    </>
+
   return (
     <>
+      {<button onClick={e => dispatch(getResults({ path: result.path, deals: result.deals }))}>DDS</button>}
+
       <BidPath path={result.path.map(cb => cb.bid)} />
-      : &nbsp;
       <span>{result.count.toString()}</span>
-      {averages !== null && <section>
-        <h4>Average</h4>
-        {averages !== null && <DoubleDummyTableView table={averages} />}
-      </section>}
-      {stdevs !== null && <section>
-        <h4>Std. Dev.</h4>
-        <DoubleDummyTableView table={stdevs} />
-      </section>}
-      {dds === null && <button onClick={e => dispatch(getResults({ path: result.path, deals: result.deals }))}>DDS</button>}
-      {/* {dds === null
-        ? <button onClick={e => dispatch(getResults({ path: result.path, deals: result.deals }))}>DDS</button>
-        : <ul>{dds.map((ddr, i) => <li  key={i}><DoubleDummyResultView result={ddr} /></li>)}</ul>} */}
+      <AverageResultBox result={result}></AverageResultBox>
+      <StdDevResultBox result={result}></StdDevResultBox>
+      <br />
     </>)
 }
 
@@ -74,9 +96,11 @@ const Stats = () => {
   return (
     <section>
       <h3>Stats</h3>
+      <Settings />
+
       {showGenerate && <div>
         <button type="button" onClick={() => dispatch(generate(count))}>Generate deals</button>
-        {generating ? <span>Generating...</span> : <span>Ready!</span>}
+        {generating ? <span> Generating...</span> : <span> Ready!</span>}
         {generating && <Progress />}
         {!generating && <SatisfyStats />}
       </div>}

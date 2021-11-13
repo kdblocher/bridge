@@ -1,8 +1,8 @@
 import { constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { useCallback, useEffect } from 'react';
-
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { setInitialSettings, setSettingsProperty, SettingsState } from '../reducers/settings';
+import styled from 'styled-components';
 
 interface SettingsValueProps<K, V> {
   label?: string
@@ -11,6 +11,13 @@ interface SettingsValueProps<K, V> {
   children?: (props: { value: V, onChange: (v: string) => void }) => JSX.Element
   onChanged?: (v: V) => void
 }
+
+const FormattedInput = styled.input `
+  margin-left: 10px;  
+  padding: 2px 5px;
+  font-size: 12pt;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+`
 const SettingsItem = <K extends keyof SettingsState>({ label, prop, parse, onChanged, children }: SettingsValueProps<K, SettingsState[K]>) => {
   const value = useAppSelector(state => state.settings[prop])
   const dispatch = useAppDispatch()
@@ -19,11 +26,11 @@ const SettingsItem = <K extends keyof SettingsState>({ label, prop, parse, onCha
     onChanged && onChanged(newValue)
   }, [dispatch, onChanged, prop])
   return (
-    <p>
-      <span>{label ?? prop}</span>
+    <p style={{marginBottom: "5px"}}>
+      <span>{label ?? "prop"}</span>
       <span>{children
         ? children({ value, onChange: flow(parse, onChange, constVoid) })
-        : <input type="text" value={value.toString()} onChange={e => pipe(e.target.value, parse, onChange)} style={{width: "100px"}} />
+        : <FormattedInput type="text" value={value.toString()} onChange={e => pipe(e.target.value, parse, onChange)} style={{width: "100px"}} />
       }</span>
     </p>
   )
@@ -46,11 +53,13 @@ const Settings = () => {
   }, [settings])
   return (
     <section>
-      <SettingsItem label="Implicit Pass" prop="implicitPass" parse={s => s === "true"} onChanged={v => onChanged("implicitPass", v)}>
+      <SettingsItem label="Generate Count: " prop="generateCount" parse={parseInt} onChanged={v => onChanged("generateCount", v)} />
+
+      <SettingsItem label="Implicit Pass: " prop="implicitPass" parse={s => s === "true"} onChanged={v => onChanged("implicitPass", v)}>
         {({ value, onChange}) =>
           <input type="checkbox" checked={value} onChange={e => onChange(e.target.checked.toString())} />
       }</SettingsItem>
-      <SettingsItem label="Generate Count" prop="generateCount" parse={parseInt} onChanged={v => onChanged("generateCount", v)} />
+      <br />
     </section>
   )
 }

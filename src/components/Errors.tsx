@@ -3,7 +3,6 @@ import { pipe } from 'fp-ts/lib/function';
 import { draw } from 'io-ts/lib/Decoder';
 import { Fragment, useMemo } from 'react';
 import styled from 'styled-components';
-
 import { useAppSelector } from '../app/hooks';
 import { assertUnreachable } from '../lib';
 import { Bid } from '../model/bridge';
@@ -20,7 +19,6 @@ const GridContainer = styled.div `
   grid-template-columns: auto auto;
   width: auto;
 `
-
 interface ExpandErrorProps {
   error: ExpandError
 }
