@@ -5,7 +5,7 @@ import TimeAgo from 'react-timeago';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { DateNumber, Job } from '../model/job';
-import { startJob } from '../reducers/generator';
+import { removeJob, startJob } from '../reducers/generator';
 
 interface DateViewProps {
   date: option.Option<DateNumber>
@@ -24,6 +24,7 @@ const JobView = ({ job }: JobViewProps) => {
       unitsDone: p.value.unitsDone
     }), [job.type.progress])
   const dispatch = useAppDispatch()
+  const onRemoveClick = useCallback(() => dispatch(removeJob(job.id)), [dispatch, job.id])
   const onStartClick = useCallback(() => dispatch(startJob({ jobId: job.id, type: job.type.type })), [dispatch, job.id, job.type.type])
   return (
     <li key={job.id}>
@@ -31,6 +32,7 @@ const JobView = ({ job }: JobViewProps) => {
       {!progress && <p>
         Estimated Units: {job.unitsInitial}
         <button onClick={onStartClick}>Start</button>
+        <button onClick={onRemoveClick}>Remove</button>
       </p>}
       {progress && <p>
         Started: <DateView date={job.startDate} /><br />
