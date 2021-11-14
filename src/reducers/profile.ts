@@ -1,17 +1,18 @@
-import { option as O, readonlyArray as RA, readonlyRecord as RR, readonlyTuple } from 'fp-ts';
-import { observable as Ob } from 'fp-ts-rxjs';
-import { flow, pipe } from 'fp-ts/lib/function';
+import { either, option as O, readonlyArray as RA, readonlyRecord as RR, readonlyTuple } from 'fp-ts';
+import { observable as Ob, observableEither } from 'fp-ts-rxjs';
+import { constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import memoize from 'proxy-memoize';
 import { Epic } from 'redux-observable';
 import { EMPTY, from } from 'rxjs';
 
-import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { AnyAction, createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { RootState } from '../app/store';
 import { Analysis, AnalysisId, Job, zeroAnalysis, zeroGeneration } from '../model/job';
 import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
+import { deleteByCorrelationId } from '../services/idb';
 import { DoubleDummyResult } from '../workers/dds.worker';
 import { completeJob, removeJob } from './generator';
 
@@ -34,8 +35,12 @@ const slice = createSlice({
       const analysis = pipe(action.payload, zeroAnalysis, castDraft)
       state.analyses[analysis.id] = analysis
     },
-    removeAnalysis: (state, action: PayloadAction<AnalysisId>) => {
-      delete state.analyses[action.payload]
+    deleteAnalysis: (state, action: PayloadAction<AnalysisId>) => { },
+    removeAnalysis: {
+      reducer: (state, action: PayloadAction<AnalysisId, string, void, O.Option<string>>) => {
+        delete state.analyses[action.payload]
+      },
+      prepare: (id: AnalysisId, error: O.Option<string>) => ({ payload: id, meta: constVoid(), error: error })
     },
     selectAnalysis: (state, action: PayloadAction<AnalysisId>) => {
       state.selectedAnalysis = pipe(RR.has(action.payload, state.analyses) ? O.some(action.payload) : O.none)
@@ -73,7 +78,7 @@ const slice = createSlice({
   }
 })
 
-export const { addAnalysis, removeAnalysis, selectAnalysis, setAnalysisName, addJobToAnalysis } = slice.actions
+export const { addAnalysis, deleteAnalysis, selectAnalysis, setAnalysisName, addJobToAnalysis } = slice.actions
 export default slice.reducer
 
 export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
@@ -86,7 +91,20 @@ export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
           RA.findFirst(j => j.id === jobId),
           O.fold(
             () => EMPTY,
-            j => from([addJobToAnalysis(j), removeJob(jobId)]))))))
+            j => from([addJobToAnalysis(j), removeJob(jobId)])))))),
+  (action$, state$) =>
+    action$.pipe(
+      Ob.filter(deleteAnalysis.match),
+      Ob.map(a => a.payload),
+      Ob.bindTo('id'),
+      Ob.bind('generationId', ({ id }) =>
+        pipe(state$.value.profile.analyses,
+          RR.lookup(id),
+          O.fold(
+            () => EMPTY,
+            a => pipe(a.generations, RA.map(g => g.id), ids => from(ids))))),
+      Ob.bind('result', ({ generationId }) => Ob.fromTask(deleteByCorrelationId(generationId))),
+      Ob.map(o => slice.actions.removeAnalysis(o.id, pipe(o.result, either.swap, O.fromEither))))
 ]
 
 export const selectAllAnalyses = memoize((state: State) => 

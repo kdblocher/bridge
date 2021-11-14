@@ -8,7 +8,7 @@ import { Analysis, AnalysisId, Generation, newGenerationId } from '../model/job'
 import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { scheduleJob } from '../reducers/generator';
-import { addAnalysis, removeAnalysis, selectAllAnalyses, selectAnalysis, selectSelectedAnalysis, setAnalysisName } from '../reducers/profile';
+import { addAnalysis, deleteAnalysis, selectAllAnalyses, selectAnalysis, selectSelectedAnalysis, setAnalysisName } from '../reducers/profile';
 import { selectValidConstrainedBidPaths } from '../reducers/system';
 import StatsPath from './stats/StatsPath';
 
@@ -30,7 +30,7 @@ interface AnalysisProps {
 const AnalysisView = ({ analysis }: AnalysisProps) => {
   const dispatch = useAppDispatch()
   const dealCount = pipe(analysis.generations, readonlyArray.foldMap(number.MonoidSum)(g => g.dealCount))
-  const onRemoveClick = useCallback(() => dispatch(removeAnalysis(analysis.id)), [analysis.id, dispatch])
+  const onRemoveClick = useCallback(() => dispatch(deleteAnalysis(analysis.id)), [analysis.id, dispatch])
   const onSelectClick = useCallback(() => dispatch(selectAnalysis(analysis.id)), [analysis.id, dispatch])
   const onNameChange = useCallback(name => dispatch(setAnalysisName(analysis.id, name)), [analysis.id, dispatch])
   return (

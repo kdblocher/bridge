@@ -25,6 +25,7 @@ type DbError =
   | "CommitRejected"
   | "InsertError"
   | "SelectError"
+  | "DeleteError"
 
 const getDb =
   TE.tryCatch(
@@ -44,13 +45,13 @@ export const insertDeals = <T extends string>(correlationId?: T) => (deals: Read
     TE.chainFirst(tran => {
       const batchId = UuidTool.newUuid()
       return pipe(deals, TE.traverseArray(deal =>
-      TE.tryCatch(
-        () => tran.store.put({
-          deal,
-          correlationId,
-          batchId
-        }, deal.id),
-        (): DbError => "InsertError")))
+        TE.tryCatch(
+          () => tran.store.put({
+            deal,
+            correlationId,
+            batchId
+          }, deal.id),
+          (): DbError => "InsertError")))
     }),
     TE.chain(tran => TE.tryCatch(() => tran.done, (): DbError => "CommitRejected")))
 
@@ -73,3 +74,13 @@ export const getDealsByBatchId = (batchId: string) =>
   pipe(getDb,
     TE.chain(getByIndex('batch')(batchId)),
     TE.map(RA.map(row => row.deal)))
+
+export const deleteByCorrelationId = <T extends string>(correlationId: T) =>
+  pipe(TE.Do,
+    TE.apS('db', getDb),
+    TE.bind('tran', flow(({ db }) => TE.of(db.transaction('deal', 'readwrite')))),
+    TE.bind('keys', ({ tran }) => pipe(
+      TE.tryCatchK(() => tran.store.index('correlation').getAll(correlationId), (): DbError => "SelectError")(),
+      TE.map(RA.map(row => row.deal.id)))),
+    TE.bind('delete', ({ tran, keys }) => pipe(keys, TE.traverseArray(TE.tryCatchK(key => tran.store.delete(key), (): DbError => "DeleteError")))),
+    TE.chain(({ tran }) => TE.tryCatch(() => tran.done, (): DbError => "CommitRejected")))
