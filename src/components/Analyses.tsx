@@ -1,15 +1,18 @@
-import { number, option, readonlyArray, readonlyRecord } from 'fp-ts';
-import { pipe } from 'fp-ts/lib/function';
+import { number, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, taskEither } from 'fp-ts';
+import { flow, pipe } from 'fp-ts/lib/function';
 import { useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { Analysis, AnalysisId, Generation, newGenerationId } from '../model/job';
-import { Paths } from '../model/system';
+import { eqBid, makeBoard } from '../model/bridge';
+import { Analysis, AnalysisId, Generation, getBidPathHash, newGenerationId } from '../model/job';
+import { SerializedBidPath, serializedBidPathL, serializedBoardL, serializedDealL } from '../model/serialization';
+import { Path, Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { scheduleJob } from '../reducers/generator';
 import { addAnalysis, deleteAnalysis, selectAllAnalyses, selectAnalysis, selectSelectedAnalysis, setAnalysisName } from '../reducers/profile';
 import { selectValidConstrainedBidPaths } from '../reducers/system';
+import { getDealsWithSolutionsByPath } from '../services/idb';
 import StatsPath from './stats/StatsPath';
 
 const AnalysisList = styled.ul `
@@ -50,7 +53,7 @@ const StatsPathContainer = styled.div `
   clear: both;
   display: inline-grid;
   grid-column-gap: 5px;
-  grid-template-columns: auto auto;
+  grid-template-columns: auto auto auto;
   width: auto;
 `
 
@@ -68,7 +71,9 @@ const GenerationView = ({ analysisId, generation }: GenerationViewProps) => {
     selectSelectedAnalysis(state.profile),
     option.map(a => a.paths),
     option.toNullable))
+    
   const dispatch = useAppDispatch()
+
   const onSatisfiesClick = useCallback(() => paths && dispatch(scheduleJob({
     analysisId: analysisId,
     type: "Satisfies",
@@ -76,17 +81,41 @@ const GenerationView = ({ analysisId, generation }: GenerationViewProps) => {
     context: { generationId: generation.id },
     estimatedUnitsInitial: paths.length * generation.dealCount
   })), [analysisId, dispatch, generation.dealCount, generation.id, paths])
+
+  const onSolveClick = useCallback(sbp => pipe(sbp,
+    serializedBidPathL.reverseGet,
+    path => pipe(paths,
+      option.fromNullable,
+      option.chain(readonlyArray.findFirst(flow(readonlyNonEmptyArray.map(cb => cb.bid), bids => readonlyNonEmptyArray.getEq(eqBid).equals(bids, path))))),
+    option.map(path => pipe(
+      getDealsWithSolutionsByPath(generation.id, getBidPathHash(path)),
+      taskEither.map(flow(
+        readonlyArray.filter(d => option.isNone(d.solution)),
+        readonlyArray.map(d => d.deal),
+        readonlyArray.mapWithIndex((i, d) => pipe(d,
+          serializedDealL.reverseGet,
+          makeBoard(i),
+          serializedBoardL.get)),
+        boards => dispatch(scheduleJob({
+          analysisId: analysisId,
+          type: "Solve",
+          parameter: boards,
+          context: { generationId: generation.id },
+          estimatedUnitsInitial: boards.length
+        })))))()))
+    , [analysisId, dispatch, generation.id, paths])
+
   return (
     <li>
-      <p>
-        Deal Count: {generation.dealCount} <br/>
-        {satisfies === null && <button onClick={onSatisfiesClick}>Satisfies</button>}
-        {satisfies !== null && <StatsPathContainer>
-          {satisfies.map(([path, count]) =>
+      Deal Count: {generation.dealCount} <br/>
+      {satisfies === null && <button onClick={onSatisfiesClick}>Satisfies</button>}
+      {satisfies !== null && <StatsPathContainer>
+        {satisfies.map(([path, count]) => <>
             <StatsPath key={path} path={path} satisfiesCount={count} dealCount={generation.dealCount} />
-          )}
-        </StatsPathContainer>}
-      </p>
+            <button onClick={() => onSolveClick(path)}>Solve</button>
+          </>
+        )}
+      </StatsPathContainer>}
     </li>
   )
 }

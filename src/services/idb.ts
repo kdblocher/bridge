@@ -1,6 +1,6 @@
 import { option, readonlyArray as RA, string, taskEither as TE } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
-import { DBSchema, IDBPDatabase, IDBPTransaction, IndexNames, openDB, StoreNames } from 'idb';
+import { DBSchema, IDBPDatabase, IndexNames, openDB } from 'idb';
 import { UuidTool } from 'uuid-tool';
 
 import { ConstrainedBidPathHash, GenerationId } from '../model/job';
@@ -102,6 +102,31 @@ export const getDealsByBatchId = (batchId: string) =>
   pipe(getDb,
     TE.chain(getByIndex('batch')(batchId)),
     TE.map(RA.map(row => row.deal)))
+
+interface DealWithSolution {
+  deal: SerializedDeal
+  solution: option.Option<DoubleDummyTable>
+}
+export const getDealsWithSolutionsByPath = (generationId: GenerationId, hash: ConstrainedBidPathHash) =>
+  pipe(getDb,
+    TE.chain(db => TE.of(db.transaction(['deal', 'satisfies'], 'readonly'))),
+    TE.bindTo('tran'),
+    TE.bind('satisfiedDeals', ({ tran }) => pipe(
+      TE.tryCatch(() => tran.objectStore('satisfies').get([generationId, hash]), (): DbError => "SelectError"),
+      TE.map(flow(
+        option.fromNullable,
+        option.fold(() => [], x => x.deals))))),
+    TE.bind('deals', ({ tran, satisfiedDeals }) => pipe(satisfiedDeals,
+      TE.traverseArray(TE.tryCatchK(key => tran.objectStore('deal').get(key.id), (): DbError => "SelectError")),
+      TE.map(flow(
+        RA.map(option.fromNullable),
+        RA.compact,
+        RA.map(row => ({
+          deal: row.deal,
+          solution: option.fromNullable(row.solution)
+        })))))),
+    TE.chainFirst(({ tran }) => TE.tryCatch(() => tran.done, (): DbError => "CommitRejected")),
+    TE.map(({ deals }): ReadonlyArray<DealWithSolution> => deals))
 
 export const deleteByGenerationId = (generationId: GenerationId) =>
   pipe(getDb,

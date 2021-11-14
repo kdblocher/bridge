@@ -1,5 +1,11 @@
 
+import { useCallback } from 'react';
+
+import { useAppDispatch } from '../../app/hooks';
+import { AnalysisId, GenerationId, getBidPathHash } from '../../model/job';
 import { SerializedBidPath, serializedBidPathL } from '../../model/serialization';
+import { scheduleJob } from '../../reducers/generator';
+import { getDealsWithSolutionsByPath } from '../../services/idb';
 import BidPath from '../core/BidPath';
 import Fractional from '../core/Fractional';
 import Percentage from '../core/Percentage';
@@ -10,6 +16,7 @@ interface StatsPathProps {
   dealCount?: number
 }
 const StatsPath = ({ path, satisfiesCount, dealCount }: StatsPathProps) => {
+  const dispatch = useAppDispatch()
   // const sPath = pipe(path,
   //   readonlyNonEmptyArray.map(p => p.bid),
   //   serializedBidPathL.get)
