@@ -13,15 +13,14 @@ import { GenerationId } from '../model/job';
 import { SerializedBidPath, serializedBidPathL, SerializedBoard } from '../model/serialization';
 import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
-import { getBatchIdsByCorrelationId } from '../services/idb';
+import { getBatchIdsByGenerationId } from '../services/idb';
 
 const BATCH_SIZE = 500
-type CorrelationId = GenerationId
-export const observeDeals = (count: number, correlationId: CorrelationId) =>
+export const observeDeals = (count: number, generationId: GenerationId) =>
   pipe(
     readonlyArray.replicate(count / BATCH_SIZE, BATCH_SIZE),
     readonlyArray.append(count % BATCH_SIZE),
-    pool(() => new DealWorker(), w => b => w.genDeals(b, correlationId)))
+    pool(() => new DealWorker(), w => b => w.genDeals(b, generationId)))
 
 export interface SatisfiesBatchResult {
   satisfiesCount: number
@@ -30,9 +29,9 @@ export interface SatisfiesBatchResult {
 export interface SatisfiesResult extends SatisfiesBatchResult {
   path: SerializedBidPath
 }
-export const observeSatisfies = (paths: Paths<ConstrainedBid>) => (correlationId: CorrelationId) =>
-  pipe(correlationId,
-    getBatchIdsByCorrelationId,
+export const observeSatisfies = (paths: Paths<ConstrainedBid>) => (generationId: GenerationId) =>
+  pipe(generationId,
+    getBatchIdsByGenerationId,
     ObE.fromTaskEither,
     ObE.chain(x => ObE.fromObservable(from(x))),
     ObE.bindTo('batchId'),
@@ -43,7 +42,7 @@ export const observeSatisfies = (paths: Paths<ConstrainedBid>) => (correlationId
       ? pipe(group, Ob.map(r => r.right),
           pool(() => new SatisfiesWorker(), w => ({ batchId, path }) =>
             pipe(
-              () => w.satisfiesBatch(path, batchId),
+              () => w.satisfiesBatch(path, batchId, generationId),
               taskEither.map((result): SatisfiesResult => ({ ...result,
                 path: pipe(path, readonlyNonEmptyArray.map(cb => cb.bid), serializedBidPathL.get),
               })))

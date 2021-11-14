@@ -1,6 +1,6 @@
-import { readonlyArray as RA, string, taskEither as TE } from 'fp-ts';
+import { option, readonlyArray as RA, string, taskEither as TE } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
-import { DBSchema, IDBPDatabase, IndexNames, openDB } from 'idb';
+import { DBSchema, IDBPDatabase, IDBPTransaction, IndexNames, openDB, StoreNames } from 'idb';
 import { UuidTool } from 'uuid-tool';
 
 import { ConstrainedBidPathHash, GenerationId } from '../model/job';
@@ -13,19 +13,19 @@ interface DealDB extends DBSchema {
     value: {
       deal: SerializedDeal
       batchId: string
-      correlationId?: string
+      generationId: GenerationId
       solution?: DoubleDummyTable
     },
     indexes: {
       'batch': string,
-      'correlation': string
+      'generation': string
     }
   },
   satisfies: {
-    key: ConstrainedBidPathHash
+    key: [GenerationId, ConstrainedBidPathHash]
     value: {
       generationId: GenerationId
-      deals: SerializedDeal[]
+      deals: ReadonlyArray<SerializedDeal>
     },
     indexes: {
       'generation': string
@@ -46,14 +46,14 @@ const getDb =
       upgrade: (db) => {
         const deal = db.createObjectStore("deal")
         deal.createIndex('batch', 'batchId')
-        deal.createIndex('correlation', 'correlationId')
+        deal.createIndex('generation', 'generationId')
         const satisfies = db.createObjectStore("satisfies")
         satisfies.createIndex('generation', 'generationId')
       }
     }),
     (): DbError => "OpenDatabaseFailed")
 
-export const insertDeals = <T extends string>(correlationId?: T) => (deals: ReadonlyArray<SerializedDeal>) =>
+export const insertDeals = (generationId: GenerationId) => (deals: ReadonlyArray<SerializedDeal>) =>
   pipe(getDb,
     TE.map(db => db.transaction('deal', 'readwrite')),
     TE.chainFirst(tran => {
@@ -62,24 +62,38 @@ export const insertDeals = <T extends string>(correlationId?: T) => (deals: Read
         TE.tryCatch(
           () => tran.store.put({
             deal,
-            correlationId,
+            generationId,
             batchId
           }, deal.id),
           (): DbError => "InsertError")))
     }),
     TE.chain(tran => TE.tryCatch(() => tran.done, (): DbError => "CommitRejected")))
 
+export const insertSatisfies = (generationId: GenerationId, hash: ConstrainedBidPathHash) => (deals: ReadonlyArray<SerializedDeal>) =>
+  pipe(getDb,
+    TE.map(db => db.transaction('satisfies', 'readwrite')),
+    TE.bindTo('tran'),
+    TE.bind('existingDeals', ({ tran }) => pipe(
+      TE.tryCatch(() => tran.store.get([generationId, hash]), (): DbError => "SelectError"),
+      TE.map(flow(option.fromNullable, option.fold(() => [], r => r.deals))))),
+    TE.chainFirst(({ tran, existingDeals }) =>
+      TE.tryCatch(() => tran.store.put({
+        generationId,
+        deals: pipe(existingDeals, RA.concat(deals))
+      }, [generationId, hash]), (): DbError => "InsertError")),
+    TE.chain(({ tran }) => TE.tryCatch(() => tran.done, (): DbError => "CommitRejected")))
+
 const getByIndex = <I extends IndexNames<DealDB, 'deal'>>(idx: I) => (id: string) =>
   TE.tryCatchK((db: IDBPDatabase<DealDB>) => db.getAllFromIndex('deal', idx, id), (): DbError => "SelectError")
 
-export const getDealsByCorrelationId = <T extends string>(correlationId: T) =>
+export const getDealsByGenerationId = (generationId: GenerationId) =>
   pipe(getDb,
-    TE.chain(getByIndex('correlation')(correlationId)),
+    TE.chain(getByIndex('generation')(generationId)),
     TE.map(RA.map(row => row.deal)))
 
-export const getBatchIdsByCorrelationId = <T extends string>(correlationId: T) =>
+export const getBatchIdsByGenerationId = (generationId: GenerationId) =>
   pipe(getDb,
-    TE.chain(getByIndex('correlation')(correlationId)),
+    TE.chain(getByIndex('generation')(generationId)),
     TE.map(flow(
       RA.map(row => row.batchId),
       RA.uniq(string.Eq))))
@@ -89,13 +103,13 @@ export const getDealsByBatchId = (batchId: string) =>
     TE.chain(getByIndex('batch')(batchId)),
     TE.map(RA.map(row => row.deal)))
 
-export const deleteByCorrelationId = <T extends string>(correlationId: T) =>
-  pipe(TE.Do,
-    TE.apS('db', getDb),
-    TE.bind('tran', flow(({ db }) => TE.of(db.transaction('deal', 'readwrite')))),
-    TE.bind('keys', ({ tran }) => pipe(
-      TE.tryCatchK(() => tran.store.index('correlation').getAll(correlationId), (): DbError => "SelectError")(),
-      TE.map(RA.map(row => row.deal.id)))),
-    TE.bind('delete', ({ tran, keys }) => pipe(keys,
-      TE.traverseArray(TE.tryCatchK(key => tran.store.delete(key), (): DbError => "DeleteError")))),
-    TE.chain(({ tran }) => TE.tryCatch(() => tran.done, (): DbError => "CommitRejected")))
+export const deleteByGenerationId = (generationId: GenerationId) =>
+  pipe(getDb,
+    TE.chain(db => TE.of(db.transaction(['deal', 'satisfies'], 'readwrite'))),
+    TE.chainFirst(tran => pipe(
+      TE.tryCatch(() => tran.objectStore('deal').index('generation').getAllKeys(generationId), (): DbError => "SelectError"),
+      TE.chain(TE.traverseArray(TE.tryCatchK(key => tran.objectStore('deal').delete(key), (): DbError => "DeleteError"))))),
+    TE.chainFirst(tran => pipe(
+      TE.tryCatch(() => tran.objectStore('satisfies').index('generation').getAllKeys(generationId), (): DbError => "SelectError"),
+      TE.chain(TE.traverseArray(TE.tryCatchK(key => { return tran.objectStore('satisfies').delete(key) }, (): DbError => "DeleteError"))))),
+    TE.chain(tran => TE.tryCatch(() => tran.done, (): DbError => "CommitRejected")))

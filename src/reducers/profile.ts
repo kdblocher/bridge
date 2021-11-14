@@ -12,7 +12,7 @@ import { RootState } from '../app/store';
 import { Analysis, AnalysisId, Job, zeroAnalysis, zeroGeneration } from '../model/job';
 import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
-import { deleteByCorrelationId } from '../services/idb';
+import { deleteByGenerationId } from '../services/idb';
 import { DoubleDummyResult } from '../workers/dds.worker';
 import { completeJob, removeJob } from './generator';
 
@@ -96,7 +96,7 @@ export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
       Ob.chain(analysisId =>
         pipe(state$.value.profile.analyses, RR.lookup(analysisId),
           O.fold(() => EMPTY, a =>
-            pipe(a.generations, RA.map(g => g.id), taskEither.traverseArray(deleteByCorrelationId), Ob.fromTask)),
+            pipe(a.generations, RA.map(g => g.id), taskEither.traverseArray(deleteByGenerationId), Ob.fromTask)),
           observableEither.fold(() => EMPTY, x => EMPTY),
           concatWith(of(slice.actions.removeAnalysis(analysisId))))))
 ]
