@@ -1,4 +1,4 @@
-import { option as O, readonlyArray as RA, readonlyRecord as RR, readonlyTuple, taskEither } from 'fp-ts';
+import { option as O, readonlyArray as RA, readonlyRecord as RR, readonlyTuple, semigroup, taskEither } from 'fp-ts';
 import { observable as Ob, observableEither } from 'fp-ts-rxjs';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
@@ -67,7 +67,7 @@ const slice = createSlice({
                 O.apS('progress', jobType.progress),
                 O.apS('generation', pipe(analysis.generations, RA.findFirst(g => g.id === jobType.context.generationId))),
                 O.map(o => o.generation.solutions = pipe(o.generation.solutions,
-                  RR.union(RA.getSemigroup<DoubleDummyResult>())({ [jobType.context.bidPath]: o.progress.value }),
+                  RR.union(RR.getUnionSemigroup(semigroup.first<DoubleDummyResult>()))({ [jobType.context.bidPath]: o.progress.value }),
                   castDraft)))
           }
         }))

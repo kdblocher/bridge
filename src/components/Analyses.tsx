@@ -1,13 +1,13 @@
-import { number, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, taskEither } from 'fp-ts';
+import { number, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlyTuple, taskEither } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { Fragment, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { eqBid, makeBoard } from '../model/bridge';
+import { eqBid } from '../model/bridge';
 import { Analysis, AnalysisId, Generation, getBidPathHash, newGenerationId } from '../model/job';
-import { SerializedBidPath, serializedBidPathL, serializedBoardL, serializedDealL } from '../model/serialization';
-import { Path, Paths } from '../model/system';
+import { serializedBidPathL } from '../model/serialization';
+import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { scheduleJob } from '../reducers/generator';
 import { addAnalysis, deleteAnalysis, selectAllAnalyses, selectAnalysis, selectSelectedAnalysis, setAnalysisName } from '../reducers/profile';
@@ -32,7 +32,7 @@ interface AnalysisProps {
 }
 const AnalysisView = ({ analysis }: AnalysisProps) => {
   const dispatch = useAppDispatch()
-  const dealCount = pipe(analysis.generations, readonlyArray.foldMap(number.MonoidSum)(g => g.dealCount))
+  const dealCount = pipe(analysis.generations, RA.foldMap(number.MonoidSum)(g => g.dealCount))
   const onRemoveClick = useCallback(() => dispatch(deleteAnalysis(analysis.id)), [analysis.id, dispatch])
   const onSelectClick = useCallback(() => dispatch(selectAnalysis(analysis.id)), [analysis.id, dispatch])
   const onNameChange = useCallback(name => dispatch(setAnalysisName(analysis.id, name)), [analysis.id, dispatch])
@@ -64,13 +64,13 @@ interface GenerationViewProps {
 const GenerationView = ({ analysisId, generation }: GenerationViewProps) => {
   const satisfies = useMemo(() =>
     pipe(generation.satisfies,
-      option.map(readonlyRecord.toReadonlyArray),
-      option.toNullable)
+      O.map(RR.toReadonlyArray),
+      O.toNullable)
     , [generation.satisfies])
   const paths = useAppSelector(state => pipe(
     selectSelectedAnalysis(state.profile),
-    option.map(a => a.paths),
-    option.toNullable))
+    O.map(a => a.paths),
+    O.toNullable))
     
   const dispatch = useAppDispatch()
 
@@ -85,25 +85,23 @@ const GenerationView = ({ analysisId, generation }: GenerationViewProps) => {
   const onSolveClick = useCallback(sPath => pipe(sPath,
     serializedBidPathL.reverseGet,
     path => pipe(paths,
-      option.fromNullable,
-      option.chain(readonlyArray.findFirst(flow(readonlyNonEmptyArray.map(cb => cb.bid), bids => readonlyNonEmptyArray.getEq(eqBid).equals(bids, path))))),
-    option.map(path => pipe(
+      O.fromNullable,
+      O.chain(RA.findFirst(flow(
+        RNEA.map(cb => cb.bid),
+        p => RNEA.getEq(eqBid).equals(p, path))))),
+    O.map(path => pipe(
       getDealsWithSolutionsByPath(generation.id, getBidPathHash(path)),
       taskEither.map(flow(
-        readonlyArray.filter(d => option.isNone(d.solution)),
-        readonlyArray.map(d => d.deal),
-        x => { return x },
-        readonlyArray.mapWithIndex((i, d) => pipe(d,
-          serializedDealL.reverseGet,
-          makeBoard(i),
-          serializedBoardL.get)),
-        x => { return x },
-        boards => dispatch(scheduleJob({
+        RR.filter(d => O.isNone(d.solution)),
+        RR.map(d => d.deal),
+        RR.toReadonlyArray,
+        RA.map(readonlyTuple.snd),
+        deals => dispatch(scheduleJob({
           analysisId: analysisId,
           type: "Solve",
-          parameter: boards,
+          parameter: deals,
           context: { generationId: generation.id, bidPath: sPath },
-          estimatedUnitsInitial: boards.length
+          estimatedUnitsInitial: deals.length
         })))))()))
     , [analysisId, dispatch, generation.id, paths])
 
@@ -119,10 +117,10 @@ const GenerationView = ({ analysisId, generation }: GenerationViewProps) => {
               <button onClick={() => onSolveClick(path)}>Solve</button>
               {pipe(
                 generation.solutions,
-                readonlyRecord.lookup(path),
-                option.map(r => r.length),
-                option.chain(option.fromPredicate(len => len > 0)),
-                option.fold(() => <></>, len => <>&nbsp;({len} so far)</>))}
+                RR.lookup(path),
+                O.map(flow(RR.toReadonlyArray, RA.map(readonlyTuple.snd), a => a.length)),
+                O.chain(O.fromPredicate(len => len > 0)),
+                O.fold(() => <></>, len => <>&nbsp;({len} so far)</>))}
             </span>
           </Fragment>
         )}
@@ -160,8 +158,8 @@ const Analyses = () => {
   const onCreateClick = useCallback((paths: Paths<ConstrainedBid>) => dispatch(addAnalysis(paths)), [dispatch])
   const paths = useAppSelector(state => pipe(
     selectValidConstrainedBidPaths({ state: state.system, options: state.settings }),
-    option.toNullable))
-  const selected = useAppSelector(state => pipe(selectSelectedAnalysis(state.profile), option.toNullable))
+    O.toNullable))
+  const selected = useAppSelector(state => pipe(selectSelectedAnalysis(state.profile), O.toNullable))
   return (
     <section>
       <h3>Analyses</h3>
@@ -176,7 +174,3 @@ const Analyses = () => {
 }
 
 export default Analyses
-
-function constZero(constZero: any, arg1: (results: readonly import("../workers/dds.worker").DoubleDummyResult[]) => number): (b: option.Option<readonly import("../workers/dds.worker").DoubleDummyResult[]>) => number {
-  throw new Error('Function not implemented.');
-}

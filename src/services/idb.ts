@@ -1,11 +1,11 @@
-import { option, readonlyArray as RA, string, taskEither as TE } from 'fp-ts';
+import { either, option as O, readonlyArray as RA, readonlyRecord as RR, semigroup, string, task, taskEither as TE } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { DBSchema, IDBPDatabase, IndexNames, openDB } from 'idb';
 import { UuidTool } from 'uuid-tool';
 
 import { ConstrainedBidPathHash, GenerationId } from '../model/job';
 import { SerializedDeal } from '../model/serialization';
-import { DoubleDummyTable } from '../workers/dds.worker';
+import { DoubleDummyResult, DoubleDummyTable } from '../workers/dds.worker';
 
 interface DealDB extends DBSchema {
   deal: {
@@ -39,6 +39,7 @@ type DbError =
   | "InsertError"
   | "SelectError"
   | "DeleteError"
+  | "RecordNotFound"
 
 const getDb =
   TE.tryCatch(
@@ -69,13 +70,25 @@ export const insertDeals = (generationId: GenerationId) => (deals: ReadonlyArray
     }),
     TE.chain(tran => TE.tryCatch(() => tran.done, (): DbError => "CommitRejected")))
 
+export const insertSolutions = (solutions: ReadonlyArray<DoubleDummyResult>) =>
+  pipe(getDb,
+    TE.map(db => db.transaction('deal', 'readwrite')),
+    TE.bindTo('tran'),
+    TE.chainFirst(({ tran }) => pipe(solutions,
+      TE.traverseArray(s => pipe(s,
+        TE.tryCatchK(s => tran.store.get(s.board.deal.id), (): DbError => "SelectError"),
+        TE.chain(flow(either.fromNullable("RecordNotFound" as DbError), task.of)),
+        TE.map(row => { row.solution = s.results; return row }),
+        TE.chain(TE.tryCatchK(row => tran.store.put(row, row.deal.id), (): DbError => "InsertError")))))),
+    TE.chain(({ tran }) => TE.tryCatch(() => tran.done, (): DbError => "CommitRejected")))
+
 export const insertSatisfies = (generationId: GenerationId, hash: ConstrainedBidPathHash) => (deals: ReadonlyArray<SerializedDeal>) =>
   pipe(getDb,
     TE.map(db => db.transaction('satisfies', 'readwrite')),
     TE.bindTo('tran'),
     TE.bind('existingDeals', ({ tran }) => pipe(
       TE.tryCatch(() => tran.store.get([generationId, hash]), (): DbError => "SelectError"),
-      TE.map(flow(option.fromNullable, option.fold(() => [], r => r.deals))))),
+      TE.map(flow(O.fromNullable, O.fold(() => [], r => r.deals))))),
     TE.chainFirst(({ tran, existingDeals }) =>
       TE.tryCatch(() => tran.store.put({
         generationId,
@@ -105,7 +118,7 @@ export const getDealsByBatchId = (batchId: string) =>
 
 interface DealWithSolution {
   deal: SerializedDeal
-  solution: option.Option<DoubleDummyTable>
+  solution: O.Option<DoubleDummyTable>
 }
 export const getDealsWithSolutionsByPath = (generationId: GenerationId, hash: ConstrainedBidPathHash) =>
   pipe(getDb,
@@ -114,19 +127,21 @@ export const getDealsWithSolutionsByPath = (generationId: GenerationId, hash: Co
     TE.bind('satisfiedDeals', ({ tran }) => pipe(
       TE.tryCatch(() => tran.objectStore('satisfies').get([generationId, hash]), (): DbError => "SelectError"),
       TE.map(flow(
-        option.fromNullable,
-        option.fold(() => [], x => x.deals))))),
+        O.fromNullable,
+        O.fold(() => [], x => x.deals))))),
     TE.bind('deals', ({ tran, satisfiedDeals }) => pipe(satisfiedDeals,
       TE.traverseArray(TE.tryCatchK(key => tran.objectStore('deal').get(key.id), (): DbError => "SelectError")),
       TE.map(flow(
-        RA.map(option.fromNullable),
+        RA.map(O.fromNullable),
         RA.compact,
-        RA.map(row => ({
-          deal: row.deal,
-          solution: option.fromNullable(row.solution)
+        RA.foldMap(RR.getUnionMonoid(semigroup.first<DealWithSolution>()))(row => ({
+          [row.deal.id]: {
+            deal: row.deal,
+            solution: O.fromNullable(row.solution)
+          }
         })))))),
     TE.chainFirst(({ tran }) => TE.tryCatch(() => tran.done, (): DbError => "CommitRejected")),
-    TE.map(({ deals }): ReadonlyArray<DealWithSolution> => deals))
+    TE.map(({ deals }): RR.ReadonlyRecord<SerializedDeal["id"], DealWithSolution> => deals))
 
 export const deleteByGenerationId = (generationId: GenerationId) =>
   pipe(getDb,

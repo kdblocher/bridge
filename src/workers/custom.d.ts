@@ -30,9 +30,10 @@ declare module 'comlink-loader!./satisfies.worker' {
 declare module 'comlink-loader!./dds.worker' {
   type DoubleDummyResult = import ("./dds.worker").DoubleDummyResult
   type SerializedBoard = import ("../model/serialization").SerializedBoard
+  type Either<E, A> = import ('fp-ts').either.Either<E, A>
   class DDSWorker extends Worker {
     constructor();
-    getResult(board: SerializedBoard): Promise<DoubleDummyResult>;
+    getResult(board: SerializedBoard): Promise<Either<string, DoubleDummyResult>>;
   }
   export = DDSWorker;
 }

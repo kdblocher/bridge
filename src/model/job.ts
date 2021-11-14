@@ -1,4 +1,4 @@
-import { either, magma, number, option as O, readonlyArray, readonlyRecord as RR } from 'fp-ts';
+import { either, magma, number, option as O, readonlyRecord as RR, semigroup } from 'fp-ts';
 import { Right } from 'fp-ts/lib/Either';
 import { Lazy, pipe } from 'fp-ts/lib/function';
 import * as t from 'io-ts';
@@ -8,7 +8,7 @@ import { UuidTool } from 'uuid-tool';
 import { assertUnreachable } from '../lib';
 import { SatisfiesResult } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
-import { SerializedBidPath, SerializedBoard } from './serialization';
+import { SerializedBidPath, SerializedDeal } from './serialization';
 import { Path, Paths } from './system';
 import { ConstrainedBid } from './system/core';
 
@@ -40,7 +40,7 @@ export type GenerationId = t.TypeOf<typeof GenerationIdB>
 export const newGenerationId = () => (GenerationIdB.decode(UuidTool.newUuid()) as Right<GenerationId>).right
 
 export type Satisfies = RR.ReadonlyRecord<SerializedBidPath, number>
-export type Solutions = RR.ReadonlyRecord<SerializedBidPath, ReadonlyArray<DoubleDummyResult>>
+export type Solutions = RR.ReadonlyRecord<SerializedBidPath, Solution>
 export interface Generation {
   id: GenerationId
   dealCount: number
@@ -99,17 +99,18 @@ export const updateSatisfiesProgress = (result: SatisfiesResult) =>
     (result.testedCount)
     ({ [result.path]: result.satisfiesCount })
 
+export type Solution = RR.ReadonlyRecord<SerializedDeal["id"], DoubleDummyResult>
 export interface JobTypeSolve {
   type: "Solve",
-  parameter: ReadonlyArray<SerializedBoard>
+  parameter: ReadonlyArray<SerializedDeal>
   context: { generationId: GenerationId, bidPath: SerializedBidPath }
-  progress: Progress<ReadonlyArray<DoubleDummyResult>>
+  progress: Progress<Solution>
 }
-const zeroSolveProgress = () => initProgress<ReadonlyArray<DoubleDummyResult>>([])
-export const updateSolveProgress = (solutions: ReadonlyArray<DoubleDummyResult>) =>
+const zeroSolveProgress = () => initProgress<Solution>({})
+export const updateSolveProgress = (solutions: Solution) =>
   updateProgress
-    (readonlyArray.getSemigroup<DoubleDummyResult>())
-    (solutions.length)
+    (RR.getUnionSemigroup(semigroup.first<DoubleDummyResult>()))
+    (pipe(solutions, RR.keys, keys => keys.length))
     (solutions)
 
 export type JobType =
