@@ -1,4 +1,4 @@
-import { option, readonlyArray, these } from 'fp-ts';
+import { option, readonlyArray } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
 import memoize from 'proxy-memoize';
@@ -9,25 +9,25 @@ import { AnyAction } from '@reduxjs/toolkit';
 import { RootState } from '../app/store';
 import { ConstrainedBid } from '../model/system/core';
 import { satisfiesPath } from '../model/system/satisfaction';
-import generator, { analyzeDealsEpic, analyzeResultsEpic, analyzeSatisfiesEpic, saveDealsToApiEpic, saveSolutionsToApiEpic } from './generator';
+import generator, { epics as generatorEpics } from './generator';
+import profile, { epics as profileEpics } from './profile';
 import selection, { selectHand } from './selection';
 import settings from './settings';
-import system, { selectAllCompleteBidPaths } from './system';
+import system, { selectValidConstrainedBidPaths } from './system';
 
 const reducers = {
   system,
   selection,
   generator,
-  settings
+  settings,
+  profile
 }
 export default reducers
 
 export const rootEpic = combineEpics<AnyAction, AnyAction, RootState>(
-  analyzeDealsEpic,
-  analyzeSatisfiesEpic,
-  analyzeResultsEpic,
-  saveDealsToApiEpic,
-  saveSolutionsToApiEpic)
+  ...generatorEpics,
+  ...profileEpics
+)
 
 interface BidResult {
   path: ReadonlyNonEmptyArray<ConstrainedBid>
@@ -38,7 +38,7 @@ export const selectPathsSatisfyHands = memoize((state: RootState) : ReadonlyArra
   pipe(option.Do,
     option.apS('opener', selectHand({ state: state.selection, type: 'opener' })),
     option.apS('responder', selectHand({ state: state.selection, type: 'responder' })),
-    option.apS('paths', pipe(selectAllCompleteBidPaths({ state: state.system, options: state.settings }), these.getRight)),
+    option.apS('paths', pipe(selectValidConstrainedBidPaths({ state: state.system, options: state.settings }))),
     option.map(o => pipe(o.paths,
       readonlyArray.map(path => ({
         path,

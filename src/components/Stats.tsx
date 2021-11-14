@@ -15,14 +15,14 @@ export {}
 
 // interface StatsPathProps {
 //   path: Path<ConstrainedBid>
-//   collectionId: UuidLike
+//   analysisId: UuidLike
 // }
-// const StatsPath = ({ path, collectionId }: StatsPathProps) => {
+// const StatsPath = ({ path, analysisId }: StatsPathProps) => {
 //   const dispatch = useAppDispatch()
 //   const sPath = pipe(path,
 //     readonlyNonEmptyArray.map(p => p.bid),
 //     serializedBidPathL.get)
-//   const count = useAppSelector(state => selectSatisfyCountByJobIdAndPath({ state: state.generator, path: sPath, collectionId }))
+//   const count = useAppSelector(state => selectSatisfyCountByJobIdAndPath({ state: state.generator, path: sPath, analysisId }))
 //   const dds = useAppSelector(state => pipe(
 //     path,
 //     readonlyNonEmptyArray.map(p => p.bid),
@@ -59,15 +59,15 @@ export {}
 //     option.chain(readonlyNonEmptyArray.fromReadonlyArray),
 //     option.toNullable))
 //   const satisfiesNotRan = useAppSelector(state => state.generator.satisfies[1] === 0)
-//   const collectionId = useAppSelector(state => pipe(state.generator.collections[0], either.getOrElseW(constNull)))
+//   const analysisId = useAppSelector(state => pipe(state.generator.collections[0], either.getOrElseW(constNull)))
 //   return (
 //     <>
-//       {collectionId !== null && paths !== null && <>
-//         {satisfiesNotRan && <button onClick={e => dispatch(getSatisfies({ paths, collectionId }))}>Satisfies</button>}
+//       {analysisId !== null && paths !== null && <>
+//         {satisfiesNotRan && <button onClick={e => dispatch(getSatisfies({ paths, analysisId }))}>Satisfies</button>}
 //         {!satisfiesNotRan && <div>
 //           <h3>Results</h3>
 //           <ul>
-//             {paths.map((path, i) => <li key={i}><StatsPath path={path} collectionId={collectionId} /></li>)}
+//             {paths.map((path, i) => <li key={i}><StatsPath path={path} analysisId={analysisId} /></li>)}
 //           </ul>
 //         </div>}
 //       </>}

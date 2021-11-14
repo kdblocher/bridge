@@ -6,8 +6,8 @@ import { newDeck } from '../model/deck';
 import { serializedDealL } from '../model/serialization';
 import { insertDeals } from '../services/idb';
 
-export const genDeals = (count: number, collectionId?: string) =>
+export const genDeals = (count: number, analysisId?: string) =>
   pipe(
     taskEither.of(readonlyArray.makeBy(count, flow(newDeck, deal, serializedDealL.get))),
-    taskEither.chainFirst(insertDeals(collectionId)))
+    taskEither.chainFirst(insertDeals(analysisId)))
   ()

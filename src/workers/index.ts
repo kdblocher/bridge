@@ -5,29 +5,31 @@ import DealWorker from 'comlink-loader!./deal.worker'; // inline loader
 import SatisfiesWorker from 'comlink-loader!./satisfies.worker';
 import { either, readonlyArray, readonlyNonEmptyArray, taskEither } from 'fp-ts';
 import { observable as Ob, observableEither as ObE } from 'fp-ts-rxjs';
-import { flow, pipe } from 'fp-ts/lib/function';
+import { pipe } from 'fp-ts/lib/function';
 import { from, groupBy } from 'rxjs';
 
 import pool from '../lib/pool';
+import { GenerationId } from '../model/job';
 import { SerializedBidPath, serializedBidPathL, SerializedBoard } from '../model/serialization';
 import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
-import { getBatchIdsByJobId } from '../services/idb';
+import { getBatchIdsByCorrelationId } from '../services/idb';
 
 const BATCH_SIZE = 100
-export const observeDeals = (count: number, collectionId?: string) =>
+type CorrelationId = GenerationId
+export const observeDeals = (count: number, correlationId: CorrelationId) =>
   pipe(
     readonlyArray.replicate(count / BATCH_SIZE, BATCH_SIZE),
     readonlyArray.append(count % BATCH_SIZE),
-    pool(() => new DealWorker(), w => b => w.genDeals(b, collectionId)))
+    pool(() => new DealWorker(), w => b => w.genDeals(b, correlationId)))
 
 export interface SatisfiesResult {
   path: SerializedBidPath
   count: number
 }
-export const observeSatisfies = (paths: Paths<ConstrainedBid>) =>
-  flow(
-    getBatchIdsByJobId,
+export const observeSatisfies = (paths: Paths<ConstrainedBid>) => (correlationId: CorrelationId) =>
+  pipe(correlationId,
+    getBatchIdsByCorrelationId,
     ObE.fromTaskEither,
     ObE.chain(x => ObE.fromObservable(from(x))),
     ObE.bindTo('batchId'),

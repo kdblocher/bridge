@@ -1,5 +1,7 @@
+import Analyses from './Analyses';
 import Editor from './Editor';
 import Errors from './Errors';
+import Jobs from './Jobs';
 import SelectionDetails from './SelectionDetails';
 // import SelectionDetails from './SelectionDetails';
 import Settings from './Settings';
@@ -19,6 +21,8 @@ const App = () => {
         </div>
         <div style={{clear: "both"}}>
           <Errors />
+          <Jobs />
+          <Analyses />
           {/* <Stats /> */}
         </div>
       </div>

@@ -11,11 +11,11 @@ interface DealDB extends DBSchema {
     value: {
       deal: SerializedDeal
       batchId: string
-      collectionId?: string
+      correlationId?: string
     },
     indexes: {
       'batch': string,
-      'job': string
+      'correlation': string
     }
   },
 }
@@ -33,12 +33,12 @@ const getDb =
         // db.deleteObjectStore("deal")
         const store = db.createObjectStore("deal")
         store.createIndex('batch', 'batchId')
-        store.createIndex('job', 'collectionId')
+        store.createIndex('correlation', 'correlationId')
       }
     }),
     (): DbError => "OpenDatabaseFailed")
 
-export const insertDeals = (collectionId?: string) => (deals: ReadonlyArray<SerializedDeal>) =>
+export const insertDeals = <T extends string>(correlationId?: T) => (deals: ReadonlyArray<SerializedDeal>) =>
   pipe(getDb,
     TE.map(db => db.transaction('deal', 'readwrite')),
     TE.chainFirst(tran => {
@@ -47,7 +47,7 @@ export const insertDeals = (collectionId?: string) => (deals: ReadonlyArray<Seri
       TE.tryCatch(
         () => tran.store.put({
           deal,
-          collectionId,
+          correlationId,
           batchId
         }, deal.id),
         (): DbError => "InsertError")))
@@ -57,14 +57,14 @@ export const insertDeals = (collectionId?: string) => (deals: ReadonlyArray<Seri
 const getByIndex = <I extends IndexNames<DealDB, 'deal'>>(idx: I) => (id: string) =>
   TE.tryCatchK((db: IDBPDatabase<DealDB>) => db.getAllFromIndex('deal', idx, id), (): DbError => "SelectError")
 
-export const getDealsByJobId = (collectionId: string) =>
+export const getDealsByCorrelationId = <T extends string>(correlationId: T) =>
   pipe(getDb,
-    TE.chain(getByIndex('job')(collectionId)),
+    TE.chain(getByIndex('correlation')(correlationId)),
     TE.map(RA.map(row => row.deal)))
 
-export const getBatchIdsByJobId = (collectionId: string) =>
+export const getBatchIdsByCorrelationId = <T extends string>(correlationId: T) =>
   pipe(getDb,
-    TE.chain(getByIndex('job')(collectionId)),
+    TE.chain(getByIndex('correlation')(correlationId)),
     TE.map(flow(
       RA.map(row => row.batchId),
       RA.uniq(string.Eq))))

@@ -1,17 +1,16 @@
-import { either as E, option as O, readonlyArray } from 'fp-ts';
-import { observable, observableEither, observableOption } from 'fp-ts-rxjs';
+import { option as O, readonlyArray } from 'fp-ts';
+import { observable as Ob, observableEither as ObE, observableOption as ObO } from 'fp-ts-rxjs';
 import { constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import { WritableDraft } from 'immer/dist/internal';
 import { Epic, StateObservable } from 'redux-observable';
-import { concatWith, EMPTY, filter, Observable, of } from 'rxjs';
-import { UuidTool } from 'uuid-tool';
+import { concatWith, EMPTY, Observable, of } from 'rxjs';
 
 import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { RootState } from '../app/store';
 import { transpose } from '../model/analyze';
-import { CollectionId, Job, JobId, JobType, JobTypeGenerateDeals, JobTypeSatisfies, JobTypeSolve, updateGenerateDealsProgress, updateSatisfiesProgress, updateSolvedProgress, zeroJob } from '../model/job';
+import { AnalysisId, GenerationId, initJobProgress, Job, JobId, JobType, JobTypeGenerateDeals, JobTypeSatisfies, JobTypeSolve, now, updateGenerateDealsProgress, updateSatisfiesProgress, updateSolveProgress, zeroJob } from '../model/job';
 import { SerializedBoard, SerializedDeal, serializedDealL } from '../model/serialization';
 import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
@@ -20,21 +19,21 @@ import { observeDeals, observeSatisfies, observeSolutions, SatisfiesResult } fro
 import { DoubleDummyResult } from '../workers/dds.worker';
 
 const name = 'generator'
-
 interface State {
   jobs: ReadonlyArray<Job>
-  completed: ReadonlyArray<E.Either<string, Job>>
+  completed: ReadonlyArray<Job>
 }
 const initialState: State = {
   jobs: [],
   completed: []
 }
 
-type JobParameter<T extends JobType["type"]> = T extends { parameter: infer U } ? U : never
+type InferJobType<T extends JobType["type"]> = Job & { type: JobType & { type: T } }
 interface ScheduleJobPayload<T extends JobType["type"]> {
-  collectionId: CollectionId
+  analysisId: AnalysisId
   type: T
-  parameter: JobParameter<T>
+  parameter: InferJobType<T>["type"]["parameter"]
+  context: InferJobType<T>["type"]["context"]
   estimatedUnitsInitial: number
 }
 
@@ -42,30 +41,44 @@ const slice = createSlice({
   name,
   initialState,
   reducers: {
-    schedule: <T extends JobType["type"]>(state: WritableDraft<State>, action: PayloadAction<ScheduleJobPayload<T>>) => {
-      state.jobs.push(castDraft(zeroJob(action.payload.collectionId, action.payload.estimatedUnitsInitial, {
+    scheduleJob: <T extends JobType["type"]>(state: WritableDraft<State>, action: PayloadAction<ScheduleJobPayload<T>>) => {
+      state.jobs.push(castDraft(zeroJob(action.payload.analysisId, action.payload.estimatedUnitsInitial, {
         type: action.payload.type,
         parameter: action.payload.parameter,
+        context: action.payload.context,
         progress: O.none
       } as JobType)))
     },
-    start: (state, action: PayloadAction<{ jobId: JobId, type: JobType["type"] }>) => {
+    startJob: (state, action: PayloadAction<{ jobId: JobId, type: JobType["type"] }>) => {
       const job = state.jobs.find(j => j.id === action.payload.jobId)
       if (job) {
-        job.startDate = O.some(new Date())
+        job.type.progress = pipe(action.payload.type, initJobProgress, castDraft)
+        job.startDate = O.some(now())
         job.running = true
       }
     },
-    complete: {
+    completeJob: {
       reducer: (state, action: PayloadAction<void, string, JobId, O.Option<string>>) => {
-        const job = state.jobs.find(j => j.id === action.meta)
-        if (job) {
-          job.completedDate = O.some(new Date())
-          job.running = false
-          job.error = action.error
-        }
+        pipe(state.jobs,
+          readonlyArray.findIndex(j => j.id === action.meta),
+          O.map(idx => {
+            const job = state.jobs[idx]
+            job.completedDate = O.some(now())
+            job.running = false
+            job.error = action.error
+            state.completed.push(job)
+            state.jobs.splice(idx, 1)
+          }))
       },
       prepare: (jobId: JobId, error: O.Option<string>) => ({ payload: constVoid(), meta: jobId, error })
+    },
+    removeJob: (state, action: PayloadAction<JobId>) => {
+      pipe(state.jobs,
+        readonlyArray.findIndex(j => j.id === action.payload),
+        O.map(idx => state.jobs.splice(idx, 1)))
+      pipe(state.completed,
+        readonlyArray.findIndex(j => j.id === action.payload),
+        O.map(idx => state.completed.splice(idx, 1)))
     },
     reportDeals: (state, action: PayloadAction<{ jobId: JobId, value: ReadonlyArray<SerializedDeal> }>) => {
       const jobType = state.jobs.find(j => j.id === action.payload.jobId)?.type as JobTypeGenerateDeals
@@ -82,97 +95,86 @@ const slice = createSlice({
     reportSolutions: (state, action: PayloadAction<{ jobId: JobId, value: ReadonlyArray<DoubleDummyResult> }>) => {
       const jobType = state.jobs.find(j => j.id === action.payload.jobId)?.type as JobTypeSolve
       if (jobType) {
-        jobType.progress = pipe(jobType.progress, updateSolvedProgress(action.payload.value))
+        jobType.progress = pipe(jobType.progress, updateSolveProgress(action.payload.value))
       }
     }
   }
 })
 
-export const { schedule, start, complete, reportDeals, reportSatisfies, reportSolutions } = slice.actions
+export const { scheduleJob, startJob, completeJob, removeJob, reportDeals, reportSatisfies, reportSolutions } = slice.actions
 export default slice.reducer
 
-const generateDeals = (count: number) => (jobId: JobId) => {
-  const generationId = UuidTool.newUuid()
+const generateDeals = (generationId: GenerationId, count: number) => (jobId: JobId) => {
   return pipe(observeDeals(count, generationId),
-    observableEither.map(deals => reportDeals({ jobId, value: deals })),
-    observableEither.getOrElse((err): Observable<AnyAction> =>
-      of(complete(jobId, O.some(err)))),
-    concatWith([complete(jobId, O.none)]))
+    ObE.map(deals => reportDeals({ jobId, value: deals })),
+    ObE.getOrElse((err): Observable<AnyAction> =>
+      of(completeJob(jobId, O.some(err)))),
+    concatWith([completeJob(jobId, O.none)]))
 }
 
-const generateSatisfies = (paths: Paths<ConstrainedBid>) => (jobId: JobId) =>
-  pipe(observeSatisfies(paths)(jobId),
-    observableEither.map(result => reportSatisfies({ jobId, value: result })),
-    observableEither.getOrElse((err): Observable<AnyAction> =>
-      of(complete(jobId, O.some(err)))),
-    concatWith([complete(jobId, O.none)]))
+const generateSatisfies = (generationId: GenerationId, paths: Paths<ConstrainedBid>) => (jobId: JobId) =>
+  pipe(observeSatisfies(paths)(generationId),
+    ObE.map(result => reportSatisfies({ jobId, value: result })),
+    ObE.getOrElse((err): Observable<AnyAction> =>
+      of(completeJob(jobId, O.some(err)))),
+    concatWith([completeJob(jobId, O.none)]))
 
 const generateSolutions = (boards: ReadonlyArray<SerializedBoard>) => (jobId: JobId) =>
   pipe(observeSolutions(boards),
-    observableEither.map(result => reportSolutions({ jobId, value: result })),
-    observableEither.getOrElse((err): Observable<AnyAction> =>
-      of(complete(jobId, O.some(err)))),
-    concatWith([complete(jobId, O.none)]))
+    ObE.map(result => reportSolutions({ jobId, value: result })),
+    ObE.getOrElse((err): Observable<AnyAction> =>
+      of(completeJob(jobId, O.some(err)))),
+    concatWith([completeJob(jobId, O.none)]))
 
-type InferJobType<T extends JobType["type"]> = Job & { type: JobType & { type: T } }
 const withJobType = <T extends JobType["type"]>(jobType: T) => (action$: Observable<AnyAction>, state$: StateObservable<RootState>) =>
   action$.pipe(
-    observable.filter(start.match),
-    observable.map(a => a.payload),
-    observable.filter((p): p is { jobId: JobId, type: T } => p.type === jobType),
-    observable.map(p =>
+    Ob.filter(startJob.match),
+    Ob.map(a => a.payload),
+    Ob.filter((p): p is { jobId: JobId, type: T } => p.type === jobType),
+    Ob.map(p =>
       pipe(state$.value.generator.jobs,
         readonlyArray.findFirst(j => j.id === p.jobId),
         O.map(j => j as InferJobType<T>))))
 
-export const analyzeDealsEpic : Epic<AnyAction, AnyAction, RootState> =
+export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
   flow(withJobType("GenerateDeals"),
-    observableOption.fold(() => EMPTY, job => pipe(job.id, generateDeals(job.type.parameter))))
-
-export const analyzeSatisfiesEpic : Epic<AnyAction, AnyAction, RootState> =
+    ObO.fold(() => EMPTY, job => pipe(job.id, generateDeals(job.type.context.generationId, job.type.parameter)))),
   flow(withJobType("Satisfies"),
-    observableOption.fold(() => EMPTY, job => pipe(job.id, generateSatisfies(job.type.parameter))))
-
-export const analyzeResultsEpic : Epic<AnyAction, AnyAction, RootState> =
+    ObO.fold(() => EMPTY, job => pipe(job.id, generateSatisfies(job.type.context.generationId, job.type.parameter)))),
   flow(withJobType("Solve"),
-    observableOption.fold(() => EMPTY, job => pipe(job.id, generateSolutions(job.type.parameter))))
-
-export const saveDealsToApiEpic: Epic<AnyAction> = (action$, state$) =>
-  action$.pipe(
-    filter(reportDeals.match),
-    observable.map(a => a.payload.value),
-    observableEither.fromObservable,
-    observableEither.chainFirst(() => pipe(ping, observableEither.fromTaskEither)),
-    observableEither.chainFirst(flow(
+    ObO.fold(() => EMPTY, job => pipe(job.id, generateSolutions(job.type.parameter)))),
+  flow(Ob.filter(reportDeals.match),
+    Ob.map(a => a.payload.value),
+    ObE.fromObservable,
+    ObE.chainFirst(() => pipe(ping, ObE.fromTaskEither)),
+    ObE.chainFirst(flow(
       readonlyArray.map(serializedDealL.reverseGet),
       postDeals,
-      observableEither.fromTaskEither)),
-    observable.chain(() => EMPTY))
-
-export const saveSolutionsToApiEpic: Epic<AnyAction> = (action$, state$) =>
-  action$.pipe(
-    filter(reportSolutions.match),
-    observable.map(a => a.payload.value),
-    observableEither.fromObservable,
-    observableEither.chainFirst(() => pipe(ping, observableEither.fromTaskEither)),
-    observableEither.chainFirst(flow(
+      ObE.fromTaskEither)),
+    Ob.chain(() => EMPTY)),
+  flow(Ob.filter(reportSolutions.match),
+    Ob.map(a => a.payload.value),
+    ObE.fromObservable,
+    ObE.chainFirst(() => pipe(ping, ObE.fromTaskEither)),
+    ObE.chainFirst(flow(
       readonlyArray.map(x => [serializedDealL.reverseGet(x.board.deal), pipe(x.results, transpose, O.some)] as const),
       putDeals,
-      observableEither.fromTaskEither)),
-    observable.chain(() => EMPTY))
+      ObE.fromTaskEither)),
+    Ob.chain(() => EMPTY))
+]
         
 // export interface JobIdKeyedState {
 //   state: State
-//   collectionId: CollectionId
+//   analysisId: AnalysisId
 // }
-// const eqJobId: eq.Eq<CollectionId> = pipe(string.Eq, eq.contramap(uuid => uuid.id))
-// export const selectAllDeals = memoize(({ state, collectionId }: JobIdKeyedState) =>
+// const eqJobId: eq.Eq<AnalysisId> = pipe(string.Eq, eq.contramap(uuid => uuid.id))
+// export const selectAllDeals = memoize(({ state, analysisId }: JobIdKeyedState) =>
 //   pipe(state.collections,
 //     readonlyTuple.fst,
-//     e => E.elem(eqJobId)(collectionId, e),
+//     e => E.elem(eqJobId)(analysisId, e),
 //     boolean.fold(
 //       () => taskEither.of(readonlyArray.empty),
-//       () => getDealsByJobId(collectionId.id)))
+//       () => getDealsByJobId(analysisId.id)))
 //     ())
 
 // export const selectProgress = memoize((state: State) => ({
@@ -185,10 +187,10 @@ export const saveSolutionsToApiEpic: Epic<AnyAction> = (action$, state$) =>
 //   state: State
 //   path: SerializedBidPath
 // }
-// export const selectSatisfyCountByJobIdAndPath = memoize(({ state, collectionId, path }: JobIdKeyedState & PathKeyedState) =>
+// export const selectSatisfyCountByJobIdAndPath = memoize(({ state, analysisId, path }: JobIdKeyedState & PathKeyedState) =>
 //   pipe(state.collections,
 //     readonlyTuple.fst,
-//     e => E.elem(eqJobId)(collectionId, e),
+//     e => E.elem(eqJobId)(analysisId, e),
 //     boolean.fold(
 //       () => null,
 //       () => pipe(
