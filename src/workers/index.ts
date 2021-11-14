@@ -15,7 +15,7 @@ import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { getBatchIdsByCorrelationId } from '../services/idb';
 
-const BATCH_SIZE = 100
+const BATCH_SIZE = 500
 type CorrelationId = GenerationId
 export const observeDeals = (count: number, correlationId: CorrelationId) =>
   pipe(
@@ -23,9 +23,12 @@ export const observeDeals = (count: number, correlationId: CorrelationId) =>
     readonlyArray.append(count % BATCH_SIZE),
     pool(() => new DealWorker(), w => b => w.genDeals(b, correlationId)))
 
-export interface SatisfiesResult {
+export interface SatisfiesBatchResult {
+  satisfiesCount: number
+  testedCount: number
+}
+export interface SatisfiesResult extends SatisfiesBatchResult {
   path: SerializedBidPath
-  count: number
 }
 export const observeSatisfies = (paths: Paths<ConstrainedBid>) => (correlationId: CorrelationId) =>
   pipe(correlationId,
@@ -41,9 +44,8 @@ export const observeSatisfies = (paths: Paths<ConstrainedBid>) => (correlationId
           pool(() => new SatisfiesWorker(), w => ({ batchId, path }) =>
             pipe(
               () => w.satisfiesBatch(path, batchId),
-              taskEither.map((count): SatisfiesResult => ({
+              taskEither.map((result): SatisfiesResult => ({ ...result,
                 path: pipe(path, readonlyNonEmptyArray.map(cb => cb.bid), serializedBidPathL.get),
-                count
               })))
             ()))
       : group))

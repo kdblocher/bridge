@@ -1,12 +1,12 @@
-import { either, option as O, readonlyArray as RA, readonlyRecord as RR, readonlyTuple } from 'fp-ts';
+import { option as O, readonlyArray as RA, readonlyRecord as RR, readonlyTuple, taskEither } from 'fp-ts';
 import { observable as Ob, observableEither } from 'fp-ts-rxjs';
-import { constVoid, flow, pipe } from 'fp-ts/lib/function';
+import { flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import memoize from 'proxy-memoize';
 import { Epic } from 'redux-observable';
-import { EMPTY, from } from 'rxjs';
+import { concatWith, EMPTY, from, of } from 'rxjs';
 
-import { AnyAction, createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { RootState } from '../app/store';
 import { Analysis, AnalysisId, Job, zeroAnalysis, zeroGeneration } from '../model/job';
@@ -36,11 +36,8 @@ const slice = createSlice({
       state.analyses[analysis.id] = analysis
     },
     deleteAnalysis: (state, action: PayloadAction<AnalysisId>) => { },
-    removeAnalysis: {
-      reducer: (state, action: PayloadAction<AnalysisId, string, void, O.Option<string>>) => {
-        delete state.analyses[action.payload]
-      },
-      prepare: (id: AnalysisId, error: O.Option<string>) => ({ payload: id, meta: constVoid(), error: error })
+    removeAnalysis: (state, action: PayloadAction<AnalysisId>) => {
+      delete state.analyses[action.payload]
     },
     selectAnalysis: (state, action: PayloadAction<AnalysisId>) => {
       state.selectedAnalysis = pipe(RR.has(action.payload, state.analyses) ? O.some(action.payload) : O.none)
@@ -96,15 +93,12 @@ export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
     action$.pipe(
       Ob.filter(deleteAnalysis.match),
       Ob.map(a => a.payload),
-      Ob.bindTo('id'),
-      Ob.bind('generationId', ({ id }) =>
-        pipe(state$.value.profile.analyses,
-          RR.lookup(id),
-          O.fold(
-            () => EMPTY,
-            a => pipe(a.generations, RA.map(g => g.id), ids => from(ids))))),
-      Ob.bind('result', ({ generationId }) => Ob.fromTask(deleteByCorrelationId(generationId))),
-      Ob.map(o => slice.actions.removeAnalysis(o.id, pipe(o.result, either.swap, O.fromEither))))
+      Ob.chain(analysisId =>
+        pipe(state$.value.profile.analyses, RR.lookup(analysisId),
+          O.fold(() => EMPTY, a =>
+            pipe(a.generations, RA.map(g => g.id), taskEither.traverseArray(deleteByCorrelationId), Ob.fromTask)),
+          observableEither.fold(() => EMPTY, x => EMPTY),
+          concatWith(of(slice.actions.removeAnalysis(analysisId))))))
 ]
 
 export const selectAllAnalyses = memoize((state: State) => 

@@ -3,21 +3,34 @@ import { flow, pipe } from 'fp-ts/lib/function';
 import { DBSchema, IDBPDatabase, IndexNames, openDB } from 'idb';
 import { UuidTool } from 'uuid-tool';
 
+import { ConstrainedBidPathHash, GenerationId } from '../model/job';
 import { SerializedDeal } from '../model/serialization';
+import { DoubleDummyTable } from '../workers/dds.worker';
 
 interface DealDB extends DBSchema {
   deal: {
-    key: string
+    key: SerializedDeal["id"]
     value: {
       deal: SerializedDeal
       batchId: string
       correlationId?: string
+      solution?: DoubleDummyTable
     },
     indexes: {
       'batch': string,
       'correlation': string
     }
   },
+  satisfies: {
+    key: ConstrainedBidPathHash
+    value: {
+      generationId: GenerationId
+      deals: SerializedDeal[]
+    },
+    indexes: {
+      'generation': string
+    }
+  }
 }
 
 type DbError =
@@ -29,12 +42,13 @@ type DbError =
 
 const getDb =
   TE.tryCatch(
-    () => openDB<DealDB>('bridge', 2, {
+    () => openDB<DealDB>('bridge', 1, {
       upgrade: (db) => {
-        // db.deleteObjectStore("deal")
-        const store = db.createObjectStore("deal")
-        store.createIndex('batch', 'batchId')
-        store.createIndex('correlation', 'correlationId')
+        const deal = db.createObjectStore("deal")
+        deal.createIndex('batch', 'batchId')
+        deal.createIndex('correlation', 'correlationId')
+        const satisfies = db.createObjectStore("satisfies")
+        satisfies.createIndex('generation', 'generationId')
       }
     }),
     (): DbError => "OpenDatabaseFailed")
@@ -82,5 +96,6 @@ export const deleteByCorrelationId = <T extends string>(correlationId: T) =>
     TE.bind('keys', ({ tran }) => pipe(
       TE.tryCatchK(() => tran.store.index('correlation').getAll(correlationId), (): DbError => "SelectError")(),
       TE.map(RA.map(row => row.deal.id)))),
-    TE.bind('delete', ({ tran, keys }) => pipe(keys, TE.traverseArray(TE.tryCatchK(key => tran.store.delete(key), (): DbError => "DeleteError")))),
+    TE.bind('delete', ({ tran, keys }) => pipe(keys,
+      TE.traverseArray(TE.tryCatchK(key => tran.store.delete(key), (): DbError => "DeleteError")))),
     TE.chain(({ tran }) => TE.tryCatch(() => tran.done, (): DbError => "CommitRejected")))

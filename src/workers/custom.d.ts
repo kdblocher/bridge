@@ -16,9 +16,10 @@ declare module 'comlink-loader!./satisfies.worker' {
   type Direction = import ("../model/bridge").Direction
   type Either<E, A> = import ('fp-ts').either.Either<E, A>
   type BatchId = string
+  type SatisfiesBatchResult = import('.').SatisfiesBatchResult
   class SatisfiesWorker extends Worker {
     constructor();
-    satisfiesBatch(path: Path<ConstrainedBid>, batchId: BatchId, openerDirection?: Direction, responderDirection?: Direction): Promise<Either<string, number>>;
+    satisfiesBatch(path: Path<ConstrainedBid>, batchId: BatchId, openerDirection?: Direction, responderDirection?: Direction): Promise<Either<string, SatisfiesBatchResult>>;
     satisfies(path: Path<ConstrainedBid>, opener: SerializedHand, responder: SerializedHand): Promise<boolean>;
   }
   export = SatisfiesWorker;

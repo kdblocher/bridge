@@ -7,6 +7,7 @@ import { Path } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { satisfiesPath } from '../model/system/satisfaction';
 import { getDealsByBatchId } from '../services/idb';
+import { SatisfiesBatchResult } from './';
 
 export const satisfies = (path: Path<ConstrainedBid>, opener: SerializedHand, responder: SerializedHand) =>
   pipe(path,
@@ -15,9 +16,13 @@ export const satisfies = (path: Path<ConstrainedBid>, opener: SerializedHand, re
 export const satisfiesBatch = (path: Path<ConstrainedBid>, batchId: string, openerDirection?: Direction, responderDirection?: Direction) =>
   pipe(batchId,
     getDealsByBatchId,
-    taskEither.map(flow(
+    taskEither.map(deals => pipe(deals,
       readonlyArray.map(serializedDealL.reverseGet),
       readonlyArray.foldMap(number.MonoidSum)(d =>
         pipe(path,
-          satisfiesPath(d[openerDirection ?? "N"], d[responderDirection ?? "S"])) ? 1 : 0))))
+          satisfiesPath(d[openerDirection ?? "N"], d[responderDirection ?? "S"])) ? 1 : 0),
+      (satisfiesCount): SatisfiesBatchResult => ({
+        satisfiesCount,
+        testedCount: deals.length
+      }))))
     ()

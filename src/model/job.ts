@@ -2,13 +2,14 @@ import { either, magma, number, option as O, readonlyArray, readonlyRecord as RR
 import { Right } from 'fp-ts/lib/Either';
 import { Lazy, pipe } from 'fp-ts/lib/function';
 import * as t from 'io-ts';
+import objectHash from 'object-hash';
 import { UuidTool } from 'uuid-tool';
 
 import { assertUnreachable } from '../lib';
 import { SatisfiesResult } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 import { SerializedBidPath, SerializedBoard } from './serialization';
-import { Paths } from './system';
+import { Path, Paths } from './system';
 import { ConstrainedBid } from './system/core';
 
 export const DateNumberB = t.brand(t.number, (d): d is t.Branded<number, { readonly Date: unique symbol }> => d <= new Date().getTime(), "Date")
@@ -82,6 +83,9 @@ export const updateGenerateDealsProgress = (deals: ReadonlyArray<any>) =>
     (deals.length)
     (deals.length)
 
+const ConstrainedBidPathHashC = t.brand(t.string, (hash): hash is t.Branded<string, { readonly PathHash: unique symbol }> => true, "PathHash")
+export type ConstrainedBidPathHash = t.TypeOf<typeof ConstrainedBidPathHashC>
+export const getBidPathHash = (cb: Path<ConstrainedBid>) => (ConstrainedBidPathHashC.decode(objectHash(cb)) as Right<ConstrainedBidPathHash>).right
 export interface JobTypeSatisfies {
   type: "Satisfies",
   parameter: Paths<ConstrainedBid>
@@ -92,8 +96,8 @@ const zeroSatisfiesProgress = () => initProgress<Satisfies>({})
 export const updateSatisfiesProgress = (result: SatisfiesResult) =>
   updateProgress
     (RR.getUnionSemigroup(number.MonoidSum))
-    (-1)
-    ({ [result.path]: result.count })
+    (result.testedCount)
+    ({ [result.path]: result.satisfiesCount })
 
 export interface JobTypeSolve {
   type: "Solve",
