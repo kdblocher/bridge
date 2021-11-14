@@ -82,7 +82,7 @@ const GenerationView = ({ analysisId, generation }: GenerationViewProps) => {
     estimatedUnitsInitial: paths.length * generation.dealCount
   })), [analysisId, dispatch, generation.dealCount, generation.id, paths])
 
-  const onSolveClick = useCallback(sbp => pipe(sbp,
+  const onSolveClick = useCallback(sPath => pipe(sPath,
     serializedBidPathL.reverseGet,
     path => pipe(paths,
       option.fromNullable,
@@ -102,7 +102,7 @@ const GenerationView = ({ analysisId, generation }: GenerationViewProps) => {
           analysisId: analysisId,
           type: "Solve",
           parameter: boards,
-          context: { generationId: generation.id },
+          context: { generationId: generation.id, bidPath: sPath },
           estimatedUnitsInitial: boards.length
         })))))()))
     , [analysisId, dispatch, generation.id, paths])
@@ -115,7 +115,15 @@ const GenerationView = ({ analysisId, generation }: GenerationViewProps) => {
         {satisfies.map(([path, count]) =>
           <Fragment key={path}>
             <StatsPath path={path} satisfiesCount={count} dealCount={generation.dealCount} />
-            <button onClick={() => onSolveClick(path)}>Solve</button>
+            <span>
+              <button onClick={() => onSolveClick(path)}>Solve</button>
+              {pipe(
+                generation.solutions,
+                readonlyRecord.lookup(path),
+                option.map(r => r.length),
+                option.chain(option.fromPredicate(len => len > 0)),
+                option.fold(() => <></>, len => <>&nbsp;({len} so far)</>))}
+            </span>
           </Fragment>
         )}
       </StatsPathContainer>}
@@ -168,3 +176,7 @@ const Analyses = () => {
 }
 
 export default Analyses
+
+function constZero(constZero: any, arg1: (results: readonly import("../workers/dds.worker").DoubleDummyResult[]) => number): (b: option.Option<readonly import("../workers/dds.worker").DoubleDummyResult[]>) => number {
+  throw new Error('Function not implemented.');
+}
