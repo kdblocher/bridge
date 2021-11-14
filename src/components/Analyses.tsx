@@ -1,6 +1,6 @@
 import { number, option, readonlyArray, readonlyNonEmptyArray, readonlyRecord, taskEither } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
-import { useCallback, useMemo } from 'react';
+import { Fragment, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
@@ -92,10 +92,12 @@ const GenerationView = ({ analysisId, generation }: GenerationViewProps) => {
       taskEither.map(flow(
         readonlyArray.filter(d => option.isNone(d.solution)),
         readonlyArray.map(d => d.deal),
+        x => { return x },
         readonlyArray.mapWithIndex((i, d) => pipe(d,
           serializedDealL.reverseGet,
           makeBoard(i),
           serializedBoardL.get)),
+        x => { return x },
         boards => dispatch(scheduleJob({
           analysisId: analysisId,
           type: "Solve",
@@ -110,10 +112,11 @@ const GenerationView = ({ analysisId, generation }: GenerationViewProps) => {
       Deal Count: {generation.dealCount} <br/>
       {satisfies === null && <button onClick={onSatisfiesClick}>Satisfies</button>}
       {satisfies !== null && <StatsPathContainer>
-        {satisfies.map(([path, count]) => <>
-            <StatsPath key={path} path={path} satisfiesCount={count} dealCount={generation.dealCount} />
+        {satisfies.map(([path, count]) =>
+          <Fragment key={path}>
+            <StatsPath path={path} satisfiesCount={count} dealCount={generation.dealCount} />
             <button onClick={() => onSolveClick(path)}>Solve</button>
-          </>
+          </Fragment>
         )}
       </StatsPathContainer>}
     </li>

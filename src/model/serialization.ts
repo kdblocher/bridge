@@ -79,7 +79,7 @@ const encodeDealAsUuid: E.Encoder<SerializedDeal, Deal> = {
     readonlyArray.map(readonlyArray.reduce(0, (byte, directionIndex) => (byte << 2) + directionIndex)),
     readonlyArray.concat(readonlyArray.replicate(3, 0)),
     readonlyArray.toArray,
-    x => (DealUuidB.decode(new Uuid(x)) as either.Right<SerializedDeal>).right)
+    x => (DealUuidB.decode({ id: new Uuid(x).toString() }) as either.Right<SerializedDeal>).right)
   }
 
 export const serializedDealL = iso.iso<Deal, SerializedDeal>(
