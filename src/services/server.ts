@@ -1,4 +1,4 @@
-import { either, option, readonlyArray, readonlyRecord, semigroup, task, taskEither } from 'fp-ts';
+import { either, option, readonlyArray, readonlyRecord, semigroup, task, taskEither as TE } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 
 import { TrickCountsByDirectionThenStrain, TrickCountsByStrain } from '../model/analyze';
@@ -8,14 +8,15 @@ import { serializedDealL } from '../model/serialization';
 
 const baseUrl = process.env.REACT_APP_API_URL
 
-const safeFetch = (t: task.Task<Response>) =>
-  taskEither.tryCatchK(t, either.toError)()
+const safeFetch = (t: task.Task<Response>) => pipe(
+  TE.tryCatchK(t, either.toError)(),
+  TE.mapLeft(e => e.message))
 
 export const ping =
   pipe(() => fetch(`${baseUrl}/ping`),
     safeFetch,
-    taskEither.chainTaskK(response => () => response.text()),
-    taskEither.filterOrElse(response => response === "pong", () => new Error("'pong' was not received")))
+    TE.chainTaskK(response => () => response.text()),
+    TE.filterOrElse(response => response === "pong", () => "'pong' was not received"))
 
 interface DirectionMetadata {
   hcp: number
@@ -23,11 +24,11 @@ interface DirectionMetadata {
   tricks?: TrickCountsByStrain
 }
 
-type DealWithSolution = readonly [Deal, option.Option<TrickCountsByDirectionThenStrain>]
+export type DealWithSolution = readonly [Deal, option.Option<TrickCountsByDirectionThenStrain>]
 
 const getRequestBody =
   readonlyArray.foldMap(readonlyRecord.getUnionMonoid(semigroup.first<Detail>()))(([deal, table]: DealWithSolution) => ({
-    [serializedDealL.get(deal).toString()]: pipe(deal,
+    [serializedDealL.get(deal).id]: pipe(deal,
       readonlyRecord.mapWithIndex((d, h): DirectionMetadata => ({
         hcp: getHcp(h),
         shape: getHandSpecificShape(h),
