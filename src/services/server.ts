@@ -27,7 +27,7 @@ type DealWithSolution = readonly [Deal, option.Option<TrickCountsByDirectionThen
 
 const getRequestBody =
   readonlyArray.foldMap(readonlyRecord.getUnionMonoid(semigroup.first<Detail>()))(([deal, table]: DealWithSolution) => ({
-    [serializedDealL.get(deal).toString()]: pipe(deal,
+    [serializedDealL.get(deal).id]: pipe(deal,
       readonlyRecord.mapWithIndex((d, h): DirectionMetadata => ({
         hcp: getHcp(h),
         shape: getHandSpecificShape(h),
