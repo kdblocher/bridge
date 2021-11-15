@@ -6,7 +6,7 @@ import styled from 'styled-components';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { get } from '../lib/object';
-import { DateNumber, DateNumberB, estimatedTimeRemaining, getGenericProgress, JobId, now, ProgressData } from '../model/job';
+import { DateNumber, DateNumberB, estimatedTimeRemaining, getGenericProgress, Job, JobId, now, ProgressData } from '../model/job';
 import { removeJob, selectJobById, startJob } from '../reducers/generator';
 
 interface DateViewProps {
@@ -42,9 +42,7 @@ const ProgressView = ({ progress, unitsInitial, start }: ProgressViewProps) => {
   const timeRemaining = useMemo(() => pipe(
     progress,
     estimatedTimeRemaining(unitsInitial),
-    O.map(x => { console.log(x); return x }),
     O.map(r => now() + r),
-    O.map(x => { console.log(x); return x }),
     O.chain(flow(DateNumberB.decode, O.fromEither)),
     O.toNullable)
     , [progress, unitsInitial])
@@ -59,17 +57,14 @@ const ProgressView = ({ progress, unitsInitial, start }: ProgressViewProps) => {
 }
 
 interface JobViewProps {
-  jobId: JobId
+  job: Job
 }
-const JobView = ({ jobId }: JobViewProps) => {
-  const job = useAppSelector(state => pipe(selectJobById({ state: state.generator, jobId }), O.toNullable))
+const JobView = ({ job }: JobViewProps) => {
   const progress = pipe(job,
-    O.fromNullable,
-    O.chain(getGenericProgress),
+    getGenericProgress,
     O.toNullable)
   const startDate = pipe(job,
-    O.fromNullable,
-    O.chain(get("startDate")),
+    get("startDate"),
     O.toNullable)
   const dispatch = useAppDispatch()
   const onRemoveClick = useCallback(() => job && dispatch(removeJob(job.id)), [dispatch, job])
@@ -93,7 +88,7 @@ const Jobs = () => {
     <section>
       <h3>Jobs</h3>
       <JobList>
-        {jobs.map(j => <JobView key={j.id} jobId={j.id} />)}
+        {jobs.map(j => <JobView key={j.id} job={j} />)}
       </JobList>
     </section>
   )

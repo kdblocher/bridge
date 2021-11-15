@@ -1,4 +1,4 @@
-import { option as O, readonlyArray as RA, readonlyRecord, readonlyTuple } from 'fp-ts';
+import { option as O, readonlyArray as RA } from 'fp-ts';
 import { observable as Ob, observableEither as ObE, observableOption as ObO } from 'fp-ts-rxjs';
 import { constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
@@ -10,12 +10,10 @@ import { concatWith, EMPTY, Observable, of } from 'rxjs';
 import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { RootState } from '../app/store';
-import { transpose } from '../model/analyze';
 import { AnalysisId, GenerationId, initJobProgress, Job, JobId, JobType, JobTypeGenerateDeals, JobTypeSatisfies, JobTypeSolve, now, Solution, updateGenerateDealsProgress, updateSatisfiesProgress, updateSolveProgress, zeroJob } from '../model/job';
-import { SerializedDeal, serializedDealL } from '../model/serialization';
+import { SerializedDeal } from '../model/serialization';
 import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
-import { ping, postDeals, putDeals } from '../services/server';
 import { observeDeals, observeSatisfies, observeSolutions, SatisfiesResult } from '../workers';
 
 const name = 'generator'
