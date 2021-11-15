@@ -1,4 +1,4 @@
-import { either, magma, number, option as O, readonlyRecord as RR, semigroup } from 'fp-ts';
+import { either, magma, number, option as O, predicate, readonlyRecord as RR, semigroup } from 'fp-ts';
 import { Right } from 'fp-ts/lib/Either';
 import { Lazy, pipe } from 'fp-ts/lib/function';
 import * as t from 'io-ts';
@@ -21,20 +21,22 @@ export const now : Lazy<DateNumber> = () => pipe(new Date().getTime(), DateNumbe
 const timeSpanC = t.tuple([DateNumberB, DateNumberB])
 export type TimeSpan = t.TypeOf<typeof timeSpanC>
 
-interface ProgressData<T> {
+export interface ProgressData {
   unitsDone: number
-  updateDate: DateNumber
+  updateDate: O.Option<DateNumber>
   speed: O.Option<number>
+}
+interface ProgressDataWithValue<T> extends ProgressData {
   value: T
 }
-type Progress<T> = O.Option<ProgressData<T>>
+type Progress<T> = O.Option<ProgressDataWithValue<T>>
 
 export const getGenericProgress = (job: Job) =>
-  job.type.progress as Progress<never>
+  job.type.progress as O.Option<ProgressData>
 
 export const initProgress = <T>(value: T): Progress<T> => O.some({
   unitsDone: 0,
-  updateDate: now(),
+  updateDate: O.none,
   speed: O.none,
   value
 })
@@ -44,15 +46,20 @@ export const updateProgress = <T>(M: magma.Magma<T>) => (unitsDone: number) => (
   pipe(progress,
     O.map(p => {
       const updateDate = now()
-      const speed = (updateDate - p.updateDate) / unitsDone
+      const speed = pipe(p.updateDate,
+        O.map(lastUpdate => (updateDate - lastUpdate) / unitsDone),
+        O.filter(x => !isNaN(x) && isFinite(x)))
       return {
         unitsDone: p.unitsDone + unitsDone,
-        updateDate,
+        updateDate: O.some(updateDate),
         value: M.concat(p.value, value),
-        speed: pipe(p.speed,
-          O.map(avg => (1 - SMOOTHING_FACTOR) * avg + (SMOOTHING_FACTOR) * (
-            (updateDate - p.updateDate) / unitsDone)),
-          O.alt(() => O.some(speed)))
+        speed: pipe(O.Do,
+          O.apS('avg', p.speed),
+          O.apS('next', speed),
+          O.map(o => (1 - SMOOTHING_FACTOR) * o.avg + (SMOOTHING_FACTOR) * o.next),
+          O.filter(x => !isNaN(x) && isFinite(x)),
+          O.alt(() => speed),
+          O.alt(() => p.speed))
       }
     }))
 
@@ -189,11 +196,9 @@ export const elapsedTime = (job: Job) =>
   pipe(O.Do,
     O.apS('progress', pipe(job, getGenericProgress)),
     O.apS('start', job.startDate),
-    O.map((o): TimeSpan => [o.progress.updateDate, o.start]))
+    O.bind('update', ({ progress }) => progress.updateDate),
+    O.map((o): TimeSpan => [o.update, o.start]))
 
-export const estimatedTimeRemaining = (job: Job) =>
-  pipe(O.Do,
-    O.apS('start', job.startDate),
-    O.apS('progress', pipe(job, getGenericProgress)),
-    O.bind('speed', ({ progress }) => progress.speed),
-    O.map(o => o.speed * (job.unitsInitial - o.progress.unitsDone)))
+export const estimatedTimeRemaining = (unitsInitial: number) => (progress: ProgressData) =>
+  pipe(progress.speed,
+    O.map(speed => speed * (unitsInitial - progress.unitsDone)))
