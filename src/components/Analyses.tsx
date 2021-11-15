@@ -17,14 +17,14 @@ import { getDealsWithSolutionsByPath } from '../services/idb';
 import SolutionStats from './stats/SolutionStats';
 import StatsPath from './stats/StatsPath';
 
-const AnalysisList = styled.ul `
+const FlexList = styled.ul `
   display: flex;
   flex-flow: row wrap;
   list-style-type: none;
   padding: 0px;
   margin: 0px;
 `
-const AnalysisListItem = styled.li `
+const FlexListItem = styled.li `
   padding: 0px;
   margin: 5px;
 `
@@ -42,7 +42,7 @@ const AnalysisView = ({ analysisId }: AnalysisProps) => {
   const onSelectClick = useCallback(() => dispatch(selectAnalysis(analysisId)), [analysisId, dispatch])
   const onNameChange = useCallback(name => dispatch(setAnalysisName(analysisId, name)), [analysisId, dispatch])
   return (<>{analysis &&
-    <AnalysisListItem>
+    <FlexListItem>
       <input type="text" value={analysis.name} onChange={e => onNameChange(e.target.value)} />
       <p>
         Paths: {analysis.paths.length} <br />
@@ -50,7 +50,7 @@ const AnalysisView = ({ analysisId }: AnalysisProps) => {
       </p>
       <button onClick={onSelectClick}>Select</button>
       <button onClick={onRemoveClick}>Remove</button>
-    </AnalysisListItem>
+    </FlexListItem>
   }</>)
 }
 
@@ -160,7 +160,7 @@ const GenerationView = ({ analysisId, generationId }: GenerationViewProps) => {
   ), [paths])
 
   return (<>{generation &&
-    <li>
+    <FlexListItem>
       Deal Count: {generation.dealCount} <br/>
       {satisfies === null && <button onClick={onSatisfiesClick}>Satisfies</button>}
       {satisfies !== null && <StatsPathContainer>
@@ -171,7 +171,7 @@ const GenerationView = ({ analysisId, generationId }: GenerationViewProps) => {
           </Fragment>)
         })}
       </StatsPathContainer>}
-    </li>
+    </FlexListItem>
   }</>)
 }
 
@@ -194,9 +194,10 @@ const SelectedAnalysis = () => {
 
   return (<>{analysis &&
     <div>
-      <ul>
+      <h4>{analysis.name}</h4>
+      <FlexList>
         {analysis.generations.map(g => <GenerationView key={g.id} analysisId={analysis.id} generationId={g.id} />)}
-      </ul>
+      </FlexList>
       <button onClick={() => onGenerateDealsClick(generateCount)}>Generate Deals</button>
     </div>
   }</>)
@@ -212,11 +213,10 @@ const Analyses = () => {
   return (
     <section>
       <h3>Analyses</h3>
-      <AnalysisList>
+      <FlexList>
         {analyses.map(a => <AnalysisView key={a.id} analysisId={a.id} />)}
-      </AnalysisList>
+      </FlexList>
       {paths && <button onClick={() => onCreateClick(paths)}>Create</button>}
-      <h4>Selected</h4>
       <SelectedAnalysis />
     </section>
   )

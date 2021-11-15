@@ -39,7 +39,7 @@ export const initProgress = <T>(value: T): Progress<T> => O.some({
   value
 })
 
-const SMOOTHING_FACTOR = 0.05
+const SMOOTHING_FACTOR = 0.1
 export const updateProgress = <T>(M: magma.Magma<T>) => (unitsDone: number) => (value: T) => (progress: Progress<T>): Progress<T> =>
   pipe(progress,
     O.map(p => {

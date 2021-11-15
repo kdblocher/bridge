@@ -65,7 +65,7 @@ const JobView = ({ jobId }: JobViewProps) => {
         Started: <DateView date={job.startDate} /><br />
         Last Updated: <DateView date={progress.updateDate} /> <br />
         Progress: {job.unitsInitial - progress.unitsDone} units remaining ({Math.floor(progress.unitsDone * 100 / job.unitsInitial)}%) <br />
-        Est. Time Remaining: <DateView date={timeRemaining} />
+        Est. Completion: <DateView date={timeRemaining} />
       </p>}
     </JobListItem>
   }</>)
