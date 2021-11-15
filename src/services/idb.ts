@@ -1,6 +1,6 @@
 import { either, option as O, readonlyArray as RA, readonlyRecord as RR, semigroup, string, task, taskEither as TE } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
-import { DBSchema, IDBPDatabase, IndexNames, openDB } from 'idb';
+import { DBSchema, deleteDB, IDBPDatabase, IndexNames, openDB } from 'idb';
 import { UuidTool } from 'uuid-tool';
 
 import { ConstrainedBidPathHash, GenerationId } from '../model/job';
@@ -41,9 +41,12 @@ type DbError =
   | "DeleteError"
   | "RecordNotFound"
 
+export const deleteDb = 
+  TE.tryCatch(() => deleteDB('bridge'), (): DbError => "DeleteError")
+
 const getDb =
-  TE.tryCatch(
-    () => openDB<DealDB>('bridge', 1, {
+  TE.tryCatch(() =>
+    openDB<DealDB>('bridge', 1, {
       upgrade: (db) => {
         const deal = db.createObjectStore("deal")
         deal.createIndex('batch', 'batchId')
