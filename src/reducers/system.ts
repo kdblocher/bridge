@@ -83,10 +83,6 @@ interface KeyedState {
   key: BlockKey
 }
 
-export const selectPathUpToKey = memoize(({ state, key }: KeyedState) =>
-  pipe(state.system,
-    getPathUpTo(eqBlockKey)(key)))
-
 const getCachedBidByKey = (constrainedBids: State['decodedBids']) => (key: BlockKey) =>
   pipe(
     O.fromNullableK(constrainedBidSelectors.selectById)(constrainedBids, key),
@@ -151,9 +147,19 @@ export const selectCompleteConstraintForest = memoize(
         (error): ReadonlyArray<SystemError> => RA.of({ type: "Validation", error }),
         () => bidForest)))))
 
-export const selectAllCompleteBidPaths = memoize(
+export const selectSystemWithErrors = memoize(
   flow(selectCompleteConstraintForest,
     TH.map(getAllLeafPaths)))
+
+export const selectPristineSystem = memoize(
+  flow(selectSystemWithErrors,
+    TH.getRightOnly,
+    O.chain(RNEA.fromReadonlyArray)))
+
+export const selectValidConstrainedBidPaths = memoize(
+  flow(selectSystemWithErrors,
+    TH.getRight,
+    O.chain(RNEA.fromReadonlyArray)))
 
 export const selectCompleteBidPathUpToKey = memoize((state: KeyedState & OptionsState) =>
   pipe(O.Do,
@@ -178,7 +184,6 @@ export interface ErrorNode {
 export const selectErrorTree = memoize((options: OptionsState) =>
   pipe(options,
     selectCompleteSyntaxForest,
-    x => { return x },
     TH.map(flow(
       RA.map(T.map(sb => sb.bid)),
       getPathForest,

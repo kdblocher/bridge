@@ -1,5 +1,5 @@
-import { either, option, predicate, readonlyArray, readonlyNonEmptyArray, readonlySet, separated } from 'fp-ts';
-import { observable } from 'fp-ts-rxjs';
+import { either, option, predicate, readonlyArray, readonlyNonEmptyArray, readonlyRecord, readonlySet, readonlyTuple, separated } from 'fp-ts';
+import { observable, observableEither } from 'fp-ts-rxjs';
 import { tailRec } from 'fp-ts/lib/ChainRec';
 import { constFalse, constTrue, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
@@ -12,12 +12,12 @@ import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Board, deal } from '../model/bridge';
 import { eqCard, Hand, newDeck, ordCardDescending } from '../model/deck';
 import { getHcp } from '../model/evaluation';
-import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL, serializedBoardL, SerializedHand, serializedHandL } from '../model/serialization';
+import { DecodedHand, DecodedSerializedHand, decodedSerializedHandL, serializedDealL, SerializedHand, serializedHandL } from '../model/serialization';
 import { Path, Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { satisfiesPath } from '../model/system/satisfaction';
 import { decodeHand } from '../parse';
-import { observeResults } from '../workers';
+import { observeSolutions } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 
 const name = 'selection'
@@ -61,14 +61,19 @@ const genBoardFromHands = (opener: Hand, responder: Hand) =>
       }
     }))
 
-const getResult = createAsyncThunk('abc', ({ opener, responder}: Hands) =>
+const getResult = createAsyncThunk<DoubleDummyResult, Hands, { rejectValue: string }>('abc', ({ opener, responder }, { rejectWithValue }) =>
   pipe(
-    genBoardFromHands(serializedHandL.reverseGet(opener), serializedHandL.reverseGet(responder)),
-    serializedBoardL.get,
-    readonlyNonEmptyArray.of,
-    observeResults,
-    observable.toTask,
-    t => t()))
+    genBoardFromHands(serializedHandL.reverseGet(opener), serializedHandL.reverseGet(responder)).deal,
+    serializedDealL.get,
+    readonlyArray.of,
+    observeSolutions,
+    observableEither.map(flow(
+      readonlyRecord.toReadonlyArray,
+      readonlyArray.map(readonlyTuple.snd),
+      a => a[0])),
+    observable.map(either.getOrElseW(rejectWithValue)),
+    observable.toTask)
+  ())
 
 const genUntilCondition = (limit: option.Option<number>) => (condition: predicate.Predicate<readonly [Hand, Hand]>) =>
   tailRec(limit, l => {

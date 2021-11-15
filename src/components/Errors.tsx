@@ -1,4 +1,4 @@
-import { readonlyArray as RA, these, tree as T } from 'fp-ts';
+import { option, readonlyArray as RA, these, tree as T } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 import { draw } from 'io-ts/lib/Decoder';
 import { Fragment, useMemo } from 'react';
@@ -11,7 +11,7 @@ import { serializedBidPathL } from '../model/serialization';
 import { Forest } from '../model/system';
 import { ExpandError } from '../model/system/expander';
 import { SystemValidationError } from '../model/system/validation';
-import { ErrorNode, selectErrorTree, SystemErrorWithPath } from '../reducers/system';
+import { ErrorNode, selectErrorTree, selectPristineSystem, SystemErrorWithPath } from '../reducers/system';
 import BidPath, { BidView } from './core/BidPath';
 
 const GridContainer = styled.div `
@@ -84,18 +84,23 @@ const ErrorForest = ({ forest }: ErrorForestProps) => {
 }
 
 const Errors = () => {
+  const isPristine = useAppSelector(state => pipe(
+    selectPristineSystem({ state: state.system, options: state.settings }),
+    option.isSome))
   const errors = useAppSelector(state => selectErrorTree({ state: state.system, options: state.settings }))
   return (
     <section>
       <h3>Errors</h3>
-      {these.isLeft(errors) && <div>
-        <h4>Parse Errors</h4>
-        <ul>{errors.left.map((e, i) => <li key={i}><pre>{draw(e)}</pre></li>)}</ul>
-      </div>}
-      {these.isRight(errors) && <div>
-        <h4>Semantic Errors</h4>
-        <ErrorForest forest={errors.right} />
-      </div>}
+      {isPristine ? "None" : <>
+        {these.isLeft(errors) && <div>
+          <h4>Parse Errors</h4>
+          <ul>{errors.left.map((e, i) => <li key={i}><pre>{draw(e)}</pre></li>)}</ul>
+        </div>}
+        {these.isRight(errors) && <div>
+          <h4>Semantic Errors</h4>
+          <ErrorForest forest={errors.right} />
+        </div>}
+      </>}
     </section>
   )
 }

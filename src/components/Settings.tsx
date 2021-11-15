@@ -1,8 +1,10 @@
+import { taskEither } from 'fp-ts';
 import { constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { useCallback, useEffect } from 'react';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { setInitialSettings, setSettingsProperty, SettingsState } from '../reducers/settings';
+import { deleteDb } from '../services/idb';
 
 interface SettingsValueProps<K, V> {
   label?: string
@@ -44,7 +46,14 @@ const Settings = () => {
     const newSettings: SettingsState = {...settings, [prop]: value }
     localStorage.setItem(key, JSON.stringify(newSettings))
   }, [settings])
-  return (
+  const onDeleteDatabaseClick = useCallback(() => pipe(
+    deleteDb,
+    taskEither.map(() => window.location.reload()))()
+  , [])
+  return (<>
+    <section>
+      <button onClick={onDeleteDatabaseClick}>Reset Analysis DB</button>
+    </section>
     <section>
       <SettingsItem label="Implicit Pass" prop="implicitPass" parse={s => s === "true"} onChanged={v => onChanged("implicitPass", v)}>
         {({ value, onChange}) =>
@@ -52,7 +61,7 @@ const Settings = () => {
       }</SettingsItem>
       <SettingsItem label="Generate Count" prop="generateCount" parse={parseInt} onChanged={v => onChanged("generateCount", v)} />
     </section>
-  )
+    </>)
 }
 
 export default Settings

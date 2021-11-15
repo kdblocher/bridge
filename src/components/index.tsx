@@ -1,9 +1,11 @@
+import Analyses from './Analyses';
 import Editor from './Editor';
 import Errors from './Errors';
+import Jobs from './Jobs';
 import SelectionDetails from './SelectionDetails';
 // import SelectionDetails from './SelectionDetails';
 import Settings from './Settings';
-import Stats from './Stats';
+// import Stats from './Stats';
 // import SystemDetails from './SystemDetails';
 import TestHands from './TestHands';
 
@@ -19,7 +21,9 @@ const App = () => {
         </div>
         <div style={{clear: "both"}}>
           <Errors />
-          <Stats />
+          <Jobs />
+          <Analyses />
+          {/* <Stats /> */}
         </div>
       </div>
       <div style={{display: "inline-block", width: '50%', float: "right"}}>
