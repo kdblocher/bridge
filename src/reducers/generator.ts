@@ -3,6 +3,7 @@ import { observable as Ob, observableEither as ObE, observableOption as ObO } fr
 import { constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import { WritableDraft } from 'immer/dist/internal';
+import memoize from 'proxy-memoize';
 import { Epic, StateObservable } from 'redux-observable';
 import { concatWith, EMPTY, Observable, of } from 'rxjs';
 
@@ -103,6 +104,14 @@ const slice = createSlice({
 
 export const { scheduleJob, startJob, completeJob, removeJob, reportDeals, reportSatisfies, reportSolutions } = slice.actions
 export default slice.reducer
+
+interface JobIndex {
+  state: State
+  jobId: JobId
+}
+export const selectJobById = memoize((idx: JobIndex) =>
+  pipe(idx.state.jobs,
+    RA.findFirst(j => j.id === idx.jobId)))
 
 const generateDeals = (jobId: JobId, generationId: GenerationId, count: number) =>
   pipe(observeDeals(generationId)(count),

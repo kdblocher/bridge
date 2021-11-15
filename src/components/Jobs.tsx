@@ -1,15 +1,15 @@
-import { option } from 'fp-ts';
-import { pipe } from 'fp-ts/lib/function';
+import { option as O } from 'fp-ts';
+import { flow, pipe } from 'fp-ts/lib/function';
 import { useCallback, useMemo } from 'react';
 import TimeAgo from 'react-timeago';
 import styled from 'styled-components';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { DateNumber, Job } from '../model/job';
-import { removeJob, startJob } from '../reducers/generator';
+import { DateNumber, DateNumberB, estimatedTimeRemaining, getGenericProgress, JobId, now } from '../model/job';
+import { removeJob, selectJobById, startJob } from '../reducers/generator';
 
 interface DateViewProps {
-  date: option.Option<DateNumber>
+  date: O.Option<DateNumber>
 }
 const DateView = ({ date }: DateViewProps) => {
   return <>{date._tag === "Some" && <TimeAgo date={(new Date(date.value))} />}</>
@@ -28,18 +28,28 @@ const JobListItem = styled.li `
 `
 
 interface JobViewProps {
-  job: Job
+  jobId: JobId
 }
-const JobView = ({ job }: JobViewProps) => {
-  const progress = useMemo(() =>
-    pipe(job.type.progress, p => p._tag === "None" ? null : {
-      updateDate: p.value.updateDate,
-      unitsDone: p.value.unitsDone
-    }), [job.type.progress])
+const JobView = ({ jobId }: JobViewProps) => {
+  const job = useAppSelector(state => pipe(selectJobById({ state: state.generator, jobId }), O.toNullable))
+  const progress = useMemo(() => pipe(
+    job,
+    O.fromNullable,
+    O.chain(getGenericProgress),
+    O.toNullable)
+    , [job])
+
   const dispatch = useAppDispatch()
-  const onRemoveClick = useCallback(() => dispatch(removeJob(job.id)), [dispatch, job.id])
-  const onStartClick = useCallback(() => dispatch(startJob({ jobId: job.id, type: job.type.type })), [dispatch, job.id, job.type.type])
-  return (
+  const onRemoveClick = useCallback(() => job && dispatch(removeJob(job.id)), [dispatch, job])
+  const onStartClick = useCallback(() => job && dispatch(startJob({ jobId: job.id, type: job.type.type })), [dispatch, job])
+  const timeRemaining = useMemo(() => pipe(
+    job,
+    O.fromNullable,
+    O.chain(estimatedTimeRemaining),
+    O.map(r => now() + r),
+    O.chain(flow(DateNumberB.decode, O.fromEither))),
+    [job])
+  return (<>{job &&
     <JobListItem>
       <h5>{job.type.type}</h5>
       {!progress && <p>
@@ -50,10 +60,11 @@ const JobView = ({ job }: JobViewProps) => {
       {progress && <p>
         Started: <DateView date={job.startDate} /><br />
         Last Updated: <DateView date={progress.updateDate} /> <br />
-        Progress: {job.unitsInitial - progress.unitsDone} units remaining ({Math.floor(progress.unitsDone * 100 / job.unitsInitial)}%)
+        Progress: {job.unitsInitial - progress.unitsDone} units remaining ({Math.floor(progress.unitsDone * 100 / job.unitsInitial)}%) <br />
+        Est. Time Remaining: <DateView date={timeRemaining} />
       </p>}
     </JobListItem>
-  )
+  }</>)
 }
 
 const Jobs = () => {
@@ -62,7 +73,7 @@ const Jobs = () => {
     <section>
       <h3>Jobs</h3>
       <JobList>
-        {jobs.map(j => <JobView key={j.id} job={j} />)}
+        {jobs.map(j => <JobView key={j.id} jobId={j.id} />)}
       </JobList>
     </section>
   )

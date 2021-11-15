@@ -6,6 +6,7 @@ import objectHash from 'object-hash';
 import { UuidTool } from 'uuid-tool';
 
 import { assertUnreachable } from '../lib';
+import { get } from '../lib/object';
 import { SatisfiesResult } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 import { SerializedBidPath, SerializedDeal } from './serialization';
@@ -13,9 +14,12 @@ import { Stats } from './stats';
 import { Path, Paths } from './system';
 import { ConstrainedBid } from './system/core';
 
-export const DateNumberB = t.brand(t.number, (d): d is t.Branded<number, { readonly Date: unique symbol }> => d <= new Date().getTime(), "Date")
+export const DateNumberB = t.brand(t.number, (d): d is t.Branded<number, { readonly Date: unique symbol }> => true, "Date")
 export type DateNumber = t.TypeOf<typeof DateNumberB>
 export const now : Lazy<DateNumber> = () => pipe(new Date().getTime(), DateNumberB.decode, x => (x as either.Right<DateNumber>).right)
+
+const timeSpanC = t.tuple([DateNumberB, DateNumberB])
+export type TimeSpan = t.TypeOf<typeof timeSpanC>
 
 interface ProgressData<T> {
   unitsDone: number
@@ -23,6 +27,10 @@ interface ProgressData<T> {
   value: T
 }
 type Progress<T> = O.Option<ProgressData<T>>
+
+export const getGenericProgress = (job: Job) =>
+  job.type.progress as Progress<never>
+
 export const initProgress = <T>(value: T): Progress<T> => O.some({
   unitsDone: 0,
   updateDate: O.none,
@@ -152,3 +160,35 @@ export const zeroJob = (analysisId: AnalysisId, estimatedUnitsInitial: number, t
   running: false,
   error: O.none
 })
+
+export const unitsRemaining = (job: Job) =>
+  pipe(job,
+    getGenericProgress,
+    O.fold(() => 0, get('unitsDone')),
+    done => job.unitsInitial - done)
+
+export const percentageRemaining = (job: Job) =>
+  pipe(job,
+    getGenericProgress,
+    O.fold(() => 0, get('unitsDone')),
+    done => Math.floor(done * 100 / job.unitsInitial))
+
+export const elapsedTime = (job: Job) =>
+  pipe(O.Do,
+    O.apS('progress', pipe(job, getGenericProgress)),
+    O.apS('start', job.startDate),
+    O.bind('update', ({ progress }) => progress.updateDate),
+    O.map((o): TimeSpan => [o.update, o.start]))
+
+export const estimatedTimeRemaining = (job: Job) =>
+  pipe(O.Do,
+    O.apS('start', job.startDate),
+    O.apS('progress', pipe(job, getGenericProgress)),
+    O.bind('update', ({ progress }) => progress.updateDate),
+    O.map(o => {
+      const current = o.update - o.start
+      const finished = o.progress.unitsDone
+      const avgCompletionPerJob = current / finished
+      const remaining = job.unitsInitial - o.progress.unitsDone
+      return avgCompletionPerJob * remaining
+    }))
