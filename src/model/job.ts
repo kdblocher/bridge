@@ -23,7 +23,8 @@ export type TimeSpan = t.TypeOf<typeof timeSpanC>
 
 interface ProgressData<T> {
   unitsDone: number
-  updateDate: O.Option<DateNumber>
+  updateDate: DateNumber
+  speed: O.Option<number>
   value: T
 }
 type Progress<T> = O.Option<ProgressData<T>>
@@ -33,16 +34,27 @@ export const getGenericProgress = (job: Job) =>
 
 export const initProgress = <T>(value: T): Progress<T> => O.some({
   unitsDone: 0,
-  updateDate: O.none,
+  updateDate: now(),
+  speed: O.none,
   value
 })
 
+const SMOOTHING_FACTOR = 0.05
 export const updateProgress = <T>(M: magma.Magma<T>) => (unitsDone: number) => (value: T) => (progress: Progress<T>): Progress<T> =>
-  pipe(progress, O.map(p => ({
-    unitsDone: p.unitsDone + unitsDone,
-    updateDate: O.some(now()),
-    value: M.concat(p.value, value)
-  })))
+  pipe(progress,
+    O.map(p => {
+      const updateDate = now()
+      const speed = (updateDate - p.updateDate) / unitsDone
+      return {
+        unitsDone: p.unitsDone + unitsDone,
+        updateDate,
+        value: M.concat(p.value, value),
+        speed: pipe(p.speed,
+          O.map(avg => (1 - SMOOTHING_FACTOR) * avg + (SMOOTHING_FACTOR) * (
+            (updateDate - p.updateDate) / unitsDone)),
+          O.alt(() => O.some(speed)))
+      }
+    }))
 
 export const GenerationIdB = t.brand(t.string, (id): id is t.Branded<string, { readonly GenerationId: unique symbol }> => UuidTool.isUuid(id), "GenerationId")
 export type GenerationId = t.TypeOf<typeof GenerationIdB>
@@ -177,18 +189,11 @@ export const elapsedTime = (job: Job) =>
   pipe(O.Do,
     O.apS('progress', pipe(job, getGenericProgress)),
     O.apS('start', job.startDate),
-    O.bind('update', ({ progress }) => progress.updateDate),
-    O.map((o): TimeSpan => [o.update, o.start]))
+    O.map((o): TimeSpan => [o.progress.updateDate, o.start]))
 
 export const estimatedTimeRemaining = (job: Job) =>
   pipe(O.Do,
     O.apS('start', job.startDate),
     O.apS('progress', pipe(job, getGenericProgress)),
-    O.bind('update', ({ progress }) => progress.updateDate),
-    O.map(o => {
-      const current = o.update - o.start
-      const finished = o.progress.unitsDone
-      const avgCompletionPerJob = current / finished
-      const remaining = job.unitsInitial - o.progress.unitsDone
-      return avgCompletionPerJob * remaining
-    }))
+    O.bind('speed', ({ progress }) => progress.speed),
+    O.map(o => o.speed * (job.unitsInitial - o.progress.unitsDone)))

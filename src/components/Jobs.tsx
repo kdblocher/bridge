@@ -9,10 +9,14 @@ import { DateNumber, DateNumberB, estimatedTimeRemaining, getGenericProgress, Jo
 import { removeJob, selectJobById, startJob } from '../reducers/generator';
 
 interface DateViewProps {
-  date: O.Option<DateNumber>
+  date: O.Option<DateNumber> | DateNumber
 }
 const DateView = ({ date }: DateViewProps) => {
-  return <>{date._tag === "Some" && <TimeAgo date={(new Date(date.value))} />}</>
+  const value =
+    typeof date === "number" ? date :
+    date._tag === "Some" ? date.value :
+    null
+  return <>{value && <TimeAgo date={(new Date(value))} />}</>
 }
 
 const JobList = styled.ul `
