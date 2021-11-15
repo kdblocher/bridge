@@ -42,9 +42,7 @@ const ProgressView = ({ progress, unitsInitial, start }: ProgressViewProps) => {
   const timeRemaining = useMemo(() => pipe(
     progress,
     estimatedTimeRemaining(unitsInitial),
-    O.map(x => { console.log(x); return x }),
     O.map(r => now() + r),
-    O.map(x => { console.log(x); return x }),
     O.chain(flow(DateNumberB.decode, O.fromEither)),
     O.toNullable)
     , [progress, unitsInitial])

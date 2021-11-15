@@ -61,7 +61,6 @@ const pool = <W extends Worker, I, O>(ctor: (index: number) => W, doWork: (worke
             } else {
               worker.terminate()
             }
-            // console.log("finished: " + finished + ", sent: " + sent + ", completed: " + completed)
             if (finished && completed === sent) {
               resultObserver.complete()
             }
