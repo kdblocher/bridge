@@ -2,6 +2,7 @@ import { option } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 import { useCallback, useMemo } from 'react';
 import TimeAgo from 'react-timeago';
+import styled from 'styled-components';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { DateNumber, Job } from '../model/job';
@@ -13,6 +14,18 @@ interface DateViewProps {
 const DateView = ({ date }: DateViewProps) => {
   return <>{date._tag === "Some" && <TimeAgo date={(new Date(date.value))} />}</>
 }
+
+const JobList = styled.ul `
+  display: flex;
+  flex-flow: row wrap;
+  list-style-type: none;
+  padding: 0px;
+  margin: 0px;
+`
+const JobListItem = styled.li `
+  padding: 0px;
+  margin: 5px;
+`
 
 interface JobViewProps {
   job: Job
@@ -27,10 +40,10 @@ const JobView = ({ job }: JobViewProps) => {
   const onRemoveClick = useCallback(() => dispatch(removeJob(job.id)), [dispatch, job.id])
   const onStartClick = useCallback(() => dispatch(startJob({ jobId: job.id, type: job.type.type })), [dispatch, job.id, job.type.type])
   return (
-    <li key={job.id}>
+    <JobListItem>
       <h5>{job.type.type}</h5>
       {!progress && <p>
-        Estimated Units: {job.unitsInitial}
+        Estimated Units: {job.unitsInitial} <br />
         <button onClick={onStartClick}>Start</button>
         <button onClick={onRemoveClick}>Remove</button>
       </p>}
@@ -39,7 +52,7 @@ const JobView = ({ job }: JobViewProps) => {
         Last Updated: <DateView date={progress.updateDate} /> <br />
         Progress: {job.unitsInitial - progress.unitsDone} units remaining ({Math.floor(progress.unitsDone * 100 / job.unitsInitial)}%)
       </p>}
-    </li>
+    </JobListItem>
   )
 }
 
@@ -48,9 +61,9 @@ const Jobs = () => {
   return (
     <section>
       <h3>Jobs</h3>
-      <ul>
+      <JobList>
         {jobs.map(j => <JobView key={j.id} job={j} />)}
-      </ul>
+      </JobList>
     </section>
   )
 }
