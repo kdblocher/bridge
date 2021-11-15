@@ -1,18 +1,20 @@
-import { number, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlyTuple, taskEither } from 'fp-ts';
+import { number, option as O, readonlyArray as RA, readonlyRecord as RR, readonlyTuple, taskEither as TE } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
-import { Fragment, useCallback, useMemo } from 'react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
+import { get } from '../lib/object';
 import { eqBid } from '../model/bridge';
-import { Analysis, AnalysisId, Generation, getBidPathHash, newGenerationId } from '../model/job';
-import { serializedBidPathL } from '../model/serialization';
+import { AnalysisId, ConstrainedBidPathHash, GenerationId, getBidPathHash, newGenerationId } from '../model/job';
+import { SerializedBidPath, serializedBidPathL } from '../model/serialization';
 import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { scheduleJob } from '../reducers/generator';
-import { addAnalysis, deleteAnalysis, selectAllAnalyses, selectAnalysis, selectSelectedAnalysis, setAnalysisName } from '../reducers/profile';
+import { addAnalysis, deleteAnalysis, selectAllAnalyses, selectAnalysis, selectAnalysisById, selectGenerationByAnalysis, selectSelectedAnalysis, setAnalysisName } from '../reducers/profile';
 import { selectValidConstrainedBidPaths } from '../reducers/system';
 import { getDealsWithSolutionsByPath } from '../services/idb';
+import SolutionStats from './stats/SolutionStats';
 import StatsPath from './stats/StatsPath';
 
 const AnalysisList = styled.ul `
@@ -28,15 +30,18 @@ const AnalysisListItem = styled.li `
 `
 
 interface AnalysisProps {
-  analysis: Analysis
+  analysisId: AnalysisId
 }
-const AnalysisView = ({ analysis }: AnalysisProps) => {
+const AnalysisView = ({ analysisId }: AnalysisProps) => {
+  const analysis = useAppSelector(state => pipe(
+    selectAnalysisById({ state: state.profile, analysisId }),
+    O.toNullable))
   const dispatch = useAppDispatch()
-  const dealCount = pipe(analysis.generations, RA.foldMap(number.MonoidSum)(g => g.dealCount))
-  const onRemoveClick = useCallback(() => dispatch(deleteAnalysis(analysis.id)), [analysis.id, dispatch])
-  const onSelectClick = useCallback(() => dispatch(selectAnalysis(analysis.id)), [analysis.id, dispatch])
-  const onNameChange = useCallback(name => dispatch(setAnalysisName(analysis.id, name)), [analysis.id, dispatch])
-  return (
+  const dealCount = !analysis ? 0 : pipe(analysis.generations, RA.foldMap(number.MonoidSum)(g => g.dealCount))
+  const onRemoveClick = useCallback(() => dispatch(deleteAnalysis(analysisId)), [analysisId, dispatch])
+  const onSelectClick = useCallback(() => dispatch(selectAnalysis(analysisId)), [analysisId, dispatch])
+  const onNameChange = useCallback(name => dispatch(setAnalysisName(analysisId, name)), [analysisId, dispatch])
+  return (<>{analysis &&
     <AnalysisListItem>
       <input type="text" value={analysis.name} onChange={e => onNameChange(e.target.value)} />
       <p>
@@ -46,7 +51,65 @@ const AnalysisView = ({ analysis }: AnalysisProps) => {
       <button onClick={onSelectClick}>Select</button>
       <button onClick={onRemoveClick}>Remove</button>
     </AnalysisListItem>
-  )
+  }</>)
+}
+
+
+interface StatsPathItemProps {
+  generationId: GenerationId
+  analysisId: AnalysisId
+  path: SerializedBidPath
+  pathHash: ConstrainedBidPathHash
+  count: number
+}
+const StatsPathItem = ({ path, count, generationId, analysisId, pathHash }: StatsPathItemProps) => {
+  const generation = useAppSelector(state => pipe(
+    selectGenerationByAnalysis({ state: state.profile, analysisId, generationId }),
+    O.toNullable))
+  const stats = pipe(
+    generation,
+    O.fromNullable,
+    O.chain(flow(
+      get('solutionStats'),
+      RR.lookup(path))),
+    O.toNullable)
+  const solveCount = pipe(
+    stats,
+    O.fromNullable,
+    O.map(get('count')),
+    O.chain(O.fromPredicate(len => len > 0)),
+    O.toNullable)
+
+  const [showTables, setShowTables] = useState(false)
+
+  const dispatch = useAppDispatch()
+  const onSolveClick = useCallback(() => pipe(
+    getDealsWithSolutionsByPath(generationId, pathHash),
+    TE.map(flow(
+      RR.filter(d => O.isNone(d.solution)),
+      RR.map(d => d.deal),
+      RR.toReadonlyArray,
+      RA.map(readonlyTuple.snd),
+      deals => dispatch(scheduleJob({
+        analysisId: analysisId,
+        type: "Solve",
+        parameter: deals,
+        context: { generationId: generationId, bidPath: path },
+        estimatedUnitsInitial: deals.length
+      })))))()
+    , [analysisId, dispatch, generationId, path, pathHash])
+  return (<>{generation && <>
+    {/* Contained in CSS grid, so make sure the node count is consistent with StatsPathContainer CSS */}
+    <StatsPath path={path} satisfiesCount={count} dealCount={generation.dealCount} />
+    <span>
+      <button onClick={onSolveClick}>Solve</button>
+      {stats && solveCount && <span>
+        ({solveCount} so far)
+        <button onClick={() => setShowTables(!showTables)}>{!showTables ? "Show" : "Hide"} Stats</button>
+        {showTables && <SolutionStats stats={stats} />}
+      </span>}
+    </span>
+  </>}</>)
 }
 
 const StatsPathContainer = styled.div `
@@ -59,97 +122,84 @@ const StatsPathContainer = styled.div `
 
 interface GenerationViewProps {
   analysisId: AnalysisId
-  generation: Generation
+  generationId: GenerationId
 }
-const GenerationView = ({ analysisId, generation }: GenerationViewProps) => {
-  const satisfies = useMemo(() =>
-    pipe(generation.satisfies,
-      O.map(RR.toReadonlyArray),
-      O.toNullable)
-    , [generation.satisfies])
+const GenerationView = ({ analysisId, generationId }: GenerationViewProps) => {
+  const generation = useAppSelector(state => pipe(
+    selectGenerationByAnalysis({ state: state.profile, analysisId, generationId }),
+    O.toNullable))
+  const satisfies = useMemo(() => pipe(
+    generation,
+    O.fromNullable,
+    O.chain(get("satisfies")),
+    O.map(RR.toReadonlyArray),
+    O.toNullable)
+    , [generation])
   const paths = useAppSelector(state => pipe(
-    selectSelectedAnalysis(state.profile),
-    O.map(a => a.paths),
+    selectAnalysisById({ state: state.profile, analysisId }),
+    O.map(get("paths")),
     O.toNullable))
     
   const dispatch = useAppDispatch()
-
-  const onSatisfiesClick = useCallback(() => paths && dispatch(scheduleJob({
+  const onSatisfiesClick = useCallback(() => generation && paths && dispatch(scheduleJob({
     analysisId: analysisId,
     type: "Satisfies",
     parameter: paths,
     context: { generationId: generation.id },
     estimatedUnitsInitial: paths.length * generation.dealCount
-  })), [analysisId, dispatch, generation.dealCount, generation.id, paths])
+  })), [analysisId, dispatch, generation, paths])
 
-  const onSolveClick = useCallback(sPath => pipe(sPath,
-    serializedBidPathL.reverseGet,
-    path => pipe(paths,
-      O.fromNullable,
-      O.chain(RA.findFirst(flow(
-        RNEA.map(cb => cb.bid),
-        p => RNEA.getEq(eqBid).equals(p, path))))),
-    O.map(path => pipe(
-      getDealsWithSolutionsByPath(generation.id, getBidPathHash(path)),
-      taskEither.map(flow(
-        RR.filter(d => O.isNone(d.solution)),
-        RR.map(d => d.deal),
-        RR.toReadonlyArray,
-        RA.map(readonlyTuple.snd),
-        deals => dispatch(scheduleJob({
-          analysisId: analysisId,
-          type: "Solve",
-          parameter: deals,
-          context: { generationId: generation.id, bidPath: sPath },
-          estimatedUnitsInitial: deals.length
-        })))))()))
-    , [analysisId, dispatch, generation.id, paths])
+  const getHash = useCallback((path: SerializedBidPath) => pipe(
+    paths,
+    O.fromNullable,
+    O.chain(RA.findFirst(flow(
+      RA.map(get('bid')),
+      bids => RA.getEq(eqBid).equals(bids, serializedBidPathL.reverseGet(path))))),
+    O.map(getBidPathHash),
+    O.toNullable
+  ), [paths])
 
-  return (
+  return (<>{generation &&
     <li>
       Deal Count: {generation.dealCount} <br/>
       {satisfies === null && <button onClick={onSatisfiesClick}>Satisfies</button>}
       {satisfies !== null && <StatsPathContainer>
-        {satisfies.map(([path, count]) =>
-          <Fragment key={path}>
-            <StatsPath path={path} satisfiesCount={count} dealCount={generation.dealCount} />
-            <span>
-              <button onClick={() => onSolveClick(path)}>Solve</button>
-              {pipe(
-                generation.solutions,
-                RR.lookup(path),
-                O.map(flow(RR.toReadonlyArray, RA.map(readonlyTuple.snd), a => a.length)),
-                O.chain(O.fromPredicate(len => len > 0)),
-                O.fold(() => <></>, len => <>&nbsp;({len} so far)</>))}
-            </span>
-          </Fragment>
-        )}
+        {satisfies.map(([path, count]) => {
+          const pathHash = getHash(path)
+          return (<Fragment key={path}>
+            {pathHash && <StatsPathItem key={path} path={path} pathHash={pathHash} count={count} generationId={generationId} analysisId={analysisId} />}
+          </Fragment>)
+        })}
       </StatsPathContainer>}
     </li>
-  )
+  }</>)
 }
 
-interface SelectedAnalysisViewProps {
-  analysis: Analysis
-}
-const SelectedAnalysisView = ({ analysis }: SelectedAnalysisViewProps) => {
-  const dispatch = useAppDispatch()
-  const onGenerateDealsClick = useCallback((count: number) => dispatch(scheduleJob({
-    analysisId: analysis.id,
-    type: "GenerateDeals",
-    context: { generationId: newGenerationId() },
-    parameter: count,
-    estimatedUnitsInitial: count
-  })), [analysis.id, dispatch])
+const SelectedAnalysis = () => {
+  const analysis = useAppSelector(state => pipe(selectSelectedAnalysis(state.profile), O.toNullable))
   const generateCount = useAppSelector(state => state.settings.generateCount)
-  return (
+
+  const dispatch = useAppDispatch()
+  const onGenerateDealsClick = useCallback((count: number) => {
+    if (analysis) {
+      dispatch(scheduleJob({
+        analysisId: analysis.id,
+        type: "GenerateDeals",
+        context: { generationId: newGenerationId() },
+        parameter: count,
+        estimatedUnitsInitial: count
+      }))
+    }
+  }, [analysis, dispatch])
+
+  return (<>{analysis &&
     <div>
       <ul>
-        {analysis.generations.map(g => <GenerationView analysisId={analysis.id} key={g.id} generation={g} />)}
+        {analysis.generations.map(g => <GenerationView key={g.id} analysisId={analysis.id} generationId={g.id} />)}
       </ul>
       <button onClick={() => onGenerateDealsClick(generateCount)}>Generate Deals</button>
     </div>
-  )
+  }</>)
 }
 
 const Analyses = () => {
@@ -159,18 +209,18 @@ const Analyses = () => {
   const paths = useAppSelector(state => pipe(
     selectValidConstrainedBidPaths({ state: state.system, options: state.settings }),
     O.toNullable))
-  const selected = useAppSelector(state => pipe(selectSelectedAnalysis(state.profile), O.toNullable))
   return (
     <section>
       <h3>Analyses</h3>
       <AnalysisList>
-        {analyses.map(a => <AnalysisView key={a.id} analysis={a} />)}
+        {analyses.map(a => <AnalysisView key={a.id} analysisId={a.id} />)}
       </AnalysisList>
       {paths && <button onClick={() => onCreateClick(paths)}>Create</button>}
       <h4>Selected</h4>
-      {selected && <SelectedAnalysisView analysis={selected} />}
+      <SelectedAnalysis />
     </section>
   )
 }
 
 export default Analyses
+

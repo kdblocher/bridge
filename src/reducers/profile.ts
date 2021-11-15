@@ -1,4 +1,4 @@
-import { option as O, readonlyArray as RA, readonlyRecord as RR, readonlyTuple, semigroup, taskEither } from 'fp-ts';
+import { option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlyTuple as RT, taskEither as TE } from 'fp-ts';
 import { observable as Ob, observableEither } from 'fp-ts-rxjs';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
@@ -9,11 +9,13 @@ import { concatWith, EMPTY, from, of } from 'rxjs';
 import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { RootState } from '../app/store';
-import { Analysis, AnalysisId, Job, zeroAnalysis, zeroGeneration } from '../model/job';
+import { assertUnreachable } from '../lib';
+import { get } from '../lib/object';
+import { Analysis, AnalysisId, GenerationId, Job, zeroAnalysis, zeroGeneration } from '../model/job';
+import { getStats } from '../model/stats';
 import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { deleteByGenerationId } from '../services/idb';
-import { DoubleDummyResult } from '../workers/dds.worker';
 import { completeJob, removeJob } from './generator';
 
 interface State {
@@ -66,9 +68,21 @@ const slice = createSlice({
               return pipe(O.Do,
                 O.apS('progress', jobType.progress),
                 O.apS('generation', pipe(analysis.generations, RA.findFirst(g => g.id === jobType.context.generationId))),
-                O.map(o => o.generation.solutions = pipe(o.generation.solutions,
-                  RR.union(RR.getUnionSemigroup(semigroup.first<DoubleDummyResult>()))({ [jobType.context.bidPath]: o.progress.value }),
-                  castDraft)))
+                O.map(o => pipe(
+                  o.progress.value,
+                  RR.toReadonlyArray,
+                  RNEA.fromReadonlyArray,
+                  O.map(flow(
+                    RNEA.map(flow(RT.snd, get('results'))),
+                    getStats,
+                    stats => {
+                      if (RR.has(jobType.context.bidPath, o.generation.solutionStats)) {
+                        throw new Error("Combining stat result sets is not implemented")
+                      }
+                      o.generation.solutionStats[jobType.context.bidPath] = stats
+                    })))))
+            default:
+              return assertUnreachable(jobType)
           }
         }))
     }
@@ -96,7 +110,7 @@ export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
       Ob.chain(analysisId =>
         pipe(state$.value.profile.analyses, RR.lookup(analysisId),
           O.fold(() => EMPTY, a =>
-            pipe(a.generations, RA.map(g => g.id), taskEither.traverseArray(deleteByGenerationId), Ob.fromTask)),
+            pipe(a.generations, RA.map(g => g.id), TE.traverseArray(deleteByGenerationId), Ob.fromTask)),
           observableEither.fold(() => EMPTY, x => EMPTY),
           concatWith(of(slice.actions.removeAnalysis(analysisId))))))
 ]
@@ -104,8 +118,25 @@ export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
 export const selectAllAnalyses = memoize((state: State) => 
   pipe(state.analyses,
     RR.toReadonlyArray,
-    RA.map(readonlyTuple.snd)))
+    RA.map(RT.snd)))
 
 export const selectSelectedAnalysis = memoize((state: State) => 
   pipe(state.selectedAnalysis,
     O.chain(id => RR.lookup(id, state.analyses))))
+
+interface AnalysisIndex {
+  state: State
+  analysisId: AnalysisId
+}
+export const selectAnalysisById = memoize((idx: AnalysisIndex) => 
+  pipe(idx.state.analyses,
+    RR.lookup(idx.analysisId)))
+
+interface GenerationIndex extends AnalysisIndex {
+  generationId: GenerationId
+}
+export const selectGenerationByAnalysis = memoize((idx: GenerationIndex) => 
+  pipe(selectAnalysisById(idx),
+    O.chain(flow(
+      get("generations"),
+      RA.findFirst(g => g.id === idx.generationId)))))

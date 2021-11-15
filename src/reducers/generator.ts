@@ -67,6 +67,7 @@ const slice = createSlice({
             job.error = action.error
             state.completed.push(job)
             state.jobs.splice(idx, 1)
+            return job
           }))
       },
       prepare: (jobId: JobId, error: O.Option<string>) => ({ payload: constVoid(), meta: jobId, error })

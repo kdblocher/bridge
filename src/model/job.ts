@@ -9,6 +9,7 @@ import { assertUnreachable } from '../lib';
 import { SatisfiesResult } from '../workers';
 import { DoubleDummyResult } from '../workers/dds.worker';
 import { SerializedBidPath, SerializedDeal } from './serialization';
+import { Stats } from './stats';
 import { Path, Paths } from './system';
 import { ConstrainedBid } from './system/core';
 
@@ -40,18 +41,17 @@ export type GenerationId = t.TypeOf<typeof GenerationIdB>
 export const newGenerationId = () => (GenerationIdB.decode(UuidTool.newUuid()) as Right<GenerationId>).right
 
 export type Satisfies = RR.ReadonlyRecord<SerializedBidPath, number>
-export type Solutions = RR.ReadonlyRecord<SerializedBidPath, Solution>
 export interface Generation {
   id: GenerationId
   dealCount: number
   satisfies: O.Option<Satisfies>
-  solutions: Solutions
+  solutionStats: RR.ReadonlyRecord<SerializedBidPath, Stats>
 }
 export const zeroGeneration = (id: GenerationId, dealCount: number) : Generation => ({
   id,
   dealCount,
   satisfies: O.none,
-  solutions: {},
+  solutionStats: {}
 })
 
 export const AnalysisIdB = t.brand(t.string, (id): id is t.Branded<string, { readonly AnalysisId: unique symbol }> => UuidTool.isUuid(id), "AnalysisId")
