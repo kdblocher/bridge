@@ -1,12 +1,13 @@
 /// <reference types="emscripten" />
 
-import { either, readonlyArray, taskEither } from 'fp-ts';
+import { either, option as O, readonlyArray, taskEither as TE } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 
-import { TrickCountsByStrainThenDirection } from '../model/analyze';
-import { SerializedBoard, serializedBoardL } from '../model/serialization';
+import { transpose, TrickCountsByStrainThenDirection } from '../model/analyze';
+import { SerializedBoard, serializedBoardL, serializedDealL } from '../model/serialization';
 import { boardE } from '../parse/hand';
 import { insertSolutions } from '../services/idb';
+import { DealWithSolution, putDeals } from '../services/server';
 
 interface LibDDSModule extends EmscriptenModule {
 	cwrap: typeof cwrap;
@@ -37,6 +38,11 @@ export const getResult = (board: SerializedBoard) : Promise<either.Either<string
     generateDDTable,
     result => JSON.parse(result) as DoubleDummyTable,
     (results): DoubleDummyResult => ({ board, results }),
-    taskEither.of,
-    taskEither.chainFirst(flow(readonlyArray.of, insertSolutions)))
+    TE.of,
+    TE.chainFirst(flow(readonlyArray.of, insertSolutions)),
+    TE.chainFirst(flow(
+      (s): DealWithSolution => [
+        pipe(s.board.deal, serializedDealL.reverseGet),
+        pipe(s.results, transpose, O.of)
+      ], readonlyArray.of, putDeals)))
   ()

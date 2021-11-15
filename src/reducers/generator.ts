@@ -150,25 +150,5 @@ export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
   flow(withJobType("Satisfies"),
     ObO.fold(() => EMPTY, job => generateSatisfies(job.id, job.type.context.generationId, job.type.parameter))),
   flow(withJobType("Solve"),
-    ObO.fold(() => EMPTY, job => generateSolutions(job.id, job.type.context.generationId, job.type.parameter))),
-  flow(Ob.filter(reportDeals.match),
-    Ob.map(a => a.payload.value),
-    ObE.fromObservable,
-    ObE.chainFirst(() => pipe(ping, ObE.fromTaskEither)),
-    ObE.chainFirst(flow(
-      RA.map(serializedDealL.reverseGet),
-      postDeals,
-      ObE.fromTaskEither)),
-    Ob.chain(() => EMPTY)),
-  flow(Ob.filter(reportSolutions.match),
-    Ob.map(a => a.payload.value),
-    ObE.fromObservable,
-    ObE.chainFirst(() => pipe(ping, ObE.fromTaskEither)),
-    ObE.chainFirst(flow(
-      readonlyRecord.toReadonlyArray,
-      RA.map(readonlyTuple.snd),
-      RA.map(result => [serializedDealL.reverseGet(result.board.deal), pipe(result.results, transpose, O.some)] as const),
-      putDeals,
-      ObE.fromTaskEither)),
-    Ob.chain(() => EMPTY))
+    ObO.fold(() => EMPTY, job => generateSolutions(job.id, job.type.context.generationId, job.type.parameter)))
 ]
