@@ -1,29 +1,32 @@
 {
   "files": {
     "main.css": "/bridge/static/css/main.e8e5c3ac.chunk.css",
-    "main.js": "/bridge/static/js/main.2ac417f6.chunk.js",
-    "main.js.map": "/bridge/static/js/main.2ac417f6.chunk.js.map",
+    "main.js": "/bridge/static/js/main.00c33d60.chunk.js",
+    "main.js.map": "/bridge/static/js/main.00c33d60.chunk.js.map",
     "runtime-main.js": "/bridge/static/js/runtime-main.da676aa4.js",
     "runtime-main.js.map": "/bridge/static/js/runtime-main.da676aa4.js.map",
     "static/css/2.e426f036.chunk.css": "/bridge/static/css/2.e426f036.chunk.css",
-    "static/js/2.615eae8c.chunk.js": "/bridge/static/js/2.615eae8c.chunk.js",
-    "static/js/2.615eae8c.chunk.js.map": "/bridge/static/js/2.615eae8c.chunk.js.map",
-    "8b40623215566a1fe40f.worker.js": "/bridge/8b40623215566a1fe40f.worker.js",
-    "8b40623215566a1fe40f.worker.js.LICENSE.txt": "/bridge/8b40623215566a1fe40f.worker.js.LICENSE.txt",
-    "8b40623215566a1fe40f.worker.js.map": "/bridge/8b40623215566a1fe40f.worker.js.map",
-    "c05f493af36ad5ba49bd.worker.js": "/bridge/c05f493af36ad5ba49bd.worker.js",
-    "c05f493af36ad5ba49bd.worker.js.LICENSE.txt": "/bridge/c05f493af36ad5ba49bd.worker.js.LICENSE.txt",
-    "c05f493af36ad5ba49bd.worker.js.map": "/bridge/c05f493af36ad5ba49bd.worker.js.map",
+    "static/js/2.00e92a9a.chunk.js": "/bridge/static/js/2.00e92a9a.chunk.js",
+    "static/js/2.00e92a9a.chunk.js.map": "/bridge/static/js/2.00e92a9a.chunk.js.map",
+    "3526eb52208353fc29c6.worker.js": "/bridge/3526eb52208353fc29c6.worker.js",
+    "3526eb52208353fc29c6.worker.js.LICENSE.txt": "/bridge/3526eb52208353fc29c6.worker.js.LICENSE.txt",
+    "3526eb52208353fc29c6.worker.js.map": "/bridge/3526eb52208353fc29c6.worker.js.map",
+    "612c7bff16da9beb6d2f.worker.js": "/bridge/612c7bff16da9beb6d2f.worker.js",
+    "612c7bff16da9beb6d2f.worker.js.LICENSE.txt": "/bridge/612c7bff16da9beb6d2f.worker.js.LICENSE.txt",
+    "612c7bff16da9beb6d2f.worker.js.map": "/bridge/612c7bff16da9beb6d2f.worker.js.map",
+    "8d6c793164bf6eee339e.worker.js": "/bridge/8d6c793164bf6eee339e.worker.js",
+    "8d6c793164bf6eee339e.worker.js.LICENSE.txt": "/bridge/8d6c793164bf6eee339e.worker.js.LICENSE.txt",
+    "8d6c793164bf6eee339e.worker.js.map": "/bridge/8d6c793164bf6eee339e.worker.js.map",
     "index.html": "/bridge/index.html",
     "static/css/2.e426f036.chunk.css.map": "/bridge/static/css/2.e426f036.chunk.css.map",
     "static/css/main.e8e5c3ac.chunk.css.map": "/bridge/static/css/main.e8e5c3ac.chunk.css.map",
-    "static/js/2.615eae8c.chunk.js.LICENSE.txt": "/bridge/static/js/2.615eae8c.chunk.js.LICENSE.txt"
+    "static/js/2.00e92a9a.chunk.js.LICENSE.txt": "/bridge/static/js/2.00e92a9a.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
     "static/js/runtime-main.da676aa4.js",
     "static/css/2.e426f036.chunk.css",
-    "static/js/2.615eae8c.chunk.js",
+    "static/js/2.00e92a9a.chunk.js",
     "static/css/main.e8e5c3ac.chunk.css",
-    "static/js/main.2ac417f6.chunk.js"
+    "static/js/main.00c33d60.chunk.js"
   ]
 }
