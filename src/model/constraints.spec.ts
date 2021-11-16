@@ -2,11 +2,14 @@ import * as fc from 'fast-check';
 import { boolean, either, option as O, readonlyArray as RA, readonlyRecord as RR, state, these as TH, tree as T } from 'fp-ts';
 import { constFalse, flow, pipe } from 'fp-ts/lib/function';
 
+import { get } from '../lib/object';
 import { decodeBid } from '../parse';
 import { parseBid } from '../parse/bid';
 import * as tests from './constraints.testdata';
 import { getOrdGroupedHand, groupHandBySuits, rankStrings } from './deck';
 import { handA } from './deck.spec';
+import { serializedBidL } from './serialization';
+import { getForestFromLeafPaths, Path } from './system';
 import { Constraint, satisfies, zeroContext } from './system/core';
 import { expandForest, SyntacticBid } from './system/expander';
 import { validateS } from './system/validation';
@@ -24,6 +27,12 @@ const expandSingleBid = (bid: string) =>
     O.of,
     O.chain(O.fromEitherK(decodeBid)),
     O.chain(expandSingleSyntacticBid))
+
+const expandSingleSyntacticBidPath = (path: Path<SyntacticBid>) =>
+  pipe(path,
+    RA.of,
+    getForestFromLeafPaths({ show: sb => serializedBidL.get(sb.bid) }),
+    expandForest)
 
 const encodeHand = flow(
   groupHandBySuits,
@@ -84,6 +93,17 @@ describe('syntax propositions', () => {
                   satisfies(c)(hand),
                   satisfies(expected)(hand))))
         })))
+      })
+    }))
+})
+
+describe('expansion path validation', () => {
+  pipe(tests.expansionPathValidTests,
+    RR.mapWithIndex((name, { value, expected }) => {
+      describe(name, () => {
+        test("expands", () => {
+          expect(pipe(value, expandSingleSyntacticBidPath, TH.isLeft)).toEqual(expected)
+        })
       })
     }))
 })
