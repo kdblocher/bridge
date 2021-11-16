@@ -1,0 +1,40 @@
+Incomplete list of terms
+
+- **Suits**: The totally ordered set (_S_, &lt;) such that _S_ = {&clubs;, &diams;, &hearts;, &spades;}.
+- **Ranks**: The totally ordered set (_R_, &lt;) such that _R_ = {`2`, `3`, `4`, `5`, `6`, `7`, `8`, `9`, `T`, `J`, `Q`, `K`, `A`}.
+- **Deck**: The unordered set _C_ = _S_ &times; _R_, so |_C_| = 52.
+- **Card**: Any element _c_ &in; _C_.
+- **Hands**: The set _H_ = {_h_ | _h_ &in; &Pscr;(_C_) and |_h_| = 13}.
+- **Vulnerabilities**: The power set _V_ = &Pscr;(_P_) (abbreviating &empty; as &bottom; and _P_ as &top;).
+- **Strains**: The totally ordered set (_St_, &lt;) such that _St_ = _S_ &cup; {`NT`} and max(_St_) = `NT`.
+- **Directions**: The set _Dir_ = {`N`, `E`, `S`, `W`} and its permutation &sigma; = (`N`, `E`, `S`, `W`).
+- **Partnerships**: The set _P_ = {(`N`, `S`), (`E`, `W`)}, which satisfies _P_ &sub; _Dir_<sup>2</sup>.
+- **Deals**: The set _D_ = {(_h_<sub>`N`</sub>, _h_<sub>`E`</sub>, _h_<sub>`S`</sub>, _h_<sub>`W`</sub>) | &forall;<sub>_d_&in;Dir</sub> _h_<sub>_d_</sub> &in; _H_ and &bigcup;<sub>_d_&in;Dir</sub> _h_<sub>_d_</sub> = _C_}.
+- **Boards**: The set _Bd_ = _D_ &times; _Dir_ &times; _V_.
+- **Levels**: The set _L_ = {`1`, `2`, `3`, `4`, `5`, `6`, `7`}.
+- **Contract Bids**: The totally ordered set (_B_, &lt;) such that _B_ = _L_ &times; _St_.
+- **Double Modifiers**: The totally ordered set (_M_<sub>_x_</sub> , &lt;) such that _M_<sub>_x_</sub> = {`O`, `X`, `XX`}.
+- **Pass Modifiers**: The totally ordered set (_M_<sub>_p_</sub> , &lt;) such that _M_<sub>_p_</sub> = {`P`<sub>0</sub>, `P`<sub>1</sub>, `P`<sub>2</sub>, `P`<sub>3</sub>}.
+- **Modifiers**: The totally ordered set (_M_, &lt;) = _M_<sub>_x_</sub> &times; _M_<sub>_p_</sub> .
+- **Modifier Sequences**: The set of sequences _M_<sup>+</sup> = {(_m_<sub>1</sub>, _m_<sub>2</sub>,..., _m_<sub>n</sub>)} such that
+    - &forall;<sub>_i_&in;[1,_n_]</sub> _m_<sub>_i_</sub> &in; _M_
+    - _m_<sub>_1_</sub> = (`O`, `P`<sub>0</sub>)
+    - &forall;<sub>_i_&in;[1,_n_-1]</sub> _m_<sub>_i_</sub> &ne; (&lowast;, `P`<sub>3</sub>)
+    - &forall;<sub>_i_&in;[1,_n_-1]</sub> _m_<sub>_i_</sub> = (_x_, _p_), &rArr; _m_<sub>_i_+1</sub> = (_x_, **succ**(_p_)) &or; _m_<sub>_i_+1</sub> = (**succ**(_x_), `P`<sub>0</sub>)
+    - &forall;<sub>_i_&in;[1,_n_-1]</sub> _m_<sub>_i_</sub> = (_x_, `P`<sub>1</sub>) &rArr; _m_<sub>_i_+1</sub> &ne; (**succ**(_x_), `P`<sub>0</sub>)
+- **Contracts**: The totally ordered set (_A_, &lt;) such that _A_ = _B_ &times; _M_<sup>+</sup> .
+- **Contract Sequences**: The set _A_<sup>+</sup> = {(_a_<sub>1</sub>, _a_<sub>2</sub>,..., _a_<sub>n</sub>)} such that
+    - &forall;<sub>_i_&in;[1,_n_]</sub> _a_<sub>_i_</sub> &in; _A_
+    - &forall;<sub>_i_&in;[1,_n_-1]</sub> _a_<sub>_i_</sub> &lt; _a_<sub>_i_+1</sub>
+    - _a_<sub>_n_</sub> = (&lowast;, (&lowast;, `P`<sub>3</sub>))
+- **Initial Pass Sequences**: The totally ordered set (_A_<sub>0</sub>, &lt;) = {(_a_<sub>1</sub>, _a_<sub>2</sub>,..., _a_<sub>n</sub>)} such that
+    - &forall;<sub>_i_&in;[1,_n_]</sub> _a_<sub>_i_</sub> &in; {`P`<sub>0</sub>, `P`<sub>1</sub>, `P`<sub>2</sub>, `P`<sub>3</sub>, `P`<sub>4</sub>}
+    - &forall;<sub>_i_&in;[1,_n_]</sub> _a_<sub>_i_</sub> = `P`<sub>i-1</sub>
+- **Auctions**: The set _A_<sup>&star;</sup> = {(_d_, _a_<sub>0</sub>, _a_) | _d_ &in; _Dir_, _a_<sub>0</sub> &in; _A_<sub>0</sub>, _a_ &in; _A_<sup>+</sup> &cup; {&empty;}} such that
+    - `P`<sub>4</sub> &in; _a_<sub>0</sub> &hArr; _a_ &ne; &empty;
+- **Final Contracts**: The set _FC_ = **contract**(_a_<sup>&star;</sup>) such that _a_<sup>&star;</sup> &in; _A_<sup>&star;</sup>
+    - **contract**(&lowast;, &lowast;, {&empty;}) = &bottom;
+    - **contract**(_d_, {_a_<sub>1</sub>, _a_<sub>2</sub>, ...}, _a_) = **contract**(**succ**(_d_), {_a_<sub>2</sub>, ...}, _a_)
+    - &Gamma;, (_p_, _st_) : _d_<sub>_decl_</sub> &vDash; **contract**(_d_, &empty;, {((_l_, _st_), (_m_, &lowast;))} = (_l_, _st_, _m_, _d_<sub>_decl_</sub>) | _d_ &in; _p_
+    - (_p_, _st_) &in; &Gamma; &vDash; **contract**(_d_, &empty;, {((&lowast;, _st_), &lowast;), _a_<sub>2</sub>, ...}) = **contract**(**succ**(_d_), &empty;, {_a_<sub>2</sub>, ...})  | _d_ &in; _p_
+    - (_p_, _st_) : _d_<sub>_decl_</sub> &notin; &Gamma; &and; (_p_, _st_) : _d_<sub>_decl_</sub> &in; &Gamma;<sup>'</sup> &rArr; <br /> &Gamma;' &vDash; **contract**(_d_, &empty;, {((&lowast;, _st_), &lowast;), _a_<sub>2</sub>, ...}) = **contract**(**succ**(_d_), &empty;, {_a_<sub>2</sub>, ...})  | _d_ &in; _p_
