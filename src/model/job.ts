@@ -1,4 +1,4 @@
-import { either, magma, number, option as O, predicate, readonlyRecord as RR, semigroup } from 'fp-ts';
+import { either, magma, number, option as O, readonlyRecord as RR, semigroup } from 'fp-ts';
 import { Right } from 'fp-ts/lib/Either';
 import { Lazy, pipe } from 'fp-ts/lib/function';
 import * as t from 'io-ts';

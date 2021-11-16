@@ -1,9 +1,9 @@
 import { boolean, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, state as S } from 'fp-ts';
-import { identity, pipe } from 'fp-ts/lib/function';
+import { constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
 
 import { eqBid } from '../bridge';
 import { Hand } from '../deck';
-import { BidContext, bidL, ConstrainedBid, Constraint, constraintTrue, forceO, ofS, pathL, satisfiesS, zeroContext } from './core';
+import { BidContext, bidL, ConstrainedBid, Constraint, constraintTrue, forceO, ofS, partnershipsL, pathL, playersL, relativePartnerships, relativePlayers, rotateRecord, satisfiesS, zeroContext } from './core';
 
 module Gen {
   export function* alternate<A>(opener: A, responder: A) {
@@ -26,7 +26,15 @@ const specialRelayCase = (s: S.State<BidContext, Constraint>) =>
         O.chain(O.fromPredicate(force =>
           info.constraint.type === "Constant" && !info.constraint.value && force.type === "Relay" && eqBid.equals(force.bid, info.bid))),
         O.fold(() => info.constraint, constraintTrue))))
-  
+
+const rotateRelativeContexts : S.State<BidContext, void> =
+  pipe(
+    S.sequenceArray([
+      pipe(S.gets(playersL.get), S.chain(flow(rotateRecord(relativePlayers), playersL.set, S.modify))),
+      pipe(S.gets(partnershipsL.get), S.chain(flow(rotateRecord(relativePartnerships), partnershipsL.set, S.modify)))
+    ]),
+    S.map(constVoid))
+
 export const satisfiesPath = (opener: Hand, responder: Hand) => (path: RNEA.ReadonlyNonEmptyArray<ConstrainedBid>) =>
   pipe(
     Gen.alternate(opener, responder),
@@ -39,6 +47,7 @@ export const satisfiesPath = (opener: Hand, responder: Hand) => (path: RNEA.Read
         specialRelayCase,
         satisfiesS,
         S.flap(hand),
-        S.chainFirst(() => S.modify(pathL.modify(RA.prepend(info.bid)))))),
+        S.apFirst(rotateRelativeContexts),
+        S.apFirst(S.modify(pathL.modify(RA.prepend(info.bid)))))),
     S.map(RA.foldMap(boolean.MonoidAll)(identity)),
     S.evaluate(zeroContext))

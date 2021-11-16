@@ -1,15 +1,17 @@
-import { readonlyRecord } from 'fp-ts';
-import { Rank, rankFromString } from './deck';
+import { readonlyRecord as RR } from 'fp-ts';
+import { Either } from 'fp-ts/lib/Either';
 
-import { Constraint } from './system/core';
-import { Syntax } from './system/expander';
+import { Rank, rankFromString } from './deck';
+import { Path } from './system';
+import { ConstrainedBid, Constraint } from './system/core';
+import { SyntacticBid, Syntax } from './system/expander';
 
 export type DecodeTest = {
   value: string
   expected: Constraint
 }
 
-export const decodeTests: readonlyRecord.ReadonlyRecord<string, DecodeTest> = {
+export const decodeTests: RR.ReadonlyRecord<string, DecodeTest> = {
   ////////////  HCP tests  //////////////////////
   // Make sure plus operator works as expected
   hcpPlusSyntax:
@@ -135,7 +137,7 @@ interface ConstraintPropositionTest {
   expected: Constraint
 }
 
-export const constraintPropositionTests: readonlyRecord.ReadonlyRecord<string, ConstraintPropositionTest> = {
+export const constraintPropositionTests: RR.ReadonlyRecord<string, ConstraintPropositionTest> = {
 
   // Min should never be more than max
   hcpReversal:
@@ -616,7 +618,7 @@ interface ExpansionTest {
   expected: Constraint
 }
 
-export const syntaxPropositionTests: readonlyRecord.ReadonlyRecord<string, ExpansionTest> = {
+export const syntaxPropositionTests: RR.ReadonlyRecord<string, ExpansionTest> = {
   // ////////////////  Distribution tests   /////////////////
   // // Verify balanced shapes
   distBalanced:
@@ -767,4 +769,55 @@ export const syntaxPropositionTests: readonlyRecord.ReadonlyRecord<string, Expan
       ]
     }
   },
+}
+
+interface ExpansionPathValidTest {
+  value: Path<SyntacticBid>
+  expected: boolean
+}
+
+export const expansionPathValidTests: RR.ReadonlyRecord<string, ExpansionPathValidTest> = {
+  openerResponderDifferentPrimarySuits: {
+    value: [
+      { bid: { level: 1, strain: "S" },
+        syntax: {
+          type: "Conjunction",
+          syntax: [
+            {
+              type: "Wrapper",
+              constraint: {
+                type: "PointRange",
+                min: 13,
+                max: 21
+              }
+            },
+            {
+              type: "SuitPrimary",
+              suit: "S"
+            }
+          ]
+        }
+      },
+      { bid: { level: 2, strain: "C" },
+        syntax: {
+          type: "Conjunction",
+          syntax: [
+            {
+              type: "Wrapper",
+              constraint: {
+                type: "PointRange",
+                min: 10,
+                max: 37
+              }
+            },
+            {
+              type: "SuitPrimary",
+              suit: "C"
+            }
+          ]
+        }
+      }
+    ],
+    expected: true
+  }
 }
