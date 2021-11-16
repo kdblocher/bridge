@@ -42,6 +42,7 @@ const ValidationErrorView = ({ error }: ValidationErrorProps) => {
     case "PointRangeInvalid": return <span>Point range {error.constraint.min}, {error.constraint.max} is invalid </span>
     case "SpecificShapeInvalid": return <span>Specific shape {error.constraint.suits.S}{error.constraint.suits.H}{error.constraint.suits.D}{error.constraint.suits.C} is invalid</span>
     case "AnyShapeInvalid": return <span>Shape {pipe(error.constraint.counts, RA.reduce("", (cur, c) => cur + c))} is invalid</span>
+    case "IllegalContextModification": return <span>Cannot modify the context under a disjunction or negation</span>
     default: return assertUnreachable(error)
   }
 }

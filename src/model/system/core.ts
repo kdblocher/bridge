@@ -258,6 +258,7 @@ const ordBid: ord.Ord<Bid> =
     isContractBid(a) && isContractBid(b) ? ordContractBid.compare(a, b) :
     0)
 export const ordConstrainedBid = ord.contramap<Bid, ConstrainedBid>(b => b.bid)(ordBid)
+
 export interface BidContext {
   bid: Bid,
   path: ReadonlyArray<Bid>
@@ -282,8 +283,6 @@ export const primarySuitL = contextL('primarySuit')
 export const secondarySuitL = contextL('secondarySuit')
 export const contextO = Optional.fromOptionProp<BidContext>()
 export const forceO = contextO('force')
-export const primarySuitO = contextO('primarySuit')
-export const secondarySuitO = contextO('secondarySuit')
 
 export type ConstraintS<X, C> = S.State<X, C>
 export type SatisfiesS<X, C, A> = (c: ConstraintS<X, C>) => S.State<X, P.Predicate<A>>

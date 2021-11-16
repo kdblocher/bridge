@@ -1,13 +1,11 @@
 import { boolean, either as E, eitherT, number, option as O, optionT, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, state as S } from 'fp-ts';
 import { apply, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
+import { Lens, Optional } from 'monocle-ts';
 
 import { assertUnreachable } from '../../lib';
 import { Bid, isGameLevel, isSlamLevel } from '../bridge';
 import { Forest, getAllLeafPaths, Path } from '../system';
-import {
-    BidContext, bidL, ConstrainedBid, Constraint, ConstraintAnyShape, ConstraintForce, ConstraintPointRange, ConstraintS, ConstraintSpecificShape, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, forceL, forceO, ofS, ordConstrainedBid, pathL, primarySuitL, secondarySuitL,
-    zeroContext
-} from './core';
+import { BidContext, ConstrainedBid, Constraint, ConstraintAnyShape, ConstraintForce, ConstraintPointRange, ConstraintSpecificShape, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ordConstrainedBid, zeroContext as zeroBidContext } from './core';
 
 interface SystemValidationErrorBidsOutOfOrder {
   type: "BidsOutOfOrder"
@@ -52,6 +50,10 @@ interface SystemValidationErrorNoBidDefinedButStillForcing {
   path: ReadonlyArray<Bid>
 }
 
+interface SystemValidationErrorIllegalContextModification {
+  type: "IllegalContextModification"
+}
+
 type SystemValidationBidReason =
   | SystemValidationErrorNoPrimarySuitDefined
   | SystemValidationErrorPrimarySuitAlreadyDefined
@@ -60,6 +62,7 @@ type SystemValidationBidReason =
   | SystemValidationErrorPointRangeInvalid
   | SystemValidationErrorSpecificShapeInvalid
   | SystemValidationErrorAnyShapeInvalid
+  | SystemValidationErrorIllegalContextModification
 type SystemValidationBidError = SystemValidationBidReason & {
   bid: Bid
 }
@@ -71,8 +74,37 @@ export type SystemValidationError =
   | SystemValidationErrorNoBidDefinedButStillForcing)
   & { path: ReadonlyArray<Bid> }
 
+type EffectContext =
+  | "Open"
+  | "Disjunction"
+  | "Negation"
+interface ValidateContext extends BidContext {
+  effectContext: EffectContext
+}
+export const zeroValidationContext: ValidateContext = ({
+  ...zeroBidContext,
+  effectContext: "Open"
+})
+const ofS = <A>(x: A) => S.of<ValidateContext, A>(x)
+const contextL = Lens.fromProp<ValidateContext>()
+const effectContextL = contextL('effectContext')
+const bidL = contextL('bid')
+const pathL = contextL('path')
+const forceL = contextL('force')
+const primarySuitL = contextL('primarySuit')
+const secondarySuitL = contextL('secondarySuit')
+const contextO = Optional.fromOptionProp<ValidateContext>()
+const forceO = contextO('force')
+
 type SystemValidation = E.Either<SystemValidationError, void>
-type ValidateResult = S.State<BidContext, SystemValidation>
+type ValidateReasonResult = S.State<ValidateContext, E.Either<SystemValidationBidReason, void>>
+type ValidateResult = S.State<ValidateContext, SystemValidation>
+
+const effectModifyS = (setter: (context: ValidateContext) => ValidateContext): ValidateReasonResult =>
+  pipe(S.gets(effectContextL.get),
+    S.chain(x => x === "Open"
+      ? pipe(S.modify(setter), S.map(() => E.right(constVoid())))
+      : S.of(E.left({ type: "IllegalContextModification" }))))
 
 const bidPathSorted = (path: Path<ConstrainedBid>): SystemValidation =>
   pipe(path,
@@ -90,44 +122,50 @@ const forestSorted = (tree: Forest<ConstrainedBid>) =>
     RA.traverse(E.Applicative)(bidPathSorted),
     E.map(constVoid))
 
-export type ValidateS<X, C, E, A> = (c: ConstraintS<X, C>) => S.State<X, E.Either<E, A>>
+const validateConnectiveConstraints = (cs: ReadonlyArray<Constraint>) => (traverseContext: EffectContext) =>
+  pipe(
+    S.gets(effectContextL.get),
+    S.chain(outerContext => pipe(
+      S.modify(effectContextL.set(traverseContext)),
+      S.map(() => cs),
+      S.chain(S.traverseArray(validateS)),
+      S.map(flow(
+        RA.sequence(E.Applicative),
+        E.map(constVoid))),
+      S.apFirst(S.modify(effectContextL.set(outerContext))))))
 
-export const validateS = (c: Constraint): S.State<BidContext, E.Either<SystemValidationBidReason, void>> => {
+export const validateS = (c: Constraint): ValidateReasonResult => {
   switch (c.type) {
     case "Conjunction":
+      return pipe(
+        S.gets(effectContextL.get),
+        S.chain(validateConnectiveConstraints(c.constraints)))
     case "Disjunction":
-      return pipe(c.constraints,
-        S.traverseArray(validateS),
-        S.map(flow(
-          RA.sequence(E.Applicative),
-          E.map(constVoid))))
+      return validateConnectiveConstraints(c.constraints)(c.type)
     case "Negation": 
-      return pipe(c.constraint, validateS)
-    
+      return validateConnectiveConstraints(RA.of(c.constraint))(c.type)
+
     case "ForceOneRound":
     case "ForceGame":
     case "ForceSlam":
     case "Relay":
-      return pipe(
-        S.modify(forceL.set(O.some(c))),
-        S.map(() => E.right(constVoid())))
+      return effectModifyS(forceL.set(O.some(c)))
 
     case "SuitPrimary":
       return pipe(
         S.gets(primarySuitL.get),
         S.chain(O.fold(
-          () => pipe(
-            S.modify(primarySuitL.set(O.some(c.suit))),
-            S.map(() => E.right(constVoid()))),
+          () => effectModifyS(primarySuitL.set(O.some(c.suit))),
           () => ofS(E.left({ type: "PrimarySuitAlreadyDefined", constraint: c })))))
     case "SuitSecondary":
       return pipe(
-        S.modify(secondarySuitL.set(O.some(c.suit))),
-        S.chain(() => S.gets(context => context.primarySuit)),
-        S.map(flow(
-          E.fromOption((): SystemValidationBidReason => ({ type: "NoPrimarySuitDefined", constraint: c })),
-          E.chainFirst(E.fromPredicate(suit => c.suit !== suit, (): SystemValidationBidReason => ({ type: "SamePrimaryAndSecondarySuit", constraint: c }))),
-          E.map(constVoid))))
+        effectModifyS(secondarySuitL.set(O.some(c.suit))),
+        eitherT.chain(S.Monad)(() => pipe(
+          S.gets(primarySuitL.get),
+          S.map(flow(
+            E.fromOption((): SystemValidationBidReason => ({ type: "NoPrimarySuitDefined", constraint: c })),
+            E.chainFirst(E.fromPredicate(suit => c.suit !== suit, (): SystemValidationBidReason => ({ type: "SamePrimaryAndSecondarySuit", constraint: c }))),
+            E.map(constVoid))))))
 
     case "PointRange":
       return pipe(c,
@@ -184,7 +222,7 @@ const updateForce = (bid: Bid) => (force: ConstraintForce) => {
   }
 }
 
-const updateForceS : S.State<BidContext, void> =
+const updateForceS : S.State<ValidateContext, void> =
   pipe(
     updateForce, ofS,
     S.ap(S.gets(bidL.get)),
@@ -236,7 +274,7 @@ const pathIsSound = (path: Path<ConstrainedBid>) =>
           E.flatten)))),
     S.map(RA.sequence(E.Applicative)),
     eitherT.chain(S.Monad)(() => checkFinal),
-    S.evaluate(zeroContext))
+    S.evaluate(zeroValidationContext))
 
 const forestIsSound = (tree: Forest<ConstrainedBid>) : SystemValidation =>
   pipe(tree,
