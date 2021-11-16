@@ -36,6 +36,7 @@ const ValidationErrorView = ({ error }: ValidationErrorProps) => {
     case "NoPrimarySuitDefined": return <span>No primary suit defined for secondary suit {error.constraint.suit}</span>
     case "PrimarySuitAlreadyDefined": return <span>Primary suit has already been defined</span>
     case "SamePrimaryAndSecondarySuit": return <span>Primary and secondary suits cannot be the same</span>
+    case "TrumpSuitAlreadyDefined": return <span>Trump suit has already been defined</span>
     case "NoBidDefinedButStillForcing": return <span>Bid is forcing, but no response is defined</span>
     case "PassWhileForcing": return <span>Previous bid is forcing, but a pass was bid</span>
     case "SuitRangeInvalid": return <span>Suit {error.constraint.suit} range {error.constraint.min}, {error.constraint.max} is invalid</span>

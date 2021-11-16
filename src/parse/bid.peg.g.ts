@@ -35,6 +35,7 @@
 *   | SuitHonors
 *   | SuitTop
 *   | SuitRank
+*   | SetTrump
 *   | PointRange
 *   | PointBound
 *   | OtherBid
@@ -72,6 +73,7 @@
 * SuitRank := Primary | Secondary
 * Primary := suit=SuitSpecifier '1'
 * Secondary := suit=SuitSpecifier '2'
+* SetTrump := suit=SuitSpecifier '#'
 * Response := ForceOneRound | ForceGame | ForceSlam | Relay
 * ForceOneRound := v='F1'
 * ForceGame := v='FG'
@@ -138,6 +140,7 @@ export enum ASTKinds {
     Constraint_16 = "Constraint_16",
     Constraint_17 = "Constraint_17",
     Constraint_18 = "Constraint_18",
+    Constraint_19 = "Constraint_19",
     Const_1 = "Const_1",
     Const_2 = "Const_2",
     True = "True",
@@ -189,6 +192,7 @@ export enum ASTKinds {
     SuitRank_2 = "SuitRank_2",
     Primary = "Primary",
     Secondary = "Secondary",
+    SetTrump = "SetTrump",
     Response_1 = "Response_1",
     Response_2 = "Response_2",
     Response_3 = "Response_3",
@@ -284,7 +288,7 @@ export interface ConstraintListItem {
     kind: ASTKinds.ConstraintListItem;
     constraint: Constraint;
 }
-export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8 | Constraint_9 | Constraint_10 | Constraint_11 | Constraint_12 | Constraint_13 | Constraint_14 | Constraint_15 | Constraint_16 | Constraint_17 | Constraint_18;
+export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8 | Constraint_9 | Constraint_10 | Constraint_11 | Constraint_12 | Constraint_13 | Constraint_14 | Constraint_15 | Constraint_16 | Constraint_17 | Constraint_18 | Constraint_19;
 export type Constraint_1 = Const;
 export type Constraint_2 = Or;
 export type Constraint_3 = And;
@@ -298,11 +302,12 @@ export type Constraint_10 = SuitComparison;
 export type Constraint_11 = SuitHonors;
 export type Constraint_12 = SuitTop;
 export type Constraint_13 = SuitRank;
-export type Constraint_14 = PointRange;
-export type Constraint_15 = PointBound;
-export type Constraint_16 = OtherBid;
-export type Constraint_17 = LabelDef;
-export type Constraint_18 = LabelRef;
+export type Constraint_14 = SetTrump;
+export type Constraint_15 = PointRange;
+export type Constraint_16 = PointBound;
+export type Constraint_17 = OtherBid;
+export type Constraint_18 = LabelDef;
+export type Constraint_19 = LabelRef;
 export type Const = Const_1 | Const_2;
 export type Const_1 = True;
 export type Const_2 = False;
@@ -468,6 +473,10 @@ export interface Primary {
 }
 export interface Secondary {
     kind: ASTKinds.Secondary;
+    suit: SuitSpecifier;
+}
+export interface SetTrump {
+    kind: ASTKinds.SetTrump;
     suit: SuitSpecifier;
 }
 export type Response = Response_1 | Response_2 | Response_3 | Response_4;
@@ -839,6 +848,7 @@ export class Parser {
                 () => this.matchConstraint_16($$dpth + 1, $$cr),
                 () => this.matchConstraint_17($$dpth + 1, $$cr),
                 () => this.matchConstraint_18($$dpth + 1, $$cr),
+                () => this.matchConstraint_19($$dpth + 1, $$cr),
             ]);
         };
         const $scope$pos = this.mark();
@@ -906,18 +916,21 @@ export class Parser {
         return this.matchSuitRank($$dpth + 1, $$cr);
     }
     public matchConstraint_14($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_14> {
-        return this.matchPointRange($$dpth + 1, $$cr);
+        return this.matchSetTrump($$dpth + 1, $$cr);
     }
     public matchConstraint_15($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_15> {
-        return this.matchPointBound($$dpth + 1, $$cr);
+        return this.matchPointRange($$dpth + 1, $$cr);
     }
     public matchConstraint_16($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_16> {
-        return this.matchOtherBid($$dpth + 1, $$cr);
+        return this.matchPointBound($$dpth + 1, $$cr);
     }
     public matchConstraint_17($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_17> {
-        return this.matchLabelDef($$dpth + 1, $$cr);
+        return this.matchOtherBid($$dpth + 1, $$cr);
     }
     public matchConstraint_18($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_18> {
+        return this.matchLabelDef($$dpth + 1, $$cr);
+    }
+    public matchConstraint_19($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_19> {
         return this.matchLabelRef($$dpth + 1, $$cr);
     }
     public matchConst($$dpth: number, $$cr?: ErrorTracker): Nullable<Const> {
@@ -1475,6 +1488,20 @@ export class Parser {
                     && this.regexAccept(String.raw`(?:2)`, $$dpth + 1, $$cr) !== null
                 ) {
                     $$res = {kind: ASTKinds.Secondary, suit: $scope$suit};
+                }
+                return $$res;
+            });
+    }
+    public matchSetTrump($$dpth: number, $$cr?: ErrorTracker): Nullable<SetTrump> {
+        return this.run<SetTrump>($$dpth,
+            () => {
+                let $scope$suit: Nullable<SuitSpecifier>;
+                let $$res: Nullable<SetTrump> = null;
+                if (true
+                    && ($scope$suit = this.matchSuitSpecifier($$dpth + 1, $$cr)) !== null
+                    && this.regexAccept(String.raw`(?:#)`, $$dpth + 1, $$cr) !== null
+                ) {
+                    $$res = {kind: ASTKinds.SetTrump, suit: $scope$suit};
                 }
                 return $$res;
             });

@@ -138,6 +138,12 @@ export const constraint = (c: AST.Constraint) : Syntax => {
         suit: suitSpecifier(c.suit)
       }
 
+    case AST.ASTKinds.SetTrump:
+      return {
+        type: "SetTrump",
+        suit: suitSpecifier(c.suit)
+      }
+
     case AST.ASTKinds.SuitBound:
       return {
         type: "SuitRange",

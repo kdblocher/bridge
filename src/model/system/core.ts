@@ -23,34 +23,39 @@ export interface ConstraintSuitRange {
 
 export type SuitComparisonOperator = "<" | "<=" | "=" | ">=" | ">"
 export interface ConstraintSuitComparison {
-  type: "SuitComparison",
-  left: Suit,
-  right: Suit,
+  type: "SuitComparison"
+  left: Suit
+  right: Suit
   op: SuitComparisonOperator
 }
 
 export interface ConstraintSuitHonors {
-  type: "SuitHonors",
-  suit: Suit,
+  type: "SuitHonors"
+  suit: Suit
   honors: ReadonlyArray<Rank>
 }
 
 export interface ConstraintSuitTop {
-  type: "SuitTop",
-  suit: Suit,
-  count: number,
+  type: "SuitTop"
+  suit: Suit
+  count: number
   minRank: Rank
 }
 
 export interface ConstraintSuitPrimary {
-  type: "SuitPrimary",
+  type: "SuitPrimary"
   suit: Suit
 }
 export interface ConstraintSuitSecondary {
-  type: "SuitSecondary",
+  type: "SuitSecondary"
   suit: Suit
 }
 type ConstraintSuitRank = ConstraintSuitPrimary | ConstraintSuitSecondary
+
+export interface ConstraintSetTrump {
+  type: "SetTrump"
+  suit: Suit
+}
 
 interface ConstraintConstant {
   type: "Constant",
@@ -78,7 +83,7 @@ export interface ConstraintAnyShape {
 }
 
 export interface ConstraintSpecificShape {
-  type: "SpecificShape",
+  type: "SpecificShape"
   suits: SpecificShape
 }
 
@@ -87,7 +92,7 @@ interface ConstraintResponse {
 }
 
 interface ConstraintRelayResponse {
-  type: "Relay",
+  type: "Relay"
   bid: ContractBid
 }
 
@@ -104,6 +109,7 @@ export type Constraint =
   | ConstraintSuitRange
   | ConstraintSuitComparison
   | ConstraintSuitRank
+  | ConstraintSetTrump
   | ConstraintSuitHonors
   | ConstraintSuitTop
   | ConstraintAnyShape
@@ -212,6 +218,7 @@ const contextualConstraintTypes = [
   "Relay",
   "SuitPrimary",
   "SuitSecondary",
+  "SetTrump"
 ] as const
 
 type ContextualConstraintType = typeof contextualConstraintTypes[number]
@@ -319,6 +326,10 @@ export const playerContextA = new At<BidContext, RelativePlayer, PlayerContext>(
   new Lens(
     flow(playersL.get, p => p[player]),
     p => context => pipe(context, playersL.get, RR.upsertAt(player, p), playersL.set, apply(context))))
+export const partnershipContextA = new At<BidContext, RelativePartnership, PartnershipContext>(partnership =>
+  new Lens(
+    flow(partnershipsL.get, p => p[partnership]),
+    p => context => pipe(context, partnershipsL.get, RR.upsertAt(partnership, p), partnershipsL.set, apply(context))))
 
 export type ConstraintS<X, C> = S.State<X, C>
 export type SatisfiesS<X, C, A> = (c: ConstraintS<X, C>) => S.State<X, P.Predicate<A>>
@@ -360,6 +371,11 @@ const satisfiesContextual = (recur: SatisfiesS<BidContext, Constraint, Hand>) : 
           optionT.map(S.Functor)(suitSecondary(c.suit)),
           S.map(O.getOrElse(() => predFalse)))
         
+      case "SetTrump":
+        return pipe(
+          S.modify<BidContext>(partnershipContextA.at("We").composeLens(trumpSuitL).set(O.some(c.suit))),
+          S.map(() => constTrue))
+
       default:
         return assertUnreachable(c)
     }

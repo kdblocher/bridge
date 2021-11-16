@@ -9,7 +9,7 @@ import { Suit, suits } from '../deck';
 import { AnyShape, makeShape } from '../evaluation';
 import { serializedBidL } from '../serialization';
 import { collectErrors, extendForestWithSiblings, Forest } from '../system';
-import { ConstrainedBid, Constraint, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue } from './core';
+import { ConstrainedBid, Constraint, ConstraintSetTrump, ConstraintSuitComparison, ConstraintSuitHonors, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ConstraintSuitTop, constraintTrue } from './core';
 
 export const ofS = <A>(x: A) => S.of<ExpandContext, A>(x)
 
@@ -24,6 +24,7 @@ type SyntaxSuitHonors = ContextualSuitSyntax<ConstraintSuitHonors>
 type SyntaxSuitTop = ContextualSuitSyntax<ConstraintSuitTop>
 type SyntaxSuitPrimary = ContextualSuitSyntax<ConstraintSuitPrimary>
 type SyntaxSuitSecondary = ContextualSuitSyntax<ConstraintSuitSecondary>
+type SyntaxSetTrump = ContextualSuitSyntax<ConstraintSetTrump>
 type SyntaxSuit = 
   | SyntaxSuitRange
   | SyntaxSuitComparison
@@ -31,6 +32,7 @@ type SyntaxSuit =
   | SyntaxSuitTop
   | SyntaxSuitPrimary
   | SyntaxSuitSecondary
+  | SyntaxSetTrump
 
 interface SyntaxDistribution {
   type: "Balanced" | "SemiBalanced" | "Unbalanced"
@@ -281,6 +283,7 @@ const expandOnce = (s: Syntax): S.State<ExpandContext, E.Either<ExpandErrorReaso
     case "SuitPrimary":
     case "SuitSecondary":
     case "SuitTop":
+    case "SetTrump":
       return pipe(s.suit,
         expandSpecifier,
         eitherT.map(S.Functor)(suit => E.left({ ...s, suit })))

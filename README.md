@@ -41,6 +41,7 @@ The tool will attempt to parse each line into a [set of] constraints, which it t
 | Suit Range | _min_ ``-`` _max_ _s_ <br /> _max_ ``-`` _s_ <br /> _min_ ``+`` _s_ | Holds if the length of suit _s_ falls between _min_ and _max_ (inclusive). `M` and `m` are allowed to specify majors or minors, respectively. | `2-3H` <br /> `4-S` <br /> `6+C` |
 | Suit Comparison | _s_<sub>1</sub> _op_ _s_<sub>2</sub> <br /> _op_&nbsp;:=&nbsp;`<`&nbsp;`<=`&nbsp;`=`&nbsp;`>=`&nbsp;`>` | Holds if the comparison between the lengths of suits _s_<sub>1</sub> and _s_<sub>2</sub> is true. | `C>D` |
 | Distribution | `BAL` <br /> `semiBAL` <br /> `unBAL` | Holds if the [hand distribution](https://en.wikipedia.org/wiki/Balanced_hand) is balanced, semi-balanced (includes balanced), or **unbalanced** (not balanced or semi-balanced), respectively. |
+| Set Trump | _s_ | Flags _s_ as the trump suit for the partnership. Always holds. | `S1` |
 | Primary | _s_ `1` | Holds if _s_ is 5+ cards, longer than higher-ranking suits and at least as long as lower-ranking suits. | `H1` |
 | Secondary | _s_ `2` | Holds if _s_ is 4+ cards, up to the length of the primary suit, but longer than the remaining two suits. | `C2` |
 | Honors | _s_ _h_... | Holds if _s__ has all of the specific honor(s) _h_ (any of `AKQJT`). | `SAK` |

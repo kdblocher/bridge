@@ -6,8 +6,8 @@ import { assertUnreachable } from '../../lib';
 import { Bid, isGameLevel, isSlamLevel } from '../bridge';
 import { Forest, getAllLeafPaths, Path } from '../system';
 import {
-    BidContext, ConstrainedBid, Constraint, ConstraintAnyShape, ConstraintForce, ConstraintPointRange, ConstraintSpecificShape, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ordConstrainedBid, PlayerContext, primarySuitL, relativePartnerships, RelativePlayer, relativePlayers,
-    rotateRecord, secondarySuitL, zeroContext as zeroBidContext
+    BidContext, ConstrainedBid, Constraint, ConstraintAnyShape, ConstraintForce, ConstraintPointRange, ConstraintSetTrump, ConstraintSpecificShape, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ordConstrainedBid, PartnershipContext, PlayerContext, primarySuitL,
+    RelativePartnership, relativePartnerships, RelativePlayer, relativePlayers, rotateRecord, secondarySuitL, trumpSuitL, zeroContext as zeroBidContext
 } from './core';
 
 interface SystemValidationErrorBidsOutOfOrder {
@@ -26,6 +26,10 @@ interface SystemValidationErrorPrimarySuitAlreadyDefined {
 interface SystemValidationErrorSamePrimaryAndSecondarySuit {
   type: "SamePrimaryAndSecondarySuit"
   constraint: ConstraintSuitSecondary
+}
+interface SystemValidationErrorTrumpSuitAlreadyDefined {
+  type: "TrumpSuitAlreadyDefined"
+  constraint: ConstraintSetTrump
 }
 interface SystemValidationErrorSuitRangeInvalid {
   type: "SuitRangeInvalid",
@@ -61,6 +65,7 @@ type SystemValidationBidReason =
   | SystemValidationErrorNoPrimarySuitDefined
   | SystemValidationErrorPrimarySuitAlreadyDefined
   | SystemValidationErrorSamePrimaryAndSecondarySuit
+  | SystemValidationErrorTrumpSuitAlreadyDefined
   | SystemValidationErrorSuitRangeInvalid
   | SystemValidationErrorPointRangeInvalid
   | SystemValidationErrorSpecificShapeInvalid
@@ -102,6 +107,10 @@ export const playerContextA = new At<ValidateContext, RelativePlayer, PlayerCont
   new Lens(
     flow(playersL.get, p => p[player]),
     p => context => pipe(context, playersL.get, RR.upsertAt(player, p), playersL.set, apply(context))))
+export const partnershipContextA = new At<ValidateContext, RelativePartnership, PartnershipContext>(partnership =>
+  new Lens(
+    flow(partnershipsL.get, p => p[partnership]),
+    p => context => pipe(context, partnershipsL.get, RR.upsertAt(partnership, p), partnershipsL.set, apply(context))))
 
 type SystemValidation = E.Either<SystemValidationError, void>
 type ValidateReasonResult = S.State<ValidateContext, E.Either<SystemValidationBidReason, void>>
@@ -173,6 +182,13 @@ export const validateS = (c: Constraint): ValidateReasonResult => {
             E.fromOption((): SystemValidationBidReason => ({ type: "NoPrimarySuitDefined", constraint: c })),
             E.chainFirst(E.fromPredicate(suit => c.suit !== suit, (): SystemValidationBidReason => ({ type: "SamePrimaryAndSecondarySuit", constraint: c }))),
             E.map(constVoid))))))
+
+    case "SetTrump":
+      return pipe(
+        S.gets(partnershipContextA.at("We").composeLens(trumpSuitL).get),
+        S.chain(O.fold(
+          () => effectModifyS(partnershipContextA.at("We").composeLens(trumpSuitL).set(O.some(c.suit))),
+          () => ofS(E.left({ type: "TrumpSuitAlreadyDefined", constraint: c })))))
 
     case "PointRange":
       return pipe(c,
