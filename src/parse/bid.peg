@@ -38,6 +38,7 @@ Constraint :=
   | SuitHonors
   | SuitTop
   | SuitRank
+  | SetTrump
   | PointRange
   | PointBound
   | OtherBid
@@ -86,11 +87,14 @@ SuitRank := Primary | Secondary
 Primary := suit=SuitSpecifier '1'
 Secondary := suit=SuitSpecifier '2'
 
+SetTrump := suit=SuitSpecifier '#'
+
 Response := ForceOneRound | ForceGame | ForceSlam | Relay
 ForceOneRound := v='F1'
 ForceGame := v='FG'
 ForceSlam := v='FS'
 Relay := '->' bid=OtherBid
+
 
 LabelDef := '\'' label=Label '\': ' constraints=ConstraintList
 LabelRef := '\'' label=Label '\''
