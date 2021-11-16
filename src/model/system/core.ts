@@ -1,7 +1,7 @@
-import { either as E, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlySet, readonlyTuple, record, state as S, string } from 'fp-ts';
+import { either as E, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlySet, readonlyTuple, record, semigroup, state as S, string } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
 import { apply, constant, constFalse, constTrue, flow, pipe } from 'fp-ts/lib/function';
-import { Lens, Optional } from 'monocle-ts';
+import { At, Lens, Optional } from 'monocle-ts';
 
 import { assertUnreachable } from '../../lib';
 import { Bid, ContractBid, isContractBid, ordContractBid } from '../bridge';
@@ -182,7 +182,7 @@ const toRankSet = readonlySet.fromReadonlyArray(eqRank)
 const suitHonors = (suitHonors: ConstraintSuitHonors) =>
   flow(
     groupHandBySuits,
-    readonlyRecord.lookup(suitHonors.suit),
+    RR.lookup(suitHonors.suit),
     O.fold(constFalse, cards => {
       const cardSet = pipe(cards,
         toRankSet,
@@ -193,7 +193,7 @@ const suitHonors = (suitHonors: ConstraintSuitHonors) =>
 
 const suitTop = (suitTop: ConstraintSuitTop) =>
   flow(groupHandBySuits,
-    readonlyRecord.lookup(suitTop.suit),
+    RR.lookup(suitTop.suit),
     O.fold(constFalse, flow(
       RA.filter(r => ordRankAscending.compare(r, suitTop.minRank) >= 0),
       cards => cards.length >= suitTop.count)))
@@ -259,19 +259,51 @@ const ordBid: ord.Ord<Bid> =
     0)
 export const ordConstrainedBid = ord.contramap<Bid, ConstrainedBid>(b => b.bid)(ordBid)
 
+export const relativePlayers = ["Me", "Partner"] as const
+export type RelativePlayer = typeof relativePlayers[number]
+
+export const relativePartnerships = ["We"] as const
+export type RelativePartnership = typeof relativePartnerships[number]
+export interface PlayerContext {
+  primarySuit: O.Option<Suit>
+  secondarySuit: O.Option<Suit>
+}
+export const zeroPlayerContext: PlayerContext = {
+  primarySuit: O.none,
+  secondarySuit: O.none
+}
+export const playerContextL = Lens.fromProp<PlayerContext>()
+export const primarySuitL = playerContextL('primarySuit')
+export const secondarySuitL = playerContextL('secondarySuit')
+
+export interface PartnershipContext {
+  trumpSuit: O.Option<Suit>
+}
+export const zeroPartnershipContext: PartnershipContext = {
+  trumpSuit: O.none,
+}
+export const partnershipContextL = Lens.fromProp<PartnershipContext>()
+export const trumpSuitL = partnershipContextL('trumpSuit')
+
+export const rotateRecord = <K extends string>(keys: ReadonlyArray<K>) => <V>(r: RR.ReadonlyRecord<K, V>) : RR.ReadonlyRecord<K, V> =>
+  pipe(
+    RA.zip(pipe(keys, RA.rotate(1)), keys),
+    RA.map(readonlyTuple.mapSnd(p => r[p])),
+    RR.fromFoldable(semigroup.first<V>(), RA.Foldable))
+
 export interface BidContext {
   bid: Bid,
   path: ReadonlyArray<Bid>
   force: O.Option<ConstraintForce>
-  primarySuit: O.Option<Suit>
-  secondarySuit: O.Option<Suit>,
+  players: RR.ReadonlyRecord<RelativePlayer, PlayerContext>
+  partnerships: RR.ReadonlyRecord<RelativePartnership, PartnershipContext>
 }
 export const zeroContext : BidContext = {
   bid: {} as Bid,
   path: [],
   force: O.none,
-  primarySuit: O.none,
-  secondarySuit: O.none
+  players: pipe(relativePlayers, RA.map(p => [p, zeroPlayerContext] as const), RR.fromFoldable(semigroup.first<PlayerContext>(), RA.Foldable)),
+  partnerships: pipe(relativePartnerships, RA.map(p => [p, zeroPartnershipContext] as const), RR.fromFoldable(semigroup.first<PartnershipContext>(), RA.Foldable)),
 }
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -279,10 +311,14 @@ export const contextL = Lens.fromProp<BidContext>()
 export const bidL = contextL('bid')
 export const pathL = contextL('path')
 export const forceL = contextL('force')
-export const primarySuitL = contextL('primarySuit')
-export const secondarySuitL = contextL('secondarySuit')
+export const playersL = contextL('players')
+export const partnershipsL = contextL('partnerships')
 export const contextO = Optional.fromOptionProp<BidContext>()
 export const forceO = contextO('force')
+export const playerContextA = new At<BidContext, RelativePlayer, PlayerContext>(player =>
+  new Lens(
+    flow(playersL.get, p => p[player]),
+    p => context => pipe(context, playersL.get, RR.upsertAt(player, p), playersL.set, apply(context))))
 
 export type ConstraintS<X, C> = S.State<X, C>
 export type SatisfiesS<X, C, A> = (c: ConstraintS<X, C>) => S.State<X, P.Predicate<A>>
@@ -315,14 +351,14 @@ const satisfiesContextual = (recur: SatisfiesS<BidContext, Constraint, Hand>) : 
 
       case "SuitPrimary":
         return pipe(
-          S.modify<BidContext>(primarySuitL.set(O.some(c.suit))),
+          S.modify<BidContext>(playerContextA.at("Me").composeLens(primarySuitL).set(O.some(c.suit))),
           S.map(() => suitPrimary(c.suit)))
       case "SuitSecondary":
         return pipe(
-          S.modify<BidContext>(secondarySuitL.set(O.some(c.suit))),
-          S.chain(() => S.gets(context => context.primarySuit)),
+          S.modify<BidContext>(playerContextA.at("Me").composeLens(secondarySuitL).set(O.some(c.suit))),
+          S.apSecond(S.gets(playerContextA.at("Me").composeLens(primarySuitL).get)),
           optionT.map(S.Functor)(suitSecondary(c.suit)),
-          S.map(O.getOrElseW(() => predFalse)))
+          S.map(O.getOrElse(() => predFalse)))
         
       default:
         return assertUnreachable(c)
@@ -341,4 +377,3 @@ const satisfiesWithContext = (x: Constraint) =>
   
 export const satisfies =
   flow(satisfiesWithContext, S.evaluate(zeroContext))
-

@@ -1,11 +1,14 @@
-import { boolean, either as E, eitherT, number, option as O, optionT, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, state as S } from 'fp-ts';
+import { boolean, either as E, eitherT, number, option as O, optionT, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, state as S } from 'fp-ts';
 import { apply, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
-import { Lens, Optional } from 'monocle-ts';
+import { At, Lens, Optional } from 'monocle-ts';
 
 import { assertUnreachable } from '../../lib';
 import { Bid, isGameLevel, isSlamLevel } from '../bridge';
 import { Forest, getAllLeafPaths, Path } from '../system';
-import { BidContext, ConstrainedBid, Constraint, ConstraintAnyShape, ConstraintForce, ConstraintPointRange, ConstraintSpecificShape, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ordConstrainedBid, zeroContext as zeroBidContext } from './core';
+import {
+    BidContext, ConstrainedBid, Constraint, ConstraintAnyShape, ConstraintForce, ConstraintPointRange, ConstraintSpecificShape, ConstraintSuitPrimary, ConstraintSuitRange, ConstraintSuitSecondary, ordConstrainedBid, PlayerContext, primarySuitL, relativePartnerships, RelativePlayer, relativePlayers,
+    rotateRecord, secondarySuitL, zeroContext as zeroBidContext
+} from './core';
 
 interface SystemValidationErrorBidsOutOfOrder {
   type: "BidsOutOfOrder"
@@ -91,10 +94,14 @@ const effectContextL = contextL('effectContext')
 const bidL = contextL('bid')
 const pathL = contextL('path')
 const forceL = contextL('force')
-const primarySuitL = contextL('primarySuit')
-const secondarySuitL = contextL('secondarySuit')
+export const playersL = contextL('players')
+export const partnershipsL = contextL('partnerships')
 const contextO = Optional.fromOptionProp<ValidateContext>()
 const forceO = contextO('force')
+export const playerContextA = new At<ValidateContext, RelativePlayer, PlayerContext>(player =>
+  new Lens(
+    flow(playersL.get, p => p[player]),
+    p => context => pipe(context, playersL.get, RR.upsertAt(player, p), playersL.set, apply(context))))
 
 type SystemValidation = E.Either<SystemValidationError, void>
 type ValidateReasonResult = S.State<ValidateContext, E.Either<SystemValidationBidReason, void>>
@@ -153,15 +160,15 @@ export const validateS = (c: Constraint): ValidateReasonResult => {
 
     case "SuitPrimary":
       return pipe(
-        S.gets(primarySuitL.get),
+        S.gets(playerContextA.at("Me").composeLens(primarySuitL).get),
         S.chain(O.fold(
-          () => effectModifyS(primarySuitL.set(O.some(c.suit))),
+          () => effectModifyS(playerContextA.at("Me").composeLens(primarySuitL).set(O.some(c.suit))),
           () => ofS(E.left({ type: "PrimarySuitAlreadyDefined", constraint: c })))))
     case "SuitSecondary":
       return pipe(
-        effectModifyS(secondarySuitL.set(O.some(c.suit))),
+        effectModifyS(playerContextA.at("Me").composeLens(secondarySuitL).set(O.some(c.suit))),
         eitherT.chain(S.Monad)(() => pipe(
-          S.gets(primarySuitL.get),
+          S.gets(playerContextA.at("Me").composeLens(primarySuitL).get),
           S.map(flow(
             E.fromOption((): SystemValidationBidReason => ({ type: "NoPrimarySuitDefined", constraint: c })),
             E.chainFirst(E.fromPredicate(suit => c.suit !== suit, (): SystemValidationBidReason => ({ type: "SamePrimaryAndSecondarySuit", constraint: c }))),
@@ -182,7 +189,7 @@ export const validateS = (c: Constraint): ValidateReasonResult => {
         
     case "SpecificShape":
       return pipe(c.suits,
-        readonlyRecord.foldMap(ord.trivial)(number.MonoidSum)(identity),
+        RR.foldMap(ord.trivial)(number.MonoidSum)(identity),
         E.fromPredicate(n => n === 13,
           (): SystemValidationBidReason => ({ type: "SpecificShapeInvalid", constraint: c })),
         E.map(constVoid),
@@ -231,6 +238,14 @@ const updateForceS : S.State<ValidateContext, void> =
     S.chain(O.sequence(S.Applicative)),
     S.map(constVoid))
 
+const rotateRelativeContexts : S.State<ValidateContext, void> =
+  pipe(
+    S.sequenceArray([
+      pipe(S.gets(playersL.get), S.chain(flow(rotateRecord(relativePlayers), playersL.set, S.modify))),
+      pipe(S.gets(partnershipsL.get), S.chain(flow(rotateRecord(relativePartnerships), partnershipsL.set, S.modify)))
+    ]),
+    S.map(constVoid))
+
 const checkPass = (bid: Bid) => (force: O.Option<ConstraintForce>) =>
   !(bid === "Pass" && O.isSome(force))
 
@@ -246,7 +261,6 @@ const checkPassS : ValidateResult =
         S.map(({ bid, path }) =>
         E.left({ type: "PassWhileForcing" as const, bid, path }))),
       flow(constVoid, E.right, ofS))))
-      
 
 const checkFinal : ValidateResult =
   pipe(
@@ -269,6 +283,7 @@ const pathIsSound = (path: Path<ConstrainedBid>) =>
             S.chain(validateS),
             S.map(E.mapLeft((r): SystemValidationBidError => ({ bid: info.bid, ...r })))))),
         S.apFirst(S.modify(pathL.modify(RA.prepend(info.bid)))),
+        S.apFirst(rotateRelativeContexts),
         S.map(flow(
           E.map(E.mapLeft((err): SystemValidationError => ({ ...err, path: pipe(path, RA.map(b => b.bid)) }))),
           E.flatten)))),

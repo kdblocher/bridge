@@ -6,8 +6,8 @@ import styled from 'styled-components';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { get } from '../lib/object';
-import { DateNumber, DateNumberB, estimatedTimeRemaining, getGenericProgress, Job, JobId, now, ProgressData } from '../model/job';
-import { removeJob, selectJobById, startJob } from '../reducers/generator';
+import { DateNumber, DateNumberB, estimatedTimeRemaining, getGenericProgress, Job, now, ProgressData } from '../model/job';
+import { removeJob, startJob } from '../reducers/generator';
 
 interface DateViewProps {
   date: O.Option<DateNumber> | DateNumber | null
