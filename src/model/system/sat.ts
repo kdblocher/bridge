@@ -1,23 +1,16 @@
-import {
-    either as E, eq, foldable, monoid, number, option as O, optionT, ord, predicate as P, reader as R, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlySet,
-    readonlyTuple, record, semigroup, state as S, string
-} from 'fp-ts';
-import { sequenceT } from 'fp-ts/lib/Apply';
+import { either as E, foldable, number, option as O, ord, reader as R, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, semigroup, state as S } from 'fp-ts';
 import { apply, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
-import { HKT, Kind, URIS, URItoKind } from 'fp-ts/lib/HKT';
+import { Kind, URIS } from 'fp-ts/lib/HKT';
 import * as Logic from 'logic-solver';
 import * as At from 'monocle-ts/lib/At';
 import * as Lens from 'monocle-ts/lib/Lens';
 
-import { numberTypeAnnotation } from '@babel/types';
-
 import { assertUnreachable } from '../../lib';
 import { permute } from '../../lib/array';
-import { Bid } from '../bridge';
 import { Suit, suits } from '../deck';
-import { AnyShape, SpecificShape } from '../evaluation';
+import { SpecificShape } from '../evaluation';
 import { Path } from '../system';
-import { BidContext, ConstrainedBid, Constraint, ConstraintForce, RelativePartnership, relativePartnerships, RelativePlayer, relativePlayers, rotateRecord, SuitComparisonOperator } from './core';
+import { ConstrainedBid, Constraint, ConstraintForce, RelativePartnership, relativePartnerships, RelativePlayer, relativePlayers, rotateRecord, SuitComparisonOperator } from './core';
 
 const getForcingBits = (force: ConstraintForce): Logic.Bits => {
   switch (force.type) {
@@ -196,6 +189,7 @@ const sat = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
               shape => RA.zip(suits, shape),
               RR.fromFoldable(semigroup.first<number>(), RA.Foldable),
               (suits: RR.ReadonlyRecord<Suit, number>) => suits)))),
+          Logic.or,
           andAlso(pipe(c.counts, countsTo13(RA.Foldable))))))
 
     case "SuitComparison":
@@ -252,6 +246,6 @@ export const pathIsSound = (path: Path<ConstrainedBid>) => {
       S.apFirst(rotateContexts))),
     S.map(flow(
       RNEA.sequence(E.Applicative),
-      E.map(() => allSolutions(solver)))),
+      E.map(constVoid))),
     S.evaluate(zeroSATContext))
 }
