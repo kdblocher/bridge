@@ -22,6 +22,7 @@
     "idb": "^6.1.5",
     "io-ts": "^2.2.16",
     "io-ts-types": "^0.5.16",
+    "logic-solver": "^2.0.1",
     "monocle-ts": "^2.3.11",
     "object-hash": "^2.2.0",
     "proxy-memoize": "^0.3.7",

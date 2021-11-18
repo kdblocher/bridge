@@ -1,20 +1,12 @@
 import { boolean, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, state as S } from 'fp-ts';
 import { constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
 
+import * as Gen from '../../lib/gen';
 import { eqBid } from '../bridge';
 import { Hand } from '../deck';
-import { BidContext, bidL, ConstrainedBid, Constraint, constraintTrue, forceO, ofS, partnershipsL, pathL, playersL, relativePartnerships, relativePlayers, rotateRecord, satisfiesS, zeroContext } from './core';
-
-module Gen {
-  export function* alternate<A>(opener: A, responder: A) {
-    while (true) { yield opener; yield responder }
-  }
-
-  export const unfold = (length: number) => <A>(g: Generator<A>) : readonly A[] => {
-    const val = g.next()
-    return val.done || length === 0 ? [] : [val.value, ...unfold(length - 1)(g)]
-  }
-}
+import {
+    BidContext, bidL, ConstrainedBid, Constraint, constraintTrue, forceO, ofS, partnershipsL, pathL, playersL, relativePartnerships, relativePlayers, rotateRecord, satisfiesS, zeroContext
+} from './core';
 
 const specialRelayCase = (s: S.State<BidContext, Constraint>) =>
   pipe(s,
