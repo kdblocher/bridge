@@ -1,9 +1,9 @@
 import {
-    either as E, eq, foldable, monoid, number, optionT, ord, predicate as P, reader as R, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlySet, readonlyTuple, record,
-    semigroup, state as S, string
+    either as E, eq, foldable, monoid, number, option as O, optionT, ord, predicate as P, reader as R, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlySet,
+    readonlyTuple, record, semigroup, state as S, string
 } from 'fp-ts';
 import { sequenceT } from 'fp-ts/lib/Apply';
-import { apply, flow, identity, pipe } from 'fp-ts/lib/function';
+import { apply, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
 import { HKT, Kind, URIS, URItoKind } from 'fp-ts/lib/HKT';
 import * as Logic from 'logic-solver';
 import * as At from 'monocle-ts/lib/At';
@@ -13,9 +13,11 @@ import { numberTypeAnnotation } from '@babel/types';
 
 import { assertUnreachable } from '../../lib';
 import { permute } from '../../lib/array';
+import { Bid } from '../bridge';
 import { Suit, suits } from '../deck';
 import { AnyShape, SpecificShape } from '../evaluation';
-import { BidContext, Constraint, ConstraintForce, RelativePartnership, relativePartnerships, RelativePlayer, relativePlayers, SuitComparisonOperator } from './core';
+import { Path } from '../system';
+import { BidContext, ConstrainedBid, Constraint, ConstraintForce, RelativePartnership, relativePartnerships, RelativePlayer, relativePlayers, rotateRecord, SuitComparisonOperator } from './core';
 
 const getForcingBits = (force: ConstraintForce): Logic.Bits => {
   switch (force.type) {
@@ -90,6 +92,7 @@ const suitsA = At.at<PlayerContext, Suit, SuitContext>(i =>
 
 const suitsMatch = (playerSuits: PlayerContext["suits"]) => (pattern: SpecificShape) =>
   pipe(playerSuits,
+    RR.map(s => s.range),
     RR.toReadonlyArray,
     RA.map(([i, s0]) => pipe(pattern[i], Logic.constantBits, s1 => Logic.equalBits(s0, s1))),
     Logic.and)
@@ -126,14 +129,14 @@ const partnershipsA = At.at<SATContext, RelativePartnership, PartnershipContext>
     flow(partnershipsL.get, p => p[i]),
     p => context => pipe(context, partnershipsL.get, RR.upsertAt(i, p), partnershipsL.set, apply(context))))
 
-const toSAT = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
+const sat = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
   switch (c.type) {
     case "Conjunction":
-      return pipe(c.constraints, R.traverseArray(toSAT), R.map(Logic.and))
+      return pipe(c.constraints, R.traverseArray(sat), R.map(Logic.and))
     case "Disjunction":
-      return pipe(c.constraints, R.traverseArray(toSAT), R.map(Logic.or))
+      return pipe(c.constraints, R.traverseArray(sat), R.map(Logic.or))
     case "Negation": 
-      return pipe(c.constraint, toSAT, R.map(Logic.not))
+      return pipe(c.constraint, sat, R.map(Logic.not))
 
     case "ForceOneRound":
     case "ForceGame":
@@ -209,9 +212,46 @@ const toSAT = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
       // do later
       return R.of(Logic.TRUE)
 
-        
     default:
       return assertUnreachable(c)
   }
 }
 
+const stateFromReader = <X, A>(r: R.Reader<X, A>): S.State<X, A> =>
+  c => [r(c), c]
+
+const rotateContexts =
+  pipe(
+    S.sequenceArray([
+      pipe(S.gets(playersL.get), S.chain(flow(rotateRecord(relativePlayers), playersL.set, S.modify))),
+      pipe(S.gets(partnershipsL.get), S.chain(flow(rotateRecord(relativePartnerships), partnershipsL.set, S.modify)))
+    ]),
+    S.map(constVoid))
+
+function* allSolutions(solver: Logic.Solver) {
+  let result = solver.solve()
+  while (result !== null) {
+    yield result
+    solver.forbid(result.getFormula())
+    result = solver.solve()
+  }
+}
+
+export const pathIsSound = (path: Path<ConstrainedBid>) => {
+  const solver = new Logic.Solver()
+  const solve = (op: Logic.Operand) => {
+    solver.require(op)
+    return O.fromNullable(solver.solve())
+  }
+  return pipe(path,
+    RNEA.traverseWithIndex(S.Applicative)((i, info) => pipe(
+      info.constraint,
+      sat,
+      R.map(flow(solve, E.fromOption(() => path.slice(0, i + 1) as unknown as Path<ConstrainedBid>))),
+      stateFromReader,
+      S.apFirst(rotateContexts))),
+    S.map(flow(
+      RNEA.sequence(E.Applicative),
+      E.map(() => allSolutions(solver)))),
+    S.evaluate(zeroSATContext))
+}

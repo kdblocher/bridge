@@ -12,7 +12,7 @@ import { BlockItem, BlockKeyDescriptor, cacheSystemConstraints, removeConstraint
 
 const EditorDiv = styled.div `
   font-family: Cascadia Code, Consolas, monospace;
-  font-size: 0.8em;
+  font-size: 1em;
 `
 
 const getDescriptorFromContentBlock = (x: ContentBlock): BlockKeyDescriptor & BlockItem => ({

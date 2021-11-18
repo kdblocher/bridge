@@ -33,17 +33,18 @@ interface ValidationErrorProps {
 const ValidationErrorView = ({ error }: ValidationErrorProps) => {
   switch (error.type) {
     case "BidsOutOfOrder": return <span>Bids <BidView bid={error.left.bid} /> and <BidView bid={error.right.bid} /> out of order</span>
-    case "NoPrimarySuitDefined": return <span>No primary suit defined for secondary suit {error.constraint.suit}</span>
-    case "PrimarySuitAlreadyDefined": return <span>Primary suit has already been defined</span>
-    case "SamePrimaryAndSecondarySuit": return <span>Primary and secondary suits cannot be the same</span>
-    case "TrumpSuitAlreadyDefined": return <span>Trump suit has already been defined</span>
-    case "NoBidDefinedButStillForcing": return <span>Bid is forcing, but no response is defined</span>
-    case "PassWhileForcing": return <span>Previous bid is forcing, but a pass was bid</span>
-    case "SuitRangeInvalid": return <span>Suit {error.constraint.suit} range {error.constraint.min}, {error.constraint.max} is invalid</span>
-    case "PointRangeInvalid": return <span>Point range {error.constraint.min}, {error.constraint.max} is invalid </span>
-    case "SpecificShapeInvalid": return <span>Specific shape {error.constraint.suits.S}{error.constraint.suits.H}{error.constraint.suits.D}{error.constraint.suits.C} is invalid</span>
-    case "AnyShapeInvalid": return <span>Shape {pipe(error.constraint.counts, RA.reduce("", (cur, c) => cur + c))} is invalid</span>
-    case "IllegalContextModification": return <span>Cannot modify the context under a disjunction or negation</span>
+    case "SAT": return <span>Path has no solution: <BidPath path={error.path} /></span>
+    // case "NoPrimarySuitDefined": return <span>No primary suit defined for secondary suit {error.constraint.suit}</span>
+    // case "PrimarySuitAlreadyDefined": return <span>Primary suit has already been defined</span>
+    // case "SamePrimaryAndSecondarySuit": return <span>Primary and secondary suits cannot be the same</span>
+    // case "TrumpSuitAlreadyDefined": return <span>Trump suit has already been defined</span>
+    // case "NoBidDefinedButStillForcing": return <span>Bid is forcing, but no response is defined</span>
+    // case "PassWhileForcing": return <span>Previous bid is forcing, but a pass was bid</span>
+    // case "SuitRangeInvalid": return <span>Suit {error.constraint.suit} range {error.constraint.min}, {error.constraint.max} is invalid</span>
+    // case "PointRangeInvalid": return <span>Point range {error.constraint.min}, {error.constraint.max} is invalid </span>
+    // case "SpecificShapeInvalid": return <span>Specific shape {error.constraint.suits.S}{error.constraint.suits.H}{error.constraint.suits.D}{error.constraint.suits.C} is invalid</span>
+    // case "AnyShapeInvalid": return <span>Shape {pipe(error.constraint.counts, RA.reduce("", (cur, c) => cur + c))} is invalid</span>
+    // case "IllegalContextModification": return <span>Cannot modify the context under a disjunction or negation</span>
     default: return assertUnreachable(error)
   }
 }
