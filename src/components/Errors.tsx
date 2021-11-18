@@ -70,7 +70,7 @@ interface ErrorGridProps {
 }
 export const ErrorGrid = ({ errors }: ErrorGridProps) =>
   <GridContainer>
-    {errors.map(({ bid, path, errors }) => 
+    {errors.filter(e => e.errors.length > 0).map(({ bid, path, errors }) => 
       <Fragment key={serializedBidPathL.get(path)}>
         <BidPath path={path} />
         <BidErrorsView bid={bid} errors={errors} />
