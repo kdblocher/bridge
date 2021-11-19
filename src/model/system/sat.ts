@@ -4,14 +4,14 @@ import { Kind, URIS } from 'fp-ts/lib/HKT';
 import * as Logic from 'logic-solver';
 import * as At from 'monocle-ts/lib/At';
 import * as Lens from 'monocle-ts/lib/Lens';
-import * as Traversal from 'monocle-ts/lib/Traversal';
+import memoize from 'proxy-memoize';
 
 import { assertUnreachable } from '../../lib';
 import { permute } from '../../lib/array';
 import { Suit, suits } from '../deck';
 import { SpecificShape } from '../evaluation';
 import { Path } from '../system';
-import { ConstrainedBid, Constraint, ConstraintForce, RelativePartnership, relativePartnerships, RelativePlayer, relativePlayers, rotateContexts, rotateRecord, SuitComparisonOperator } from './core';
+import { ConstrainedBid, Constraint, ConstraintForce, RelativePartnership, relativePartnerships, RelativePlayer, relativePlayers, rotateContexts, SuitComparisonOperator } from './core';
 
 const getForcingBits = (force: ConstraintForce): Logic.Bits => {
   switch (force.type) {
@@ -51,31 +51,31 @@ const getComparer = (op: SuitComparisonOperator) => {
 }
 
 interface SuitContext {
-  range: Logic.Bits
-  top: Logic.Bits
+  count: Logic.Bits
+  // top: Logic.Bits
 }
 const getZeroSuitContext = (prefix: Logic.Term): SuitContext => ({
-  range: Logic.variableBits(prefix + ".range", 5),
-  top: Logic.variableBits(prefix + ".top", 3)
+  count: Logic.variableBits(prefix + ".count", 6),
+  // top: Logic.variableBits(prefix + ".top", 3)
 })
 const suitContextL = Lens.id<SuitContext>()
-const suitRangeL = pipe(suitContextL, Lens.prop('range'))
-const suitTopL = pipe(suitContextL, Lens.prop('top'))
+const suitCountL = pipe(suitContextL, Lens.prop('count'))
+// const suitTopL = pipe(suitContextL, Lens.prop('top'))
 
 interface PlayerContext {
-  hcpRange: Logic.Bits
+  hcp: Logic.Bits
   suits: RR.ReadonlyRecord<Suit, SuitContext>
   primarySuit: Logic.Bits
   secondarySuit: Logic.Bits
 }
 const getZeroPlayerContext = (prefix: Logic.Term): PlayerContext => ({
-  hcpRange: Logic.variableBits(prefix + ".hcp", 6),
-  suits: pipe(suits, RA.mapWithIndex((i, s) => [s, getZeroSuitContext(i)] as const), RR.fromFoldable(semigroup.first<SuitContext>(), RA.Foldable)),
+  hcp: Logic.variableBits(prefix + ".hcp", 6),
+  suits: pipe(suits, RA.map(s => [s, getZeroSuitContext(prefix + "." + s)] as const), RR.fromFoldable(semigroup.first<SuitContext>(), RA.Foldable)),
   primarySuit: Logic.variableBits(prefix + ".primary", 3), 
   secondarySuit: Logic.variableBits(prefix + ".secondary", 3),
 })
 const playerContextL = Lens.id<PlayerContext>()
-const hcpRangeL = pipe(playerContextL, Lens.prop('hcpRange'))
+const hcpRangeL = pipe(playerContextL, Lens.prop('hcp'))
 const primarySuitL = pipe(playerContextL, Lens.prop('primarySuit'))
 const secondarySuitL = pipe(playerContextL, Lens.prop('secondarySuit'))
 const suitsL = pipe(playerContextL, Lens.prop('suits'))
@@ -86,7 +86,7 @@ const suitsA = At.at<PlayerContext, Suit, SuitContext>(i =>
 
 const suitsMatch = (playerSuits: PlayerContext["suits"]) => (pattern: SpecificShape) =>
   pipe(playerSuits,
-    RR.map(s => s.range),
+    RR.map(s => s.count),
     RR.toReadonlyArray,
     RA.map(([i, s0]) => pipe(pattern[i], Logic.constantBits, s1 => Logic.equalBits(s0, s1))),
     Logic.and)
@@ -108,7 +108,7 @@ interface SATContext {
 const zeroSATContext: SATContext = {
   force: Logic.constantBits(0),
   players: pipe(relativePlayers, RA.mapWithIndex((i, p) => [p, getZeroPlayerContext(i)] as const), RR.fromFoldable(semigroup.first<PlayerContext>(), RA.Foldable)),
-  partnerships: pipe(relativePartnerships, RA.mapWithIndex((i, p) => [p, getZeroPartnershipContext(i)] as const), RR.fromFoldable(semigroup.first<PartnershipContext>(), RA.Foldable))
+  partnerships: pipe(relativePartnerships, RA.map(p => [p, getZeroPartnershipContext(p)] as const), RR.fromFoldable(semigroup.first<PartnershipContext>(), RA.Foldable))
 }
 const contextL = Lens.id<SATContext>()
 const forceL = pipe(contextL, Lens.prop('force'))
@@ -167,7 +167,7 @@ const sat = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
         R.map(range(c.min, c.max)))
     case "SuitRange":
       return pipe(
-        R.asks(pipe(playersA.at("Me"), Lens.compose(suitsA.at(c.suit)), Lens.compose(suitRangeL)).get),
+        R.asks(pipe(playersA.at("Me"), Lens.compose(suitsA.at(c.suit)), Lens.compose(suitCountL)).get),
         R.map(range(c.min, c.max)))
 
     case "SpecificShape":
@@ -195,8 +195,8 @@ const sat = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
 
     case "SuitComparison":
       return pipe(R.Do,
-        R.apS('s1', R.asks(pipe(playersA.at("Me"), Lens.compose(suitsA.at(c.left)), Lens.compose(suitRangeL)).get)),
-        R.apS('s2', R.asks(pipe(playersA.at("Me"), Lens.compose(suitsA.at(c.right)), Lens.compose(suitRangeL)).get)),
+        R.apS('s1', R.asks(pipe(playersA.at("Me"), Lens.compose(suitsA.at(c.left)), Lens.compose(suitCountL)).get)),
+        R.apS('s2', R.asks(pipe(playersA.at("Me"), Lens.compose(suitsA.at(c.right)), Lens.compose(suitCountL)).get)),
         R.map(({ s1, s2 }) => getComparer(c.op)(s1, s2)))
 
     case "Constant":
@@ -217,19 +217,23 @@ const stateFromReader = <X, A>(r: R.Reader<X, A>): S.State<X, A> =>
 
 const sumTo = (total: number) => flow(Logic.sum, sum => Logic.equalBits(sum, Logic.constantBits(total)))
 
+
 const baseAssumptions = (context: SATContext) =>
   Logic.and(
-    pipe(context, playersL.get, RR.map(hcpRangeL.get), RR.toReadonlyArray, RA.map(readonlyTuple.snd), sumTo(40)),
+    pipe(context, playersL.get, RR.map(hcpRangeL.get), RR.toReadonlyArray, RA.map(readonlyTuple.snd), hcps =>
+      Logic.and(
+        pipe(hcps, sumTo(40)),
+        pipe(hcps, RA.map(hcp => Logic.lessThanOrEqual(hcp, Logic.constantBits(37)))))),
     pipe(suits, RA.map(s =>
-      pipe(context, playersL.get, RR.map(flow(
-        suitsA.at(s).get,
-        suitRangeL.get)),
-        RR.toReadonlyArray, RA.map(readonlyTuple.snd),
-        sumTo(13),
-        Logic.and)),
+      pipe(context,
+        playersL.get,
+        RR.map(flow(suitsA.at(s).get, suitCountL.get)),
+        RR.toReadonlyArray,
+        RA.map(readonlyTuple.snd),
+        sumTo(13))),
       Logic.and))
 
-export const pathIsSound = (path: Path<ConstrainedBid>) => {
+export const pathIsSound = memoize((path: Path<ConstrainedBid>) => {
   const solver = new Logic.Solver()
   const context = zeroSATContext
   solver.require(baseAssumptions(context))
@@ -242,10 +246,13 @@ export const pathIsSound = (path: Path<ConstrainedBid>) => {
       info.constraint,
       sat,
       R.map(flow(solve, E.fromOption(() => pipe(path, RNEA.splitAt(i), readonlyTuple.fst) as Path<ConstrainedBid>))),
+      R.map(E.map(s => { console.log(s.getTrueVars()); return s })),
       stateFromReader,
       S.apFirst(S.modify(rotateContexts)))),
     S.map(flow(
       RNEA.sequence(E.Applicative),
       E.map(constVoid))),
     S.evaluate(context))
-}
+}, {
+  size: 100
+})
