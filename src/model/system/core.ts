@@ -1,6 +1,9 @@
-import { either as E, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlySet, readonlyTuple, record, semigroup, state as S, string } from 'fp-ts';
+import {
+    either as E, endomorphism, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlySet, readonlyTuple,
+    record, semigroup, state as S, string
+} from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
-import { apply, constant, constFalse, constTrue, flow, pipe } from 'fp-ts/lib/function';
+import { apply, constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib/function';
 import { At, Lens, Optional } from 'monocle-ts';
 
 import { assertUnreachable } from '../../lib';
@@ -266,7 +269,7 @@ const ordBid: ord.Ord<Bid> =
     0)
 export const ordConstrainedBid = ord.contramap<Bid, ConstrainedBid>(b => b.bid)(ordBid)
 
-export const relativePlayers = ["Me", "Partner"] as const
+export const relativePlayers = ["Me", "LHO", "Partner", "RHO"] as const
 export type RelativePlayer = typeof relativePlayers[number]
 
 export const relativePartnerships = ["We"] as const
@@ -297,6 +300,18 @@ export const rotateRecord = <K extends string>(keys: ReadonlyArray<K>) => <V>(r:
     RA.zip(pipe(keys, RA.rotate(1)), keys),
     RA.map(readonlyTuple.mapSnd(p => r[p])),
     RR.fromFoldable(semigroup.first<V>(), RA.Foldable))
+
+
+export const rotateContexts = <PL, PT, X extends { players: RR.ReadonlyRecord<RelativePlayer, PL>, partnerships: RR.ReadonlyRecord<RelativePartnership, PT> }>(context: X): X => {
+  const pl = Lens.fromProp<X>()('players')
+  const pt = Lens.fromProp<X>()('partnerships')
+  return pipe(
+    [ pl.modify(flow(rotateRecord(relativePlayers), rotateRecord(relativePlayers))),
+      pt.modify(rotateRecord(relativePartnerships))
+    ],
+    RNEA.foldMap(endomorphism.getSemigroup<X>())(identity),
+    apply(context))
+  }
 
 export interface BidContext {
   bid: Bid,

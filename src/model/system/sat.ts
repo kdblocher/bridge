@@ -1,16 +1,17 @@
-import { either as E, foldable, number, option as O, ord, reader as R, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, semigroup, state as S } from 'fp-ts';
+import { either as E, foldable, number, option as O, ord, reader as R, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlyTuple, semigroup, state as S } from 'fp-ts';
 import { apply, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
 import { Kind, URIS } from 'fp-ts/lib/HKT';
 import * as Logic from 'logic-solver';
 import * as At from 'monocle-ts/lib/At';
 import * as Lens from 'monocle-ts/lib/Lens';
+import * as Traversal from 'monocle-ts/lib/Traversal';
 
 import { assertUnreachable } from '../../lib';
 import { permute } from '../../lib/array';
 import { Suit, suits } from '../deck';
 import { SpecificShape } from '../evaluation';
 import { Path } from '../system';
-import { ConstrainedBid, Constraint, ConstraintForce, RelativePartnership, relativePartnerships, RelativePlayer, relativePlayers, rotateRecord, SuitComparisonOperator } from './core';
+import { ConstrainedBid, Constraint, ConstraintForce, RelativePartnership, relativePartnerships, RelativePlayer, relativePlayers, rotateContexts, rotateRecord, SuitComparisonOperator } from './core';
 
 const getForcingBits = (force: ConstraintForce): Logic.Bits => {
   switch (force.type) {
@@ -63,15 +64,15 @@ const suitTopL = pipe(suitContextL, Lens.prop('top'))
 
 interface PlayerContext {
   hcpRange: Logic.Bits
+  suits: RR.ReadonlyRecord<Suit, SuitContext>
   primarySuit: Logic.Bits
   secondarySuit: Logic.Bits
-  suits: RR.ReadonlyRecord<Suit, SuitContext>
 }
 const getZeroPlayerContext = (prefix: Logic.Term): PlayerContext => ({
   hcpRange: Logic.variableBits(prefix + ".hcp", 6),
+  suits: pipe(suits, RA.mapWithIndex((i, s) => [s, getZeroSuitContext(i)] as const), RR.fromFoldable(semigroup.first<SuitContext>(), RA.Foldable)),
   primarySuit: Logic.variableBits(prefix + ".primary", 3), 
   secondarySuit: Logic.variableBits(prefix + ".secondary", 3),
-  suits: pipe(suits, RA.mapWithIndex((i, s) => [s, getZeroSuitContext(i)] as const), RR.fromFoldable(semigroup.first<SuitContext>(), RA.Foldable)),
 })
 const playerContextL = Lens.id<PlayerContext>()
 const hcpRangeL = pipe(playerContextL, Lens.prop('hcpRange'))
@@ -214,25 +215,24 @@ const sat = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
 const stateFromReader = <X, A>(r: R.Reader<X, A>): S.State<X, A> =>
   c => [r(c), c]
 
-const rotateContexts =
-  pipe(
-    S.sequenceArray([
-      pipe(S.gets(playersL.get), S.chain(flow(rotateRecord(relativePlayers), playersL.set, S.modify))),
-      pipe(S.gets(partnershipsL.get), S.chain(flow(rotateRecord(relativePartnerships), partnershipsL.set, S.modify)))
-    ]),
-    S.map(constVoid))
+const sumTo = (total: number) => flow(Logic.sum, sum => Logic.equalBits(sum, Logic.constantBits(total)))
 
-function* allSolutions(solver: Logic.Solver) {
-  let result = solver.solve()
-  while (result !== null) {
-    yield result
-    solver.forbid(result.getFormula())
-    result = solver.solve()
-  }
-}
+const baseAssumptions = (context: SATContext) =>
+  Logic.and(
+    pipe(context, playersL.get, RR.map(hcpRangeL.get), RR.toReadonlyArray, RA.map(readonlyTuple.snd), sumTo(40)),
+    pipe(suits, RA.map(s =>
+      pipe(context, playersL.get, RR.map(flow(
+        suitsA.at(s).get,
+        suitRangeL.get)),
+        RR.toReadonlyArray, RA.map(readonlyTuple.snd),
+        sumTo(13),
+        Logic.and)),
+      Logic.and))
 
 export const pathIsSound = (path: Path<ConstrainedBid>) => {
   const solver = new Logic.Solver()
+  const context = zeroSATContext
+  solver.require(baseAssumptions(context))
   const solve = (op: Logic.Operand) => {
     solver.require(op)
     return O.fromNullable(solver.solve())
@@ -241,11 +241,11 @@ export const pathIsSound = (path: Path<ConstrainedBid>) => {
     RNEA.traverseWithIndex(S.Applicative)((i, info) => pipe(
       info.constraint,
       sat,
-      R.map(flow(solve, E.fromOption(() => path.slice(0, i + 1) as unknown as Path<ConstrainedBid>))),
+      R.map(flow(solve, E.fromOption(() => pipe(path, RNEA.splitAt(i), readonlyTuple.fst) as Path<ConstrainedBid>))),
       stateFromReader,
-      S.apFirst(rotateContexts))),
+      S.apFirst(S.modify(rotateContexts)))),
     S.map(flow(
       RNEA.sequence(E.Applicative),
       E.map(constVoid))),
-    S.evaluate(zeroSATContext))
+    S.evaluate(context))
 }
