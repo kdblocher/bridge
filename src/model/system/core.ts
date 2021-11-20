@@ -1,7 +1,4 @@
-import {
-    either as E, endomorphism, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlySet, readonlyTuple,
-    record, semigroup, state as S, string
-} from 'fp-ts';
+import { either as E, endomorphism, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlySet, readonlyTuple, record, semigroup, state as S, string } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
 import { apply, constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib/function';
 import { At, Lens, Optional } from 'monocle-ts';
@@ -181,7 +178,7 @@ const suitSecondary = (secondarySuit: Suit) => (primarySuit: Suit) =>
     RA.filter(({ suit, otherSuit }) => !eqSuit.equals(suit, otherSuit)),
     RA.map(({ suit, otherSuit }) => suitCompare(">")(suit, otherSuit)),
     RA.concat([
-      isSuitRange({ min: 5, max: 13 })(secondarySuit),
+      isSuitRange({ min: 4, max: 13 })(secondarySuit),
       suitCompare(">=")(primarySuit, secondarySuit)
     ]),
     forall)

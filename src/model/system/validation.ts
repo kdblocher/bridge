@@ -1,13 +1,9 @@
-import { boolean, either as E, eitherT, option as O, optionT, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA, state as S } from 'fp-ts';
+import { either as E, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA } from 'fp-ts';
 import { apply, constVoid, flow, pipe } from 'fp-ts/lib/function';
 
-import { assertUnreachable } from '../../lib';
-import { Bid, isGameLevel, isSlamLevel } from '../bridge';
+import { Bid } from '../bridge';
 import { Forest, getAllLeafPaths, Path } from '../system';
-import {
-    BidContext, bidL, ConstrainedBid, ConstraintAnyShape, ConstraintForce, ConstraintPointRange, ConstraintSetTrump, ConstraintSpecificShape, ConstraintSuitPrimary, ConstraintSuitRange,
-    ConstraintSuitSecondary, forceL, forceO, ofS, ordConstrainedBid, partnershipsL, pathL, playersL, relativePartnerships, relativePlayers, rotateRecord
-} from './core';
+import { ConstrainedBid, ordConstrainedBid } from './core';
 import { pathIsSound } from './sat';
 
 interface SystemValidationErrorBidsOutOfOrder {
