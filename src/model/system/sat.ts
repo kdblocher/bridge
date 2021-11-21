@@ -1,5 +1,4 @@
-import { either as E, foldable, number, option as O, ord, reader as R, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlyTuple as RT, semigroup, state as S } from 'fp-ts';
-import { sequenceT } from 'fp-ts/lib/Apply';
+import { either as E, foldable, number, option as O, ord, reader as R, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlyTuple as RT, semigroup, show, state as S } from 'fp-ts';
 import { apply, constVoid, flip, flow, identity, pipe } from 'fp-ts/lib/function';
 import { Kind, URIS } from 'fp-ts/lib/HKT';
 import * as Logic from 'logic-solver';
@@ -40,6 +39,12 @@ const getComparator = (op: SuitComparisonOperator) => {
     default  : return assertUnreachable(op)
   }
 }
+
+const mapArrayToContext = <X>(getZero: (prefix: Logic.Term) => X) => <A>(s: show.Show<A>) => (init: ReadonlyArray<A>) =>
+  pipe(init,
+    RA.map(s.show),
+    RA.map(s => [s, getZero(s)] as const),
+    RR.fromFoldable(semigroup.first<X>(), RA.Foldable))
 
 interface SuitContext {
   count: Logic.Bits
@@ -112,7 +117,7 @@ interface PlayerContext {
 }
 const getZeroPlayerContext = (prefix: Logic.Term): PlayerContext => ({
   hcp: Logic.variableBits(prefix + ".hcp", 6),
-  suits: pipe(suits, RA.map(s => [s, getZeroSuitContext(prefix + "." + s)] as const), RR.fromFoldable(semigroup.first<SuitContext>(), RA.Foldable)),
+  suits: pipe(suits, mapArrayToContext(s => getZeroSuitContext(prefix + "." + s))({ show: identity })),
   primarySuit: Logic.variableBits(prefix + ".primary", 3), 
   secondarySuit: Logic.variableBits(prefix + ".secondary", 3),
 })
@@ -142,15 +147,25 @@ const getZeroPartnershipContext = (prefix: Logic.Term): PartnershipContext => ({
 const partnershipContextL = Lens.id<PartnershipContext>()
 const trumpSuitL = pipe(partnershipContextL, Lens.prop('trumpSuit'))
 
+interface GlobalSuitContext {
+  hcp: Logic.Bits
+}
+const getZeroGlobalSuitContext = (prefix: Logic.Term): GlobalSuitContext => ({
+  hcp: Logic.constantBits(10)
+})
+
 interface SATContext {
   // force: Logic.Bits
+  suits: RR.ReadonlyRecord<Suit, GlobalSuitContext>
   players: RR.ReadonlyRecord<RelativePlayer, PlayerContext>
   partnerships: RR.ReadonlyRecord<RelativePartnership, PartnershipContext>
 }
+
 const zeroSATContext: SATContext = {
   // force: Logic.constantBits(0),
-  players: pipe(relativePlayers, RA.mapWithIndex((i, p) => [p, getZeroPlayerContext(i)] as const), RR.fromFoldable(semigroup.first<PlayerContext>(), RA.Foldable)),
-  partnerships: pipe(relativePartnerships, RA.map(p => [p, getZeroPartnershipContext(p)] as const), RR.fromFoldable(semigroup.first<PartnershipContext>(), RA.Foldable))
+  suits: pipe(suits, mapArrayToContext(getZeroGlobalSuitContext)({ show: identity })),
+  players: pipe(relativePlayers, mapArrayToContext(getZeroPlayerContext)({ show: identity })),
+  partnerships: pipe(relativePartnerships, mapArrayToContext(getZeroPartnershipContext)({ show: identity }))
 }
 const contextL = Lens.id<SATContext>()
 // const forceL = pipe(contextL, Lens.prop('force'))
@@ -245,26 +260,48 @@ const sat = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
   }
 }
 
+const values = flow(RR.toReadonlyArray, RA.map(RT.snd))
+
 const stateFromReader = <X, A>(r: R.Reader<X, A>): S.State<X, A> =>
   c => [r(c), c]
 
 const sumTo = (total: number) => flow(Logic.sum, sum => Logic.equalBits(sum, Logic.constantBits(total)))
 
-
 const baseAssumptions = (context: SATContext) =>
-  Logic.and(
-    pipe(context, playersL.get, RR.map(hcpRangeL.get), RR.toReadonlyArray, RA.map(RT.snd), hcps =>
-      Logic.and(
-        pipe(hcps, sumTo(40)),
-        pipe(hcps, RA.map(hcp => Logic.lessThanOrEqual(hcp, Logic.constantBits(37)))))),
+  pipe([
+    pipe(context, playersL.get, RR.map(hcpRangeL.get), values, hcps =>
+      [ pipe(hcps, sumTo(40)),
+        ...pipe(hcps, RA.map(hcp => Logic.lessThanOrEqual(hcp, Logic.constantBits(37)))) ]),
     pipe(suits, RA.map(s =>
       pipe(context,
         playersL.get,
         RR.map(flow(suitsA.at(s).get, suitCountL.get)),
-        RR.toReadonlyArray,
-        RA.map(RT.snd),
-        sumTo(13))),
-      Logic.and))
+        values,
+        sumTo(13)))),
+    pipe(context, playersL.get, RR.map(suitsL.get), values, RA.map(flow(values, RA.map(suitCountL.get), sumTo(13))))
+  ],
+  RA.flatten,
+  Logic.and)
+
+function* allSolutions(solver: Logic.Solver) {
+  let result = solver.solve()
+  while (result !== null) {
+    yield result
+    solver.forbid(result.getFormula())
+    result = solver.solve()
+  }
+}
+
+function* take<T>(generator: Generator<T>, n: number) {
+  for (var i = 0; i < n; i++) {
+    let v = generator.next()
+    if (!v.done) {
+      yield v.value
+    } else {
+      break
+    }
+  }
+}
 
 export const pathIsSound = memoize((path: Path<ConstrainedBid>) => {
   const solver = new Logic.Solver()
@@ -279,12 +316,16 @@ export const pathIsSound = memoize((path: Path<ConstrainedBid>) => {
       info.constraint,
       sat,
       R.map(flow(solve, E.fromOption(() => pipe(path, RNEA.splitAt(i), RT.fst) as Path<ConstrainedBid>))),
-      R.map(E.map(s => { console.log(s.getTrueVars()); return s })),
       stateFromReader,
       S.apFirst(S.modify(rotateContexts)))),
     S.map(flow(
       RNEA.sequence(E.Applicative),
-      E.map(constVoid))),
+      E.map(() => {
+        pipe(Array.from(take(allSolutions(solver), 10)),
+          RA.map(x => x.getTrueVars()),
+          console.log)
+        return constVoid()
+      }))),
     S.evaluate(context))
 }, {
   size: 100
