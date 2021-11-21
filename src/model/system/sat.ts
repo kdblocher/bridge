@@ -1,5 +1,6 @@
 import { either as E, foldable, number, option as O, ord, reader as R, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlyTuple as RT, semigroup, state as S } from 'fp-ts';
-import { apply, constVoid, flow, identity, pipe } from 'fp-ts/lib/function';
+import { sequenceT } from 'fp-ts/lib/Apply';
+import { apply, constVoid, flip, flow, identity, pipe } from 'fp-ts/lib/function';
 import { Kind, URIS } from 'fp-ts/lib/HKT';
 import * as Logic from 'logic-solver';
 import * as At from 'monocle-ts/lib/At';
@@ -12,16 +13,6 @@ import { eqSuit, Suit, suits } from '../deck';
 import { SpecificShape } from '../evaluation';
 import { Path } from '../system';
 import { ConstrainedBid, Constraint, RelativePartnership, relativePartnerships, RelativePlayer, relativePlayers, rotateContexts, SuitComparisonOperator } from './core';
-
-// const getForcingBits = (force: ConstraintForce): Logic.Bits => {
-//   switch (force.type) {
-//     // 0 for unspecified
-//     case "ForceOneRound": return Logic.constantBits(1)
-//     case "ForceGame": return Logic.constantBits(2)
-//     case "ForceSlam": return Logic.constantBits(3)
-//     case "Relay": return Logic.constantBits(4)
-//   }
-// }
 
 const getSuitBits = (suit: Suit): Logic.Bits =>
   pipe(suits.indexOf(suit) + 1, Logic.constantBits) // 0-4, 0 = none
@@ -71,20 +62,47 @@ const suitCompare = (op: SuitComparisonOperator) => (left: Suit, right: Suit) =>
     R.apS('r', R.asks(mySuitCountL(right).get)),
     R.map(({ l, r }) => getComparator(op)(l, r)))
 
-const suitRangesPrimary = (suit: Suit) =>
-  pipe(suits,
-    RA.splitAt(suits.indexOf(suit)),
-    RT.bimap(
-      flow(RA.tail,
-        O.fold(() => [],
-          RA.map(higher => suitCompare("<")(higher, suit)))),
-      RA.map(lower => suitCompare("<=")(lower, suit))),
-    RA.flatten,
-    R.sequenceArray,
-    R.chain(ops =>
-      pipe(R.asks(mySuitCountL(suit).get),
-        R.map(flow(range(5, 13), RA.prepend, apply(ops),
-      Logic.and)))))
+const suitPrimary = (primarySuit: Suit) =>
+  pipe([
+    pipe(R.asks(pipe(playersA.at("Me"), Lens.compose(primarySuitL)).get),
+      R.map(s0 => pipe(primarySuit, getSuitBits, s =>
+        Logic.equalBits(s0, s)))),
+    pipe(R.asks(mySuitCountL(primarySuit).get),
+      R.map(range(5, 13))),
+    ...pipe(suits,
+      RA.splitAt(suits.indexOf(primarySuit)),
+      RT.bimap(
+        flow(RA.tail,
+          O.fold(() => [],
+            RA.map(higher => suitCompare("<")(higher, primarySuit)))),
+        RA.map(lower => suitCompare("<=")(lower, primarySuit))),
+      RA.flatten)
+  ],
+  R.sequenceArray,
+  R.map(Logic.and))
+
+const suitSecondary = (secondarySuit: Suit) =>
+  pipe(R.Do,
+    R.apS('primarySuit', R.asks(pipe(playersA.at("Me"), Lens.compose(primarySuitL)).get)),
+    R.apS('secondarySuit', R.asks(pipe(playersA.at("Me"), Lens.compose(secondarySuitL)).get)),
+    R.apS('secondarySuitCount', R.asks(mySuitCountL(secondarySuit).get)),
+    R.chain(o =>
+      pipe(suits, RA.map(primarySuit =>
+        pipe(R.Do,
+          R.apS('primarySuitCount', R.asks(mySuitCountL(primarySuit).get)),
+          R.map(p =>
+            Logic.implies(
+              Logic.equalBits(getSuitBits(primarySuit), o.primarySuit),
+              Logic.and(
+                Logic.not(Logic.equalBits(o.primarySuit, o.secondarySuit)),
+                Logic.greaterThanOrEqual(p.primarySuitCount, o.secondarySuitCount)))))),
+        R.sequenceArray,
+        R.map(RA.concat([
+          Logic.equalBits(getSuitBits(secondarySuit), o.secondarySuit),
+          Logic.not(Logic.equalBits(o.primarySuit, o.secondarySuit)),
+          range(4, 13)(o.secondarySuitCount)
+        ])))),
+    R.map(Logic.and))
 
 interface PlayerContext {
   hcp: Logic.Bits
@@ -166,22 +184,9 @@ const sat = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
     //       Logic.lessThanOrEqual(f0, f))))
         
     case "SuitPrimary":
-      return pipe(
-        R.asks(pipe(playersA.at("Me"), Lens.compose(primarySuitL)).get),
-        R.map(s0 => pipe(c.suit, getSuitBits, s =>
-          Logic.equalBits(s0, s))),
-        R.map(andAlso),
-        R.ap(suitRangesPrimary(c.suit)))
-    // case "SuitSecondary":
-    //   return pipe(R.Do,
-    //     R.apS('p0', R.asks(pipe(playersA.at("Me"), Lens.compose(primarySuitL)).get)),
-    //     R.apS('s0', R.asks(pipe(playersA.at("Me"), Lens.compose(secondarySuitL)).get)),
-    //     R.map(({ p0, s0 }) => pipe(c.suit, getSuitBits, s =>
-    //       Logic.and(
-    //         Logic.equalBits(s0, s),
-    //         Logic.not(Logic.equalBits(p0, s))))),
-    //     R.map(andAlso),
-    //     R.ap(suit)
+      return suitPrimary(c.suit)
+    case "SuitSecondary":
+      return suitSecondary(c.suit)
 
     case "SetTrump":
       return pipe(
@@ -230,7 +235,6 @@ const sat = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
     case "Constant":
       return R.of(Logic.TRUE)
 
-    case "SuitSecondary":
     case "SuitHonors":
     case "SuitTop":
       // do later
