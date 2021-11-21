@@ -4,18 +4,18 @@ import { identity, pipe } from 'fp-ts/lib/function';
 import * as Gen from '../../lib/gen';
 import { eqBid } from '../bridge';
 import { Hand } from '../deck';
-import { BidContext, bidL, ConstrainedBid, Constraint, constraintTrue, forceO, ofS, pathL, rotateContexts, satisfiesS, zeroContext } from './core';
+import { BidContext, bidL, ConstrainedBid, Constraint, constraintTrue, ofS, pathL, rotateContexts, satisfiesS, zeroContext } from './core';
 
-const specialRelayCase = (s: S.State<BidContext, Constraint>) =>
-  pipe(s,
-    S.bindTo('constraint'),
-    S.apS('force', S.gets(forceO.getOption)),
-    S.apS('bid', S.gets(bidL.get)),
-    S.map(info =>
-      pipe(info.force,
-        O.chain(O.fromPredicate(force =>
-          info.constraint.type === "Constant" && !info.constraint.value && force.type === "Relay" && eqBid.equals(force.bid, info.bid))),
-        O.fold(() => info.constraint, constraintTrue))))
+// const specialRelayCase = (s: S.State<BidContext, Constraint>) =>
+//   pipe(s,
+//     S.bindTo('constraint'),
+//     S.apS('force', S.gets(forceO.getOption)),
+//     S.apS('bid', S.gets(bidL.get)),
+//     S.map(info =>
+//       pipe(info.force,
+//         O.chain(O.fromPredicate(force =>
+//           info.constraint.type === "Constant" && !info.constraint.value && force.type === "Relay" && eqBid.equals(force.bid, info.bid))),
+//         O.fold(() => info.constraint, constraintTrue))))
 
 export const satisfiesPath = (opener: Hand, responder: Hand) => (path: RNEA.ReadonlyNonEmptyArray<ConstrainedBid>) =>
   pipe(
@@ -26,7 +26,7 @@ export const satisfiesPath = (opener: Hand, responder: Hand) => (path: RNEA.Read
       pipe(
         ofS(info.constraint),
         S.chainFirst(() => S.modify(bidL.set(info.bid))),
-        specialRelayCase,
+        // specialRelayCase,
         satisfiesS,
         S.flap(hand),
         S.apFirst(S.modify(rotateContexts)),

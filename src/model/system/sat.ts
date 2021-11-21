@@ -11,17 +11,17 @@ import { permute } from '../../lib/array';
 import { eqSuit, Suit, suits } from '../deck';
 import { SpecificShape } from '../evaluation';
 import { Path } from '../system';
-import { ConstrainedBid, Constraint, ConstraintForce, RelativePartnership, relativePartnerships, RelativePlayer, relativePlayers, rotateContexts, SuitComparisonOperator } from './core';
+import { ConstrainedBid, Constraint, RelativePartnership, relativePartnerships, RelativePlayer, relativePlayers, rotateContexts, SuitComparisonOperator } from './core';
 
-const getForcingBits = (force: ConstraintForce): Logic.Bits => {
-  switch (force.type) {
-    // 0 for unspecified
-    case "ForceOneRound": return Logic.constantBits(1)
-    case "ForceGame": return Logic.constantBits(2)
-    case "ForceSlam": return Logic.constantBits(3)
-    case "Relay": return Logic.constantBits(4)
-  }
-}
+// const getForcingBits = (force: ConstraintForce): Logic.Bits => {
+//   switch (force.type) {
+//     // 0 for unspecified
+//     case "ForceOneRound": return Logic.constantBits(1)
+//     case "ForceGame": return Logic.constantBits(2)
+//     case "ForceSlam": return Logic.constantBits(3)
+//     case "Relay": return Logic.constantBits(4)
+//   }
+// }
 
 const getSuitBits = (suit: Suit): Logic.Bits =>
   pipe(suits.indexOf(suit) + 1, Logic.constantBits) // 0-4, 0 = none
@@ -125,17 +125,17 @@ const partnershipContextL = Lens.id<PartnershipContext>()
 const trumpSuitL = pipe(partnershipContextL, Lens.prop('trumpSuit'))
 
 interface SATContext {
-  force: Logic.Bits
+  // force: Logic.Bits
   players: RR.ReadonlyRecord<RelativePlayer, PlayerContext>
   partnerships: RR.ReadonlyRecord<RelativePartnership, PartnershipContext>
 }
 const zeroSATContext: SATContext = {
-  force: Logic.constantBits(0),
+  // force: Logic.constantBits(0),
   players: pipe(relativePlayers, RA.mapWithIndex((i, p) => [p, getZeroPlayerContext(i)] as const), RR.fromFoldable(semigroup.first<PlayerContext>(), RA.Foldable)),
   partnerships: pipe(relativePartnerships, RA.map(p => [p, getZeroPartnershipContext(p)] as const), RR.fromFoldable(semigroup.first<PartnershipContext>(), RA.Foldable))
 }
 const contextL = Lens.id<SATContext>()
-const forceL = pipe(contextL, Lens.prop('force'))
+// const forceL = pipe(contextL, Lens.prop('force'))
 const playersL = pipe(contextL, Lens.prop('players'))
 const partnershipsL = pipe(contextL, Lens.prop('partnerships'))
 const playersA = At.at<SATContext, RelativePlayer, PlayerContext>(i =>
@@ -156,14 +156,14 @@ const sat = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
     case "Negation": 
       return pipe(c.constraint, sat, R.map(Logic.not))
 
-    case "ForceOneRound":
-    case "ForceGame":
-    case "ForceSlam":
-    case "Relay":
-      return pipe(
-        R.asks(forceL.get),
-        R.map(f0 => pipe(c, getForcingBits, f =>
-          Logic.lessThanOrEqual(f0, f))))
+    // case "ForceOneRound":
+    // case "ForceGame":
+    // case "ForceSlam":
+    // case "Relay":
+    //   return pipe(
+    //     R.asks(forceL.get),
+    //     R.map(f0 => pipe(c, getForcingBits, f =>
+    //       Logic.lessThanOrEqual(f0, f))))
         
     case "SuitPrimary":
       return pipe(

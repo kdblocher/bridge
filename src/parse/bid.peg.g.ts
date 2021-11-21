@@ -28,7 +28,7 @@
 *   | Not
 *   | Otherwise
 *   | Distribution
-*   | Response
+*   // | Response
 *   | SuitRange
 *   | SuitBound
 *   | SuitComparison
@@ -74,11 +74,11 @@
 * Primary := suit=SuitSpecifier '1'
 * Secondary := suit=SuitSpecifier '2'
 * SetTrump := suit=SuitSpecifier '#'
-* Response := ForceOneRound | ForceGame | ForceSlam | Relay
-* ForceOneRound := v='F1'
-* ForceGame := v='FG'
-* ForceSlam := v='FS'
-* Relay := '->' bid=OtherBid
+* // Response := ForceOneRound | ForceGame | ForceSlam | Relay
+* // ForceOneRound := v='F1'
+* // ForceGame := v='FG'
+* // ForceSlam := v='FS'
+* // Relay := '->' bid=OtherBid
 * LabelDef := '\'' label=Label '\': ' constraints=ConstraintList
 * LabelRef := '\'' label=Label '\''
 * Label := v='[0-9a-zA-z-_]+'
@@ -140,7 +140,6 @@ export enum ASTKinds {
     Constraint_16 = "Constraint_16",
     Constraint_17 = "Constraint_17",
     Constraint_18 = "Constraint_18",
-    Constraint_19 = "Constraint_19",
     Const_1 = "Const_1",
     Const_2 = "Const_2",
     True = "True",
@@ -193,14 +192,6 @@ export enum ASTKinds {
     Primary = "Primary",
     Secondary = "Secondary",
     SetTrump = "SetTrump",
-    Response_1 = "Response_1",
-    Response_2 = "Response_2",
-    Response_3 = "Response_3",
-    Response_4 = "Response_4",
-    ForceOneRound = "ForceOneRound",
-    ForceGame = "ForceGame",
-    ForceSlam = "ForceSlam",
-    Relay = "Relay",
     LabelDef = "LabelDef",
     LabelRef = "LabelRef",
     Label = "Label",
@@ -288,26 +279,25 @@ export interface ConstraintListItem {
     kind: ASTKinds.ConstraintListItem;
     constraint: Constraint;
 }
-export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8 | Constraint_9 | Constraint_10 | Constraint_11 | Constraint_12 | Constraint_13 | Constraint_14 | Constraint_15 | Constraint_16 | Constraint_17 | Constraint_18 | Constraint_19;
+export type Constraint = Constraint_1 | Constraint_2 | Constraint_3 | Constraint_4 | Constraint_5 | Constraint_6 | Constraint_7 | Constraint_8 | Constraint_9 | Constraint_10 | Constraint_11 | Constraint_12 | Constraint_13 | Constraint_14 | Constraint_15 | Constraint_16 | Constraint_17 | Constraint_18;
 export type Constraint_1 = Const;
 export type Constraint_2 = Or;
 export type Constraint_3 = And;
 export type Constraint_4 = Not;
 export type Constraint_5 = Otherwise;
 export type Constraint_6 = Distribution;
-export type Constraint_7 = Response;
-export type Constraint_8 = SuitRange;
-export type Constraint_9 = SuitBound;
-export type Constraint_10 = SuitComparison;
-export type Constraint_11 = SuitHonors;
-export type Constraint_12 = SuitTop;
-export type Constraint_13 = SuitRank;
-export type Constraint_14 = SetTrump;
-export type Constraint_15 = PointRange;
-export type Constraint_16 = PointBound;
-export type Constraint_17 = OtherBid;
-export type Constraint_18 = LabelDef;
-export type Constraint_19 = LabelRef;
+export type Constraint_7 = SuitRange;
+export type Constraint_8 = SuitBound;
+export type Constraint_9 = SuitComparison;
+export type Constraint_10 = SuitHonors;
+export type Constraint_11 = SuitTop;
+export type Constraint_12 = SuitRank;
+export type Constraint_13 = SetTrump;
+export type Constraint_14 = PointRange;
+export type Constraint_15 = PointBound;
+export type Constraint_16 = OtherBid;
+export type Constraint_17 = LabelDef;
+export type Constraint_18 = LabelRef;
 export type Const = Const_1 | Const_2;
 export type Const_1 = True;
 export type Const_2 = False;
@@ -478,27 +468,6 @@ export interface Secondary {
 export interface SetTrump {
     kind: ASTKinds.SetTrump;
     suit: SuitSpecifier;
-}
-export type Response = Response_1 | Response_2 | Response_3 | Response_4;
-export type Response_1 = ForceOneRound;
-export type Response_2 = ForceGame;
-export type Response_3 = ForceSlam;
-export type Response_4 = Relay;
-export interface ForceOneRound {
-    kind: ASTKinds.ForceOneRound;
-    v: string;
-}
-export interface ForceGame {
-    kind: ASTKinds.ForceGame;
-    v: string;
-}
-export interface ForceSlam {
-    kind: ASTKinds.ForceSlam;
-    v: string;
-}
-export interface Relay {
-    kind: ASTKinds.Relay;
-    bid: OtherBid;
 }
 export interface LabelDef {
     kind: ASTKinds.LabelDef;
@@ -848,7 +817,6 @@ export class Parser {
                 () => this.matchConstraint_16($$dpth + 1, $$cr),
                 () => this.matchConstraint_17($$dpth + 1, $$cr),
                 () => this.matchConstraint_18($$dpth + 1, $$cr),
-                () => this.matchConstraint_19($$dpth + 1, $$cr),
             ]);
         };
         const $scope$pos = this.mark();
@@ -895,42 +863,39 @@ export class Parser {
         return this.matchDistribution($$dpth + 1, $$cr);
     }
     public matchConstraint_7($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_7> {
-        return this.matchResponse($$dpth + 1, $$cr);
-    }
-    public matchConstraint_8($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_8> {
         return this.matchSuitRange($$dpth + 1, $$cr);
     }
-    public matchConstraint_9($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_9> {
+    public matchConstraint_8($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_8> {
         return this.matchSuitBound($$dpth + 1, $$cr);
     }
-    public matchConstraint_10($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_10> {
+    public matchConstraint_9($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_9> {
         return this.matchSuitComparison($$dpth + 1, $$cr);
     }
-    public matchConstraint_11($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_11> {
+    public matchConstraint_10($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_10> {
         return this.matchSuitHonors($$dpth + 1, $$cr);
     }
-    public matchConstraint_12($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_12> {
+    public matchConstraint_11($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_11> {
         return this.matchSuitTop($$dpth + 1, $$cr);
     }
-    public matchConstraint_13($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_13> {
+    public matchConstraint_12($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_12> {
         return this.matchSuitRank($$dpth + 1, $$cr);
     }
-    public matchConstraint_14($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_14> {
+    public matchConstraint_13($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_13> {
         return this.matchSetTrump($$dpth + 1, $$cr);
     }
-    public matchConstraint_15($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_15> {
+    public matchConstraint_14($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_14> {
         return this.matchPointRange($$dpth + 1, $$cr);
     }
-    public matchConstraint_16($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_16> {
+    public matchConstraint_15($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_15> {
         return this.matchPointBound($$dpth + 1, $$cr);
     }
-    public matchConstraint_17($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_17> {
+    public matchConstraint_16($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_16> {
         return this.matchOtherBid($$dpth + 1, $$cr);
     }
-    public matchConstraint_18($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_18> {
+    public matchConstraint_17($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_17> {
         return this.matchLabelDef($$dpth + 1, $$cr);
     }
-    public matchConstraint_19($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_19> {
+    public matchConstraint_18($$dpth: number, $$cr?: ErrorTracker): Nullable<Constraint_18> {
         return this.matchLabelRef($$dpth + 1, $$cr);
     }
     public matchConst($$dpth: number, $$cr?: ErrorTracker): Nullable<Const> {
@@ -1502,79 +1467,6 @@ export class Parser {
                     && this.regexAccept(String.raw`(?:#)`, $$dpth + 1, $$cr) !== null
                 ) {
                     $$res = {kind: ASTKinds.SetTrump, suit: $scope$suit};
-                }
-                return $$res;
-            });
-    }
-    public matchResponse($$dpth: number, $$cr?: ErrorTracker): Nullable<Response> {
-        return this.choice<Response>([
-            () => this.matchResponse_1($$dpth + 1, $$cr),
-            () => this.matchResponse_2($$dpth + 1, $$cr),
-            () => this.matchResponse_3($$dpth + 1, $$cr),
-            () => this.matchResponse_4($$dpth + 1, $$cr),
-        ]);
-    }
-    public matchResponse_1($$dpth: number, $$cr?: ErrorTracker): Nullable<Response_1> {
-        return this.matchForceOneRound($$dpth + 1, $$cr);
-    }
-    public matchResponse_2($$dpth: number, $$cr?: ErrorTracker): Nullable<Response_2> {
-        return this.matchForceGame($$dpth + 1, $$cr);
-    }
-    public matchResponse_3($$dpth: number, $$cr?: ErrorTracker): Nullable<Response_3> {
-        return this.matchForceSlam($$dpth + 1, $$cr);
-    }
-    public matchResponse_4($$dpth: number, $$cr?: ErrorTracker): Nullable<Response_4> {
-        return this.matchRelay($$dpth + 1, $$cr);
-    }
-    public matchForceOneRound($$dpth: number, $$cr?: ErrorTracker): Nullable<ForceOneRound> {
-        return this.run<ForceOneRound>($$dpth,
-            () => {
-                let $scope$v: Nullable<string>;
-                let $$res: Nullable<ForceOneRound> = null;
-                if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:F1)`, $$dpth + 1, $$cr)) !== null
-                ) {
-                    $$res = {kind: ASTKinds.ForceOneRound, v: $scope$v};
-                }
-                return $$res;
-            });
-    }
-    public matchForceGame($$dpth: number, $$cr?: ErrorTracker): Nullable<ForceGame> {
-        return this.run<ForceGame>($$dpth,
-            () => {
-                let $scope$v: Nullable<string>;
-                let $$res: Nullable<ForceGame> = null;
-                if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:FG)`, $$dpth + 1, $$cr)) !== null
-                ) {
-                    $$res = {kind: ASTKinds.ForceGame, v: $scope$v};
-                }
-                return $$res;
-            });
-    }
-    public matchForceSlam($$dpth: number, $$cr?: ErrorTracker): Nullable<ForceSlam> {
-        return this.run<ForceSlam>($$dpth,
-            () => {
-                let $scope$v: Nullable<string>;
-                let $$res: Nullable<ForceSlam> = null;
-                if (true
-                    && ($scope$v = this.regexAccept(String.raw`(?:FS)`, $$dpth + 1, $$cr)) !== null
-                ) {
-                    $$res = {kind: ASTKinds.ForceSlam, v: $scope$v};
-                }
-                return $$res;
-            });
-    }
-    public matchRelay($$dpth: number, $$cr?: ErrorTracker): Nullable<Relay> {
-        return this.run<Relay>($$dpth,
-            () => {
-                let $scope$bid: Nullable<OtherBid>;
-                let $$res: Nullable<Relay> = null;
-                if (true
-                    && this.regexAccept(String.raw`(?:->)`, $$dpth + 1, $$cr) !== null
-                    && ($scope$bid = this.matchOtherBid($$dpth + 1, $$cr)) !== null
-                ) {
-                    $$res = {kind: ASTKinds.Relay, bid: $scope$bid};
                 }
                 return $$res;
             });

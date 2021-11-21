@@ -87,18 +87,18 @@ export interface ConstraintSpecificShape {
   suits: SpecificShape
 }
 
-interface ConstraintResponse {
-  type: "ForceOneRound" | "ForceGame" | "ForceSlam"
-}
+// interface ConstraintResponse {
+//   type: "ForceOneRound" | "ForceGame" | "ForceSlam"
+// }
 
-interface ConstraintRelayResponse {
-  type: "Relay"
-  bid: ContractBid
-}
+// interface ConstraintRelayResponse {
+//   type: "Relay"
+//   bid: ContractBid
+// }
 
-export type ConstraintForce =
-    ConstraintResponse
-  | ConstraintRelayResponse
+// export type ConstraintForce =
+//     ConstraintResponse
+//   | ConstraintRelayResponse
 
 export type Constraint =
   | ConstraintConstant
@@ -114,7 +114,7 @@ export type Constraint =
   | ConstraintSuitTop
   | ConstraintAnyShape
   | ConstraintSpecificShape
-  | ConstraintForce
+  // | ConstraintForce
 
   /* eslint-disable @typescript-eslint/no-unused-vars */
 const predFalse : P.Predicate<Hand> = constFalse
@@ -212,10 +212,10 @@ const contextualConstraintTypes = [
   "Conjunction",
   "Disjunction",
   "Negation",
-  "ForceOneRound",
-  "ForceGame",
-  "ForceSlam",
-  "Relay",
+  // "ForceOneRound",
+  // "ForceGame",
+  // "ForceSlam",
+  // "Relay",
   "SuitPrimary",
   "SuitSecondary",
   "SetTrump"
@@ -313,14 +313,14 @@ export const rotateContexts = <PL, PT, X extends { players: RR.ReadonlyRecord<Re
 export interface BidContext {
   bid: Bid,
   path: ReadonlyArray<Bid>
-  force: O.Option<ConstraintForce>
+  // force: O.Option<ConstraintForce>
   players: RR.ReadonlyRecord<RelativePlayer, PlayerContext>
   partnerships: RR.ReadonlyRecord<RelativePartnership, PartnershipContext>
 }
 export const zeroContext : BidContext = {
   bid: {} as Bid,
   path: [],
-  force: O.none,
+  // force: O.none,
   players: pipe(relativePlayers, RA.map(p => [p, zeroPlayerContext] as const), RR.fromFoldable(semigroup.first<PlayerContext>(), RA.Foldable)),
   partnerships: pipe(relativePartnerships, RA.map(p => [p, zeroPartnershipContext] as const), RR.fromFoldable(semigroup.first<PartnershipContext>(), RA.Foldable)),
 }
@@ -329,11 +329,11 @@ export const zeroContext : BidContext = {
 export const contextL = Lens.fromProp<BidContext>()
 export const bidL = contextL('bid')
 export const pathL = contextL('path')
-export const forceL = contextL('force')
+// export const forceL = contextL('force')
 export const playersL = contextL('players')
 export const partnershipsL = contextL('partnerships')
 export const contextO = Optional.fromOptionProp<BidContext>()
-export const forceO = contextO('force')
+// export const forceO = contextO('force')
 export const playerContextA = new At<BidContext, RelativePlayer, PlayerContext>(player =>
   new Lens(
     flow(playersL.get, p => p[player]),
@@ -364,13 +364,13 @@ const satisfiesContextual = (recur: SatisfiesS<BidContext, Constraint, Hand>) : 
       case "Negation": 
         return pipe(c.constraint, ofS, recur, S.map(P.not))
         
-      case "ForceOneRound":
-      case "ForceGame":
-      case "ForceSlam":
-      case "Relay":
-        return pipe(
-          S.modify<BidContext>(forceL.set(O.some(c))),
-          S.map(() => constTrue))
+      // case "ForceOneRound":
+      // case "ForceGame":
+      // case "ForceSlam":
+      // case "Relay":
+      //   return pipe(
+      //     S.modify<BidContext>(forceL.set(O.some(c))),
+      //     S.map(() => constTrue))
 
       case "SuitPrimary":
         return pipe(
