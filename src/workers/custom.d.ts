@@ -46,7 +46,7 @@ declare module 'comlink-loader!./sat.worker' {
 
   class SATWorker extends Worker {
     constructor();
-    getPathIsSound(path: Path<ConstrainedBid>): Promise<Either<Path<Bid>, void>>;
+    getPathIsSound(path: Path<ConstrainedBid>): Promise<Either<ReadonlyArray<Bid>, void>>;
   }
   export = SATWorker;
 }

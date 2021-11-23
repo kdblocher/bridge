@@ -1,13 +1,14 @@
 import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, semigroup, string, these as TH, tree as T } from 'fp-ts';
 import { observable as Ob } from 'fp-ts-rxjs';
-import { flow, identity, pipe } from 'fp-ts/lib/function';
+import { apply, flow, identity, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
+import * as t from 'io-ts';
 import { DecodeError } from 'io-ts/lib/Decoder';
 import memoize from 'proxy-memoize';
 import { Epic } from 'redux-observable';
 import { debounceTime, from, takeUntil } from 'rxjs';
 
-import { datumEither as DE } from '@nll/datum';
+import { datum as D, datumEither as DE } from '@nll/datum';
 import { AnyAction, createEntityAdapter, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { RootState } from '../app/store';
@@ -32,10 +33,10 @@ interface DecodedBidItem {
 }
 const decodedBidAdapter = createEntityAdapter<DecodedBidItem>()
 
-
+type SerializedBlockKeyPath = t.Branded<string, { readonly BlockKeyPath: unique symbol }>
 interface ValidatedPathItem {
-  id: SerializedBidPath
-  value: DE.DatumEither<Path<Bid>, void>
+  id: SerializedBlockKeyPath
+  value: D.Datum<boolean>
 }
 const validatedPathAdapter = createEntityAdapter<ValidatedPathItem>()
 
@@ -84,14 +85,16 @@ const slice = createSlice({
     },
     removeConstraintsByBlockKey: (state, action: PayloadAction<RNEA.ReadonlyNonEmptyArray<BlockKey>>) => {
       decodedBidAdapter.removeMany(state.decodedBids, action.payload)
+      // validatedPathAdapter.removeMany(
+      validatedPathAdapter.removeMany(state.validatedPaths,
+        pipe(state.validatedPaths.ids as unknown as ReadonlyArray<SerializedBlockKeyPath>,
+          RA.filter(path => pipe(action.payload, RA.exists(flow(string.includes, apply(path)))))))
     },
     cacheSystemConstraints: (state, action: PayloadAction<RNEA.ReadonlyNonEmptyArray<BlockItem>>) => {
-      decodedBidAdapter.setMany(state.decodedBids, pipe(
-        action.payload,
-        RNEA.map(i => ({ id: i.key, value: decodeBid(i.text) }))))
+      const decodedBids = pipe(action.payload, RNEA.map((i): DecodedBidItem => ({ id: i.key, value: decodeBid(i.text) })))
+      decodedBidAdapter.setMany(state.decodedBids, decodedBids)
     },
     validateSystem: (state) => {
-      validatedPathAdapter.removeAll(state.validatedPaths)
       // pipe({ state },
       //   selectCompleteSyntaxForest,
       //   TH.getRight,
@@ -102,8 +105,24 @@ const slice = createSlice({
       //   readonlyRecord.fromFoldable(semigroup.first<ValidatedPath>(), RA.Foldable),
       //   x => validatedPathAdapter.addMany(state.validatedPaths, x))
     },
-    reportValidationResult: (state, action: PayloadAction<ValidatedPathItem>) => {
-      validatedPathAdapter.addOne(state.validatedPaths, action.payload)
+    reportValidationResult: (state, action: PayloadAction<readonly [Path<Bid>, boolean]>) => {
+      pipe(action.payload,
+        readonlyTuple.fst,
+        RNEA.traverse(O.Applicative)(b1 => pipe(
+          state.decodedBids.entities,
+          values,
+          RA.filterMap(O.fromNullable),
+          RA.findFirst(x => pipe(x.value, O.fromEither, O.map(get('bid')), b2 => O.elem(eqBid)(b1, b2))),
+          O.map(get('id')))),
+        O.map(flow(
+          RNEA.intersperse('.'),
+          RNEA.foldMap(string.Semigroup)(identity),
+          (x): ValidatedPathItem => ({
+            id: x as SerializedBlockKeyPath,
+            value: pipe(action.payload, readonlyTuple.snd, D.replete)
+          }),
+          i => validatedPathAdapter.upsertOne(state.validatedPaths, i))))
+      // validatedPathAdapter.addOne(state.validatedPaths, action.payload)
     }
   }
 })
@@ -263,6 +282,5 @@ export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
       selectExpandedConstraintForest,
       TH.getRight,
       O.fold(() => from([]), observeValidation))),
-    Ob.map(readonlyTuple.mapSnd(DE.fromEither2)),
-    Ob.map(([id, value]) => reportValidationResult({ id, value })))
+    Ob.map(reportValidationResult))
 ]

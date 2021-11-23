@@ -22,8 +22,8 @@ const getDescriptorFromContentBlock = (x: ContentBlock): BlockKeyDescriptor & Bl
 })
 
 const eqContentBlock = monoid.concatAll(eq.getMonoid<ContentBlock>())([
-  eq.contramap((b: ContentBlock) => b.getKey())(string.Eq),
-  eq.contramap((b: ContentBlock) => b.getText())(string.Eq)
+  pipe(string.Eq, eq.contramap(b => b.getKey())),
+  pipe(string.Eq, eq.contramap(b => b.getText()))
 ])
 const getBlocks = (editorState: EditorState) => pipe(
   editorState.getCurrentContent().getBlocksAsArray(),
