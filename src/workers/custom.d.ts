@@ -37,3 +37,16 @@ declare module 'comlink-loader!./dds.worker' {
   }
   export = DDSWorker;
 }
+
+declare module 'comlink-loader!./sat.worker' {
+  type Either<E, A> = import ('fp-ts').either.Either<E, A>
+  type Path<A> = import ("../model/system").Path<A>
+  type ConstrainedBid = import ("../model/system/core").ConstrainedBid
+  type Bid = import ("../model/bridge").Bid
+
+  class SATWorker extends Worker {
+    constructor();
+    getPathIsSound(path: Path<ConstrainedBid>): Promise<Either<Path<Bid>, void>>;
+  }
+  export = SATWorker;
+}

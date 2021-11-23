@@ -2,17 +2,19 @@
 
 import DDSWorker from 'comlink-loader!./dds.worker'; // inline loader
 import DealWorker from 'comlink-loader!./deal.worker'; // inline loader
+import SATWorker from 'comlink-loader!./sat.worker';
 import SatisfiesWorker from 'comlink-loader!./satisfies.worker';
-import { either, readonlyArray as RA, readonlyNonEmptyArray, taskEither } from 'fp-ts';
+import { either as E, readonlyArray as RA, readonlyNonEmptyArray as RNEA, taskEither } from 'fp-ts';
 import { observable as Ob, observableEither as ObE } from 'fp-ts-rxjs';
 import { pipe } from 'fp-ts/lib/function';
-import { from, groupBy } from 'rxjs';
+import { from, groupBy, Observable } from 'rxjs';
 
+import { get } from '../lib/object';
 import pool from '../lib/pool';
-import { makeBoard } from '../model/bridge';
+import { Bid, makeBoard } from '../model/bridge';
 import { GenerationId, Solution } from '../model/job';
 import { SerializedBidPath, serializedBidPathL, serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
-import { Paths } from '../model/system';
+import { Forest, getAllLeafPaths, Path, Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { getBatchIdsByGenerationId } from '../services/idb';
 
@@ -37,7 +39,7 @@ export const observeSatisfies = (generationId: GenerationId) => (paths: Paths<Co
     ObE.chain(x => ObE.fromObservable(from(x))),
     ObE.bindTo('batchId'),
     ObE.bind('path', () => ObE.fromObservable(from(paths))),
-    groupBy(either.isRight),
+    groupBy(E.isRight),
     Ob.chain(group =>
       group.key
       ? pipe(group, Ob.map(r => r.right),
@@ -45,7 +47,7 @@ export const observeSatisfies = (generationId: GenerationId) => (paths: Paths<Co
             pipe(
               () => w.satisfiesBatch(path, batchId, generationId),
               taskEither.map((result): SatisfiesResult => ({ ...result,
-                path: pipe(path, readonlyNonEmptyArray.map(cb => cb.bid), serializedBidPathL.get),
+                path: pipe(path, RNEA.map(cb => cb.bid), serializedBidPathL.get),
               })))
             ()))
       : group))
@@ -60,3 +62,10 @@ export const observeSolutions = (deals: ReadonlyArray<SerializedDeal>) =>
     ObE.bimap(() => "", (x): Solution => ({
       [x.board.deal.id]: x
     })))
+
+export const observeValidation = (forest: Forest<ConstrainedBid>) : Observable<readonly [SerializedBidPath, E.Either<Path<Bid>, void>]> =>
+  pipe(forest,
+    getAllLeafPaths,
+    pool(() => new SATWorker(), w => async p =>
+      pipe(await w.getPathIsSound(p),
+        result => [pipe(p, RNEA.map(get('bid')), serializedBidPathL.get), result] as const)))

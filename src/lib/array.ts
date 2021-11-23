@@ -1,3 +1,6 @@
+import { readonlyArray, readonlyRecord, readonlyTuple } from 'fp-ts';
+import { flow } from 'fp-ts/lib/function';
+
 export function* permute<T>(values: ReadonlyArray<T>) {
   const permutation = Array.from(values)
   var length = permutation.length,
@@ -20,3 +23,5 @@ export function* permute<T>(values: ReadonlyArray<T>) {
     }
   }
 }
+
+export const values = flow(readonlyRecord.toReadonlyArray, readonlyArray.map(readonlyTuple.snd))

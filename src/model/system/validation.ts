@@ -183,10 +183,10 @@ const forestIsSound = (tree: Forest<ConstrainedBid>) : SystemValidation =>
     getAllLeafPaths,
     RA.traverse(E.Applicative)(flow(
       pathIsSound,
-      E.mapLeft((path): SystemValidationError => ({ type: "SAT", path: path.map(b => b.bid) })))),
+      E.mapLeft((path): SystemValidationError => ({ type: "SAT", path })))),
     E.map(constVoid))
 
 export const validateTree = (forest: Forest<ConstrainedBid>) =>
-  pipe([forestSorted, forestIsSound],
+  pipe([forestSorted], //forestIsSound],
     RA.traverse(E.Applicative)(apply(forest)),
     E.map(constVoid))

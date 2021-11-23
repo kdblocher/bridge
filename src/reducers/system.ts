@@ -1,16 +1,26 @@
-import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, string, these as TH, tree as T } from 'fp-ts';
+import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, semigroup, string, these as TH, tree as T } from 'fp-ts';
+import { observable as Ob } from 'fp-ts-rxjs';
 import { flow, identity, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import { DecodeError } from 'io-ts/lib/Decoder';
 import memoize from 'proxy-memoize';
+import { Epic } from 'redux-observable';
+import { debounceTime, from, takeUntil } from 'rxjs';
 
-import { createEntityAdapter, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { datumEither as DE } from '@nll/datum';
+import { AnyAction, createEntityAdapter, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
+import { RootState } from '../app/store';
+import { values } from '../lib/array';
+import { get } from '../lib/object';
 import { Bid, eqBid } from '../model/bridge';
-import { chainCollectedErrors, collectErrors, flatten, ForestWithErrors, getAllLeafPaths, getPathForest, getPathUpTo, Path, withImplicitPasses } from '../model/system';
+import { SerializedBidPath, serializedBidPathL } from '../model/serialization';
+import { chainCollectedErrors, collectErrors, flatten, Forest, ForestWithErrors, getAllLeafPaths, getPathForest, getPathUpTo, Path, withImplicitPasses } from '../model/system';
+import { ConstrainedBid } from '../model/system/core';
 import { ExpandError, expandForest, SyntacticBid } from '../model/system/expander';
 import { SystemValidationError, validateTree } from '../model/system/validation';
 import { decodeBid } from '../parse';
+import { observeValidation } from '../workers';
 
 type BlockKey = string
 const eqBlockKey : eq.Eq<BlockKey> = string.Eq
@@ -22,15 +32,24 @@ interface DecodedBidItem {
 }
 const decodedBidAdapter = createEntityAdapter<DecodedBidItem>()
 
+
+interface ValidatedPathItem {
+  id: SerializedBidPath
+  value: DE.DatumEither<Path<Bid>, void>
+}
+const validatedPathAdapter = createEntityAdapter<ValidatedPathItem>()
+
 type BlockTree = T.Forest<BlockKey>
 interface State {
   system: BlockTree
   decodedBids: ReturnType<typeof decodedBidAdapter.getInitialState>
+  validatedPaths: ReturnType<typeof validatedPathAdapter.getInitialState>
 }
 
 const initialState: State = {
   system: [],
-  decodedBids: decodedBidAdapter.getInitialState()
+  decodedBids: decodedBidAdapter.getInitialState(),
+  validatedPaths: validatedPathAdapter.getInitialState()
 }
 
 export interface BlockKeyDescriptor {
@@ -70,11 +89,26 @@ const slice = createSlice({
       decodedBidAdapter.setMany(state.decodedBids, pipe(
         action.payload,
         RNEA.map(i => ({ id: i.key, value: decodeBid(i.text) }))))
+    },
+    validateSystem: (state) => {
+      validatedPathAdapter.removeAll(state.validatedPaths)
+      // pipe({ state },
+      //   selectCompleteSyntaxForest,
+      //   TH.getRight,
+      //   O.fold(() => RA.empty, getAllLeafPaths),
+      //   RA.map(flow(
+      //     RNEA.map(sb => sb.bid),
+      //     path => [serializedBidPathL.get(path), DE.pending] as const)),
+      //   readonlyRecord.fromFoldable(semigroup.first<ValidatedPath>(), RA.Foldable),
+      //   x => validatedPathAdapter.addMany(state.validatedPaths, x))
+    },
+    reportValidationResult: (state, action: PayloadAction<ValidatedPathItem>) => {
+      validatedPathAdapter.addOne(state.validatedPaths, action.payload)
     }
   }
 })
 
-export const { setSystem, removeConstraintsByBlockKey, cacheSystemConstraints } = slice.actions
+export const { setSystem, removeConstraintsByBlockKey, cacheSystemConstraints, validateSystem, reportValidationResult } = slice.actions
 
 const constrainedBidSelectors = decodedBidAdapter.getSelectors()
 
@@ -134,12 +168,15 @@ export type SystemError =
   | SystemErrorSyntax
   | SystemErrorValidation
 
-export const selectCompleteConstraintForest = memoize(
+export const selectExpandedConstraintForest = memoize(
   flow(selectCompleteSyntaxForest,
     TH.mapLeft(RA.map((error): SystemError => ({ type: "Parse", error }))), 
     chainCollectedErrors(flow(
       expandForest,
-      TH.mapLeft(RA.map((error): SystemError => ({ type: "Syntax", error }))))),
+      TH.mapLeft(RA.map((error): SystemError => ({ type: "Syntax", error })))))))
+
+export const selectCompleteConstraintForest = memoize(
+  flow(selectExpandedConstraintForest,
     chainCollectedErrors(bidForest => pipe(
       bidForest,
       validateTree,
@@ -213,3 +250,19 @@ export const selectErrorsByKey = memoize((state: KeyedState & OptionsState) =>
         RA.filter(e => eqBid.equals(sb.bid, e.bid))))))
     
 export default slice.reducer
+
+export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
+  flow(Ob.filter(setSystem.match),
+    debounceTime(1000),
+    Ob.map(() => validateSystem())),
+  (action$, state$) => pipe(action$,
+    Ob.filter(validateSystem.match),
+    // takeUntil(pipe(action$, Ob.filter(setSystem.match))),
+    Ob.chain(() => pipe(
+      { state: state$.value.system },
+      selectExpandedConstraintForest,
+      TH.getRight,
+      O.fold(() => from([]), observeValidation))),
+    Ob.map(readonlyTuple.mapSnd(DE.fromEither2)),
+    Ob.map(([id, value]) => reportValidationResult({ id, value })))
+]

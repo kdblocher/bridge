@@ -7,9 +7,10 @@ import * as Lens from 'monocle-ts/lib/Lens';
 import memoize from 'proxy-memoize';
 
 import { assertUnreachable } from '../../lib';
-import { permute } from '../../lib/array';
+import { permute, values } from '../../lib/array';
 import { take } from '../../lib/gen';
 import { get } from '../../lib/object';
+import { Bid } from '../bridge';
 import { eqSuit, Suit, suits } from '../deck';
 import { SpecificShape } from '../evaluation';
 import { Path } from '../system';
@@ -256,8 +257,6 @@ const sat = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
   }
 }
 
-const values = flow(RR.toReadonlyArray, RA.map(RT.snd))
-
 const stateFromReader = <X, A>(r: R.Reader<X, A>): S.State<X, A> =>
   c => [r(c), c]
 
@@ -360,7 +359,7 @@ export const pathIsSound = memoize((path: Path<ConstrainedBid>) => {
     RNEA.traverseWithIndex(S.Applicative)((i, info) => pipe(
       info.constraint,
       sat,
-      R.map(flow(solve, E.fromOption(() => pipe(path, RNEA.splitAt(i), RT.fst) as Path<ConstrainedBid>))),
+      R.map(flow(solve, E.fromOption(() => pipe(path, RNEA.splitAt(i), RT.fst, RNEA.map(get('bid'))) as Path<Bid>))),
       stateFromReader,
       S.apFirst(S.modify(rotateContexts)))),
     S.map(flow(
