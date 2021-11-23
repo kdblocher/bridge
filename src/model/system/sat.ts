@@ -8,6 +8,8 @@ import memoize from 'proxy-memoize';
 
 import { assertUnreachable } from '../../lib';
 import { permute } from '../../lib/array';
+import { take } from '../../lib/gen';
+import { get } from '../../lib/object';
 import { eqSuit, Suit, suits } from '../deck';
 import { SpecificShape } from '../evaluation';
 import { Path } from '../system';
@@ -48,14 +50,17 @@ const mapArrayToContext = <X>(getZero: (prefix: Logic.Term) => X) => <A>(s: show
 
 interface SuitContext {
   count: Logic.Bits
+  hcp: Logic.Bits
   // top: Logic.Bits
 }
 const getZeroSuitContext = (prefix: Logic.Term): SuitContext => ({
   count: Logic.variableBits(prefix + ".count", 6),
+  hcp: Logic.variableBits(prefix + ".hcp", 6),
   // top: Logic.variableBits(prefix + ".top", 3)
 })
 const suitContextL = Lens.id<SuitContext>()
 const suitCountL = pipe(suitContextL, Lens.prop('count'))
+const suitHcpL = pipe(suitContextL, Lens.prop('hcp'))
 // const suitTopL = pipe(suitContextL, Lens.prop('top'))
 
 const mySuitCountL = (suit: Suit) =>
@@ -122,7 +127,7 @@ const getZeroPlayerContext = (prefix: Logic.Term): PlayerContext => ({
   secondarySuit: Logic.variableBits(prefix + ".secondary", 3),
 })
 const playerContextL = Lens.id<PlayerContext>()
-const hcpRangeL = pipe(playerContextL, Lens.prop('hcp'))
+const hcpL = pipe(playerContextL, Lens.prop('hcp'))
 const primarySuitL = pipe(playerContextL, Lens.prop('primarySuit'))
 const secondarySuitL = pipe(playerContextL, Lens.prop('secondarySuit'))
 const suitsL = pipe(playerContextL, Lens.prop('suits'))
@@ -147,23 +152,14 @@ const getZeroPartnershipContext = (prefix: Logic.Term): PartnershipContext => ({
 const partnershipContextL = Lens.id<PartnershipContext>()
 const trumpSuitL = pipe(partnershipContextL, Lens.prop('trumpSuit'))
 
-interface GlobalSuitContext {
-  hcp: Logic.Bits
-}
-const getZeroGlobalSuitContext = (prefix: Logic.Term): GlobalSuitContext => ({
-  hcp: Logic.constantBits(10)
-})
-
 interface SATContext {
   // force: Logic.Bits
-  suits: RR.ReadonlyRecord<Suit, GlobalSuitContext>
   players: RR.ReadonlyRecord<RelativePlayer, PlayerContext>
   partnerships: RR.ReadonlyRecord<RelativePartnership, PartnershipContext>
 }
 
 const zeroSATContext: SATContext = {
   // force: Logic.constantBits(0),
-  suits: pipe(suits, mapArrayToContext(getZeroGlobalSuitContext)({ show: identity })),
   players: pipe(relativePlayers, mapArrayToContext(getZeroPlayerContext)({ show: identity })),
   partnerships: pipe(relativePartnerships, mapArrayToContext(getZeroPartnershipContext)({ show: identity }))
 }
@@ -211,7 +207,7 @@ const sat = (c: Constraint): R.Reader<SATContext, Logic.Formula> => {
 
     case "PointRange":
       return pipe(
-        R.asks(pipe(playersA.at("Me"), Lens.compose(hcpRangeL)).get),
+        R.asks(pipe(playersA.at("Me"), Lens.compose(hcpL)).get),
         R.map(range(c.min, c.max)))
     case "SuitRange":
       return pipe(
@@ -267,21 +263,81 @@ const stateFromReader = <X, A>(r: R.Reader<X, A>): S.State<X, A> =>
 
 const sumTo = (total: number) => flow(Logic.sum, sum => Logic.equalBits(sum, Logic.constantBits(total)))
 
-const baseAssumptions = (context: SATContext) =>
-  pipe([
-    pipe(context, playersL.get, RR.map(hcpRangeL.get), values, hcps =>
-      [ pipe(hcps, sumTo(40)),
-        ...pipe(hcps, RA.map(hcp => Logic.lessThanOrEqual(hcp, Logic.constantBits(37)))) ]),
-    pipe(suits, RA.map(s =>
-      pipe(context,
-        playersL.get,
-        RR.map(flow(suitsA.at(s).get, suitCountL.get)),
+const countHcpMap = [
+  [0, 0],
+  [1, 4],
+  [2, 7],
+  [3, 9],
+  [4, 10]
+] as const
+
+type BaseAssumption = (context: SATContext) => Logic.Formula
+const baseAssumptions : RR.ReadonlyRecord<string, BaseAssumption> = {
+  playersHcpSumsTo40: (context: SATContext) =>
+    pipe(context,
+      get('players'),
+      RR.map(get('hcp')),
+      values,
+      sumTo(40)),
+  playersMaxHcp: (context: SATContext) =>
+    pipe(context,
+      get('players'),
+      RR.map(get('hcp')),
+      values,
+      RA.map(hcp => Logic.lessThanOrEqual(hcp, Logic.constantBits(37))),
+      Logic.and),
+  playersSuitsSumTo13: (context: SATContext) =>
+    pipe(context,
+      get('players'),
+      RR.map(get('suits')),
+      values,
+      RA.map(flow(
         values,
-        sumTo(13)))),
-    pipe(context, playersL.get, RR.map(suitsL.get), values, RA.map(flow(values, RA.map(suitCountL.get), sumTo(13))))
-  ],
-  RA.flatten,
-  Logic.and)
+        RA.map(get('count')),
+        sumTo(13))),
+      Logic.and),
+  playersTotalHcpAndSuitsHcpAreEqual: (context: SATContext) => 
+    pipe(context,
+      get('players'),
+      values,
+      RA.map(playerContext =>
+        Logic.equalBits(
+          pipe(playerContext, get('hcp')),
+          pipe(playerContext, get('suits'), values, RA.map(get('hcp')), Logic.sum)))),
+  playerSuitCountImpliesMaxHcp: (context: SATContext) =>
+    pipe(context,
+      get('players'),
+      RR.map(get('suits')),
+      values,
+      RA.map(flow(
+        values,
+        RA.map(suitContext =>
+          pipe(countHcpMap, RA.map(([count, maxHcp]) =>
+            Logic.implies(
+              Logic.equalBits(pipe(suitContext, get('count')), Logic.constantBits(count)),
+              Logic.lessThanOrEqual(pipe(suitContext, get('hcp')), Logic.constantBits(maxHcp)))),
+          Logic.and)),
+        Logic.and)),
+      Logic.and),
+  suitsByPlayerSumTo13: (context: SATContext) =>
+    pipe(suits,
+      RA.map(s =>
+        pipe(context,
+          get('players'),
+          RR.map(flow(get('suits'), get(s), get('count'))),
+          values,
+          sumTo(13))),
+      Logic.and),
+  suitsByPlayerSumTo10: (context: SATContext) =>
+    pipe(suits,
+      RA.map(s =>
+        pipe(context,
+          get('players'),
+          RR.map(flow(get('suits'), get(s), get('hcp'))),
+          values,
+          sumTo(10))),
+      Logic.and)
+}
 
 function* allSolutions(solver: Logic.Solver) {
   let result = solver.solve()
@@ -292,21 +348,10 @@ function* allSolutions(solver: Logic.Solver) {
   }
 }
 
-function* take<T>(generator: Generator<T>, n: number) {
-  for (var i = 0; i < n; i++) {
-    let v = generator.next()
-    if (!v.done) {
-      yield v.value
-    } else {
-      break
-    }
-  }
-}
-
 export const pathIsSound = memoize((path: Path<ConstrainedBid>) => {
   const solver = new Logic.Solver()
   const context = zeroSATContext
-  solver.require(baseAssumptions(context))
+  solver.require(pipe(baseAssumptions, values, RA.flap(context), Logic.and))
   const solve = (op: Logic.Operand) => {
     solver.require(op)
     return O.fromNullable(solver.solve())
@@ -321,12 +366,12 @@ export const pathIsSound = memoize((path: Path<ConstrainedBid>) => {
     S.map(flow(
       RNEA.sequence(E.Applicative),
       E.map(() => {
-        pipe(Array.from(take(allSolutions(solver), 10)),
-          RA.map(x => x.getTrueVars()),
-          console.log)
+        // pipe(Array.from(take(allSolutions(solver), 10)),
+        //   RA.map(x => x.getTrueVars()),
+        //   console.log)
         return constVoid()
       }))),
     S.evaluate(context))
 }, {
-  size: 100
+  size: 1000
 })
