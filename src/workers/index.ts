@@ -4,17 +4,17 @@ import DDSWorker from 'comlink-loader!./dds.worker'; // inline loader
 import DealWorker from 'comlink-loader!./deal.worker'; // inline loader
 import SATWorker from 'comlink-loader!./sat.worker';
 import SatisfiesWorker from 'comlink-loader!./satisfies.worker';
-import { either as E, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyTuple, taskEither } from 'fp-ts';
+import { either as E, readonlyArray as RA, readonlyNonEmptyArray as RNEA, taskEither } from 'fp-ts';
 import { observable as Ob, observableEither as ObE } from 'fp-ts-rxjs';
 import { pipe } from 'fp-ts/lib/function';
 import { from, groupBy, Observable } from 'rxjs';
 
 import { get } from '../lib/object';
 import pool from '../lib/pool';
-import { Bid, eqBid, makeBoard } from '../model/bridge';
+import { Bid, makeBoard } from '../model/bridge';
 import { GenerationId, Solution } from '../model/job';
 import { SerializedBidPath, serializedBidPathL, serializedBoardL, SerializedDeal, serializedDealL } from '../model/serialization';
-import { Forest, getAllLeafPaths, Path, Paths } from '../model/system';
+import { Path, Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { getBatchIdsByGenerationId } from '../services/idb';
 
@@ -64,9 +64,8 @@ export const observeSolutions = (deals: ReadonlyArray<SerializedDeal>) =>
     })))
 
 type ValidationResult = readonly [Path<Bid>, boolean]
-export const observeValidation = (forest: Forest<ConstrainedBid>) : Observable<ValidationResult> =>
-  pipe(forest,
-    getAllLeafPaths,
+export const observeValidation = (paths: ReadonlyArray<Path<ConstrainedBid>>) : Observable<ValidationResult> =>
+  pipe(paths,
     pool(() => new SATWorker(), w => async p =>
       pipe(await w.getPathIsSound(p),
         E.fold(p0 => p0.length, () => p.length),

@@ -1,23 +1,21 @@
-import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord, readonlyTuple, semigroup, string, these as TH, tree as T } from 'fp-ts';
+import { either as E, eq, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyTuple, state, string, these as TH, tree as T } from 'fp-ts';
 import { observable as Ob } from 'fp-ts-rxjs';
-import { apply, flow, identity, pipe } from 'fp-ts/lib/function';
+import { apply, constFalse, flow, identity, pipe } from 'fp-ts/lib/function';
 import { castDraft } from 'immer';
 import * as t from 'io-ts';
 import { DecodeError } from 'io-ts/lib/Decoder';
 import memoize from 'proxy-memoize';
 import { Epic } from 'redux-observable';
-import { debounceTime, from, takeUntil } from 'rxjs';
+import { debounceTime } from 'rxjs';
 
-import { datum as D, datumEither as DE } from '@nll/datum';
+import { datum as D } from '@nll/datum';
 import { AnyAction, createEntityAdapter, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { RootState } from '../app/store';
 import { values } from '../lib/array';
 import { get } from '../lib/object';
 import { Bid, eqBid } from '../model/bridge';
-import { SerializedBidPath, serializedBidPathL } from '../model/serialization';
-import { chainCollectedErrors, collectErrors, flatten, Forest, ForestWithErrors, getAllLeafPaths, getPathForest, getPathUpTo, Path, withImplicitPasses } from '../model/system';
-import { ConstrainedBid } from '../model/system/core';
+import { chainCollectedErrors, collectErrors, flatten, ForestWithErrors, getAllLeafPaths, getPathForest, getPathUpTo, Path, withImplicitPasses } from '../model/system';
 import { ExpandError, expandForest, SyntacticBid } from '../model/system/expander';
 import { SystemValidationError, validateTree } from '../model/system/validation';
 import { decodeBid } from '../parse';
@@ -94,35 +92,14 @@ const slice = createSlice({
       const decodedBids = pipe(action.payload, RNEA.map((i): DecodedBidItem => ({ id: i.key, value: decodeBid(i.text) })))
       decodedBidAdapter.setMany(state.decodedBids, decodedBids)
     },
-    validateSystem: (state) => {
-      // pipe({ state },
-      //   selectCompleteSyntaxForest,
-      //   TH.getRight,
-      //   O.fold(() => RA.empty, getAllLeafPaths),
-      //   RA.map(flow(
-      //     RNEA.map(sb => sb.bid),
-      //     path => [serializedBidPathL.get(path), DE.pending] as const)),
-      //   readonlyRecord.fromFoldable(semigroup.first<ValidatedPath>(), RA.Foldable),
-      //   x => validatedPathAdapter.addMany(state.validatedPaths, x))
-    },
+    validateSystem: (state) => { },
     reportValidationResult: (state, action: PayloadAction<readonly [Path<Bid>, boolean]>) => {
       pipe(action.payload,
         readonlyTuple.fst,
-        RNEA.traverse(O.Applicative)(b1 => pipe(
-          state.decodedBids.entities,
-          values,
-          RA.filterMap(O.fromNullable),
-          RA.findFirst(x => pipe(x.value, O.fromEither, O.map(get('bid')), b2 => O.elem(eqBid)(b1, b2))),
-          O.map(get('id')))),
+        path => getValidationPathKeyByPath({ state, path }),
         O.map(flow(
-          RNEA.intersperse('.'),
-          RNEA.foldMap(string.Semigroup)(identity),
-          (x): ValidatedPathItem => ({
-            id: x as SerializedBlockKeyPath,
-            value: pipe(action.payload, readonlyTuple.snd, D.replete)
-          }),
+          (id): ValidatedPathItem => ({ id, value: pipe(action.payload, readonlyTuple.snd, D.replete) }),
           i => validatedPathAdapter.upsertOne(state.validatedPaths, i))))
-      // validatedPathAdapter.addOne(state.validatedPaths, action.payload)
     }
   }
 })
@@ -140,6 +117,23 @@ const getCachedBidByKey = (constrainedBids: State['decodedBids']) => (key: Block
   pipe(
     O.fromNullableK(constrainedBidSelectors.selectById)(constrainedBids, key),
     O.map(i => i.value))
+
+interface StateWithPath {
+  state: State
+  path: Path<Bid>
+}
+const getValidationPathKeyByPath = (({ state, path }: StateWithPath) => 
+  pipe(path,
+    RNEA.traverse(O.Applicative)(b1 => pipe(
+      state.decodedBids.entities,
+      values,
+      RA.filterMap(O.fromNullable),
+      RA.findFirst(x => pipe(x.value, O.fromEither, O.map(get('bid')), b2 => O.elem(eqBid)(b1, b2))),
+      O.map(get('id')))),
+    O.map(flow(
+      RNEA.intersperse('.'),
+      RNEA.foldMap(string.Semigroup)(identity),
+      x => x as SerializedBlockKeyPath))))
 
 export const selectBidByKey = memoize(({ state, key }: KeyedState) =>
   pipe(key,
@@ -281,6 +275,11 @@ export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
       { state: state$.value.system },
       selectExpandedConstraintForest,
       TH.getRight,
-      O.fold(() => from([]), observeValidation))),
+      O.fold(() => RA.empty, getAllLeafPaths),
+      RA.filter(flow(
+        RNEA.map(get('bid')),
+        path => getValidationPathKeyByPath({ state: state$.value.system, path }),
+        O.fold(constFalse, bp => !state$.value.system.validatedPaths.ids.includes(bp)))),
+      observeValidation)),
     Ob.map(reportValidationResult))
 ]
