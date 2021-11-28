@@ -819,5 +819,95 @@ export const expansionPathValidTests: RR.ReadonlyRecord<string, ExpansionPathVal
       }
     ],
     expected: true
+  },
+  // Both opener and responder cannot have the heart Q
+  openerResponderSameCard: {
+    value: [
+      { bid: { level: 1, strain: "H" },
+        syntax: 
+        {
+          type: "Wrapper",
+          constraint: {
+            type: "SuitHonors",
+            suit: "H",
+            honors:[12 as Rank]
+          }
+        }
+      },
+      { bid: { level: 2, strain: "H" },
+        syntax: 
+        {
+          type: "Wrapper",
+          constraint: {
+            type: "SuitHonors",
+            suit: "H",
+            honors:[12 as Rank]
+          }
+        }
+      }
+    ],
+    expected: false
+  },
+
+  // Both opener and responder cannot have the 3 of the top five honors in the same suit
+  openerResponderSameTopCards: {
+    value: [
+      { bid: { level: 1, strain: "H" },
+        syntax: 
+        {
+          type: "Wrapper",
+          constraint: {
+            type: "SuitTop",
+            suit: "H",
+            count: 3,
+            minRank: 10 as Rank
+          }
+        }
+      },
+      { bid: { level: 2, strain: "H" },
+        syntax: 
+        {
+          type: "Wrapper",
+          constraint: {
+            type: "SuitTop",
+            suit: "H",
+            count: 3,
+            minRank: 10 as Rank
+          }
+        }
+      }
+    ],
+    expected: false
+  },
+  // Responder cannot make an insuffient bid
+  openerResponderInsufficientBid: {
+    value: [
+      { bid: { level: 2, strain: "H" },
+        syntax: 
+        {
+          type: "Wrapper",
+          constraint: {
+            type: "PointRange",
+            min: 11,
+            max: 15
+          }
+        }
+      },
+      { bid: { level: 1, strain: "C" },
+        syntax: 
+        {
+          type: "Wrapper",
+          constraint: {
+            type: "PointRange",
+            min: 6,
+            max: 10
+          }
+        }
+      }
+    ],
+    expected: false
   }
+
+
+
 }
