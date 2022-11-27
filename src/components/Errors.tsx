@@ -33,7 +33,7 @@ interface ValidationErrorProps {
 const ValidationErrorView = ({ error }: ValidationErrorProps) => {
   switch (error.type) {
     case "BidsOutOfOrder": return <span>Bids <BidView bid={error.left.bid} /> and <BidView bid={error.right.bid} /> out of order</span>
-    case "SAT": return <span>Path has no solution: <BidPath path={error.path} /></span>
+    // case "SAT": return <span>Path has no solution: <BidPath path={error.path} /></span>
     // case "NoPrimarySuitDefined": return <span>No primary suit defined for secondary suit {error.constraint.suit}</span>
     // case "PrimarySuitAlreadyDefined": return <span>Primary suit has already been defined</span>
     // case "SamePrimaryAndSecondarySuit": return <span>Primary and secondary suits cannot be the same</span>
@@ -45,7 +45,7 @@ const ValidationErrorView = ({ error }: ValidationErrorProps) => {
     // case "SpecificShapeInvalid": return <span>Specific shape {error.constraint.suits.S}{error.constraint.suits.H}{error.constraint.suits.D}{error.constraint.suits.C} is invalid</span>
     // case "AnyShapeInvalid": return <span>Shape {pipe(error.constraint.counts, RA.reduce("", (cur, c) => cur + c))} is invalid</span>
     // case "IllegalContextModification": return <span>Cannot modify the context under a disjunction or negation</span>
-    default: return assertUnreachable(error)
+    // default: return assertUnreachable(error)
   }
 }
 

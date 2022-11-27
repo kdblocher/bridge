@@ -12,7 +12,7 @@ import { getForestFromLeafPaths, Path } from './system';
 import { Constraint, satisfies } from './system/core';
 import { expandForest, SyntacticBid } from './system/expander';
 import { pathIsSound } from './system/sat';
-import { validateTree } from './system/validation';
+import { validateForest } from './system/validation';
 
 const expandSingleSyntacticBid = (bid: SyntacticBid) =>
   pipe(bid,
@@ -104,7 +104,7 @@ describe('expansion path validation', () => {
         test("expands", () => {
           expect(pipe(value,
             expandSingleSyntacticBidPath,
-            x => TH.getChain(semigroup.first<unknown>()).chain(x, validateTree),
+            x => TH.getChain(semigroup.first<unknown>()).chain(x, validateForest),
             TH.isRight)).toEqual(expected)
         })
       })

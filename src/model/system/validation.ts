@@ -1,20 +1,16 @@
 import { either as E, ord, readonlyArray as RA, readonlyNonEmptyArray as RNEA } from 'fp-ts';
-import { apply, constVoid, flow, pipe } from 'fp-ts/lib/function';
+import { apply, constVoid, pipe } from 'fp-ts/lib/function';
 
 import { Bid } from '../bridge';
 import { Forest, getAllLeafPaths, Path } from '../system';
 import { ConstrainedBid, ordConstrainedBid } from './core';
-import { pathIsSound } from './sat';
 
 interface SystemValidationErrorBidsOutOfOrder {
   type: "BidsOutOfOrder"
   left: ConstrainedBid
   right: ConstrainedBid
 }
-interface SystemValidationErrorSAT {
-  type: "SAT"
-  // path: Path<ConstrainedBid>
-}
+
 // interface SystemValidationErrorPrimarySuitAlreadyDefined {
 //   type: "PrimarySuitAlreadyDefined"
 //   constraint: ConstraintSuitPrimary
@@ -74,8 +70,7 @@ interface SystemValidationErrorSAT {
 export type SystemValidationError =
   
   // ( SystemValidationBidError
-  (| SystemValidationErrorBidsOutOfOrder
-  | SystemValidationErrorSAT)
+  (| SystemValidationErrorBidsOutOfOrder )
   // | SystemValidationErrorPassWhileForcing
   // | SystemValidationErrorNoBidDefinedButStillForcing)
   & { path: ReadonlyArray<Bid> }
@@ -178,15 +173,15 @@ const forestSorted = (tree: Forest<ConstrainedBid>) =>
 //     eitherT.chain(S.Monad)(() => checkFinal),
 //     S.evaluate(zeroValidationContext))
 
-const forestIsSound = (tree: Forest<ConstrainedBid>) : SystemValidation =>
-  pipe(tree,
-    getAllLeafPaths,
-    RA.traverse(E.Applicative)(flow(
-      pathIsSound,
-      E.mapLeft((path): SystemValidationError => ({ type: "SAT", path })))),
-    E.map(constVoid))
+// const forestIsSound = (tree: Forest<ConstrainedBid>) : SystemValidation =>
+//   pipe(tree,
+//     getAllLeafPaths,
+//     RA.traverse(E.Applicative)(flow(
+//       pathIsSound,
+//       E.mapLeft((path): SystemValidationError => ({ type: "SAT", path })))),
+//     E.map(constVoid))
 
-export const validateTree = (forest: Forest<ConstrainedBid>) =>
+export const validateForest = (forest: Forest<ConstrainedBid>) =>
   pipe([forestSorted], //forestIsSound],
     RA.traverse(E.Applicative)(apply(forest)),
     E.map(constVoid))

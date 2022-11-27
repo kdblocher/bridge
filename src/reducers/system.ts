@@ -17,7 +17,7 @@ import { get } from '../lib/object';
 import { Bid, eqBid } from '../model/bridge';
 import { chainCollectedErrors, collectErrors, flatten, ForestWithErrors, getAllLeafPaths, getPathForest, getPathUpTo, Path, withImplicitPasses } from '../model/system';
 import { ExpandError, expandForest, SyntacticBid } from '../model/system/expander';
-import { SystemValidationError, validateTree } from '../model/system/validation';
+import { SystemValidationError, validateForest } from '../model/system/validation';
 import { decodeBid } from '../parse';
 import { observeValidation } from '../workers';
 
@@ -192,7 +192,7 @@ export const selectCompleteConstraintForest = memoize(
   flow(selectExpandedConstraintForest,
     chainCollectedErrors(bidForest => pipe(
       bidForest,
-      validateTree,
+      validateForest,
       TH.bimap(
         (error): ReadonlyArray<SystemError> => RA.of({ type: "Validation", error }),
         () => bidForest)))))

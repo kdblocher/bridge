@@ -40,9 +40,9 @@ export const getResult = (board: SerializedBoard) : Promise<either.Either<string
     (results): DoubleDummyResult => ({ board, results }),
     TE.of,
     TE.chainFirst(flow(readonlyArray.of, insertSolutions)),
-    TE.chainFirst(flow(
-      (s): DealWithSolution => [
-        pipe(s.board.deal, serializedDealL.reverseGet),
-        pipe(s.results, transpose, O.of)
-      ], readonlyArray.of, putDeals)))
-  ()
+    // TE.chainFirst(flow(
+    //   (s): DealWithSolution => [
+    //     pipe(s.board.deal, serializedDealL.reverseGet),
+    //     pipe(s.results, transpose, O.of)
+    //   ], readonlyArray.of, putDeals))
+  )()
