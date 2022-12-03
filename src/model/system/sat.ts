@@ -4,7 +4,6 @@ import { Kind, URIS } from 'fp-ts/lib/HKT';
 import * as Logic from 'logic-solver';
 import * as At from 'monocle-ts/lib/At';
 import * as Lens from 'monocle-ts/lib/Lens';
-import memoize from 'proxy-memoize';
 
 import { assertUnreachable } from '../../lib';
 import { permute, values } from '../../lib/array';
@@ -347,7 +346,7 @@ function* allSolutions(solver: Logic.Solver) {
   }
 }
 
-export const pathIsSound = memoize((path: Path<ConstrainedBid>) => {
+export const pathIsSound = (path: Path<ConstrainedBid>) => {
   const solver = new Logic.Solver()
   const context = zeroSATContext
   solver.require(pipe(baseAssumptions, values, RA.flap(context), Logic.and))
@@ -371,6 +370,4 @@ export const pathIsSound = memoize((path: Path<ConstrainedBid>) => {
         return constVoid()
       }))),
     S.evaluate(context))
-}, {
-  size: 1000
-})
+}
