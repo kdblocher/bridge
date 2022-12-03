@@ -13,7 +13,7 @@ import generator, { epics as generatorEpics } from './generator';
 import profile, { epics as profileEpics } from './profile';
 import selection, { selectHand } from './selection';
 import settings from './settings';
-import system, { selectValidConstrainedBidPaths } from './system';
+import system, { epics as systemEpics, selectValidConstrainedBidPaths } from './system';
 
 const reducers = {
   system,
@@ -26,7 +26,8 @@ export default reducers
 
 export const rootEpic = combineEpics<AnyAction, AnyAction, RootState>(
   ...generatorEpics,
-  ...profileEpics
+  ...profileEpics,
+  ...systemEpics
 )
 
 interface BidResult {

@@ -12,5 +12,5 @@ export const genDeals = (count: number, generationId: GenerationId) : Promise<ei
   pipe(
     taskEither.of(readonlyArray.makeBy(count, flow(newDeck, deal, serializedDealL.get))),
     taskEither.chainFirst(insertDeals(generationId)),
-    taskEither.chainFirst(flow(readonlyArray.map(serializedDealL.reverseGet), postDeals)))
-  ()
+    // taskEither.chainFirst(flow(readonlyArray.map(serializedDealL.reverseGet), postDeals))
+  )()

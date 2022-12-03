@@ -182,14 +182,14 @@ export const constraint = (c: AST.Constraint) : Syntax => {
         suits: pipe(zeroSpecificShape, readonlyRecord.mapWithIndex((s, _) => c[s].value))
       })
 
-    case AST.ASTKinds.Relay:
-      return wrap({
-        type: "Relay",
-        bid: {
-          level: c.bid.level.value,
-          strain: strain(c.bid.strain)
-        }
-      })
+    // case AST.ASTKinds.Relay:
+    //   return wrap({
+    //     type: "Relay",
+    //     bid: {
+    //       level: c.bid.level.value,
+    //       strain: strain(c.bid.strain)
+    //     }
+    //   })
 
     case AST.ASTKinds.LabelDef:
       return {
@@ -210,7 +210,7 @@ export const constraint = (c: AST.Constraint) : Syntax => {
       return { type: c.kind }
     
     default:
-      return wrap({ type: c.kind })
+      return assertUnreachable(c)
   }
 }
 

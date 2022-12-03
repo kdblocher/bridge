@@ -31,7 +31,7 @@ Constraint :=
   | Not
   | Otherwise
   | Distribution
-  | Response
+  // | Response
   | SuitRange
   | SuitBound
   | SuitComparison
@@ -89,11 +89,11 @@ Secondary := suit=SuitSpecifier '2'
 
 SetTrump := suit=SuitSpecifier '#'
 
-Response := ForceOneRound | ForceGame | ForceSlam | Relay
-ForceOneRound := v='F1'
-ForceGame := v='FG'
-ForceSlam := v='FS'
-Relay := '->' bid=OtherBid
+// Response := ForceOneRound | ForceGame | ForceSlam | Relay
+// ForceOneRound := v='F1'
+// ForceGame := v='FG'
+// ForceSlam := v='FS'
+// Relay := '->' bid=OtherBid
 
 
 LabelDef := '\'' label=Label '\': ' constraints=ConstraintList

@@ -1,6 +1,6 @@
 import { either, option as O, readonlyArray as RA, readonlyRecord as RR, semigroup, string, task, taskEither as TE } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
-import { DBSchema, deleteDB, IDBPDatabase, IndexNames, openDB } from 'idb';
+import { DBSchema, deleteDB, IDBPDatabase, IndexKey, IndexNames, openDB, StoreNames } from 'idb';
 import { UuidTool } from 'uuid-tool';
 
 import { ConstrainedBidPathHash, GenerationId } from '../model/job';
@@ -100,7 +100,7 @@ export const insertSatisfies = (generationId: GenerationId, hash: ConstrainedBid
     TE.chain(({ tran }) => TE.tryCatch(() => tran.done, (): DbError => "CommitRejected")))
 
 const getByIndex = <I extends IndexNames<DealDB, 'deal'>>(idx: I) => (id: string) =>
-  TE.tryCatchK((db: IDBPDatabase<DealDB>) => db.getAllFromIndex('deal', idx, id), (): DbError => "SelectError")
+  TE.tryCatchK((db: IDBPDatabase<DealDB>) => db.getAllFromIndex('deal', idx, id as any), (): DbError => "SelectError")
 
 export const getDealsByGenerationId = (generationId: GenerationId) =>
   pipe(getDb,

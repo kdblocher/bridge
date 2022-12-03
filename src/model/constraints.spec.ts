@@ -1,8 +1,7 @@
 import * as fc from 'fast-check';
-import { boolean, either, option as O, readonlyArray as RA, readonlyRecord as RR, semigroup, state, these as TH, tree as T } from 'fp-ts';
-import { constFalse, constVoid, flow, pipe } from 'fp-ts/lib/function';
+import { boolean, either, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, semigroup, these as TH, tree as T } from 'fp-ts';
+import { constFalse, flow, pipe } from 'fp-ts/lib/function';
 
-import { get } from '../lib/object';
 import { decodeBid } from '../parse';
 import { parseBid } from '../parse/bid';
 import * as tests from './constraints.testdata';
@@ -10,9 +9,10 @@ import { getOrdGroupedHand, groupHandBySuits, rankStrings } from './deck';
 import { handA } from './deck.spec';
 import { serializedBidL } from './serialization';
 import { getForestFromLeafPaths, Path } from './system';
-import { Constraint, satisfies, zeroContext } from './system/core';
+import { Constraint, satisfies } from './system/core';
 import { expandForest, SyntacticBid } from './system/expander';
-import { validateS, validateTree, zeroValidationContext } from './system/validation';
+import { pathIsSound } from './system/sat';
+import { validateForest } from './system/validation';
 
 const expandSingleSyntacticBid = (bid: SyntacticBid) =>
   pipe(bid,
@@ -66,7 +66,7 @@ describe('constraint propositions', () => {
         fc.property(fc.context(), handA, (ctx, hand) => {
           ctx.log(encodeHand(hand))
           return boolean.BooleanAlgebra.implies(
-            pipe(value, validateS, state.evaluate(zeroValidationContext), either.isRight),
+            pipe(value,  c => ({ bid: { level: 1, strain: "C" as const }, constraint: c }), RNEA.of, pathIsSound, either.isRight),
             boolean.BooleanAlgebra.implies(
               satisfies(value)(hand),
               satisfies(expected)(hand)))
@@ -104,7 +104,7 @@ describe('expansion path validation', () => {
         test("expands", () => {
           expect(pipe(value,
             expandSingleSyntacticBidPath,
-            x => TH.getChain(semigroup.first<unknown>()).chain(x, validateTree),
+            x => TH.getChain(semigroup.first<unknown>()).chain(x, validateForest),
             TH.isRight)).toEqual(expected)
         })
       })

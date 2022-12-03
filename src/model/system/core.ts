@@ -1,6 +1,6 @@
-import { either as E, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlySet, readonlyTuple, record, semigroup, state as S, string } from 'fp-ts';
+import { either as E, endomorphism, eq, monoid, number, option as O, optionT, ord, predicate as P, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, readonlySet, readonlyTuple, record, semigroup, state as S, string } from 'fp-ts';
 import { eqStrict } from 'fp-ts/lib/Eq';
-import { apply, constant, constFalse, constTrue, flow, pipe } from 'fp-ts/lib/function';
+import { apply, constant, constFalse, constTrue, flow, identity, pipe } from 'fp-ts/lib/function';
 import { At, Lens, Optional } from 'monocle-ts';
 
 import { assertUnreachable } from '../../lib';
@@ -87,18 +87,18 @@ export interface ConstraintSpecificShape {
   suits: SpecificShape
 }
 
-interface ConstraintResponse {
-  type: "ForceOneRound" | "ForceGame" | "ForceSlam"
-}
+// interface ConstraintResponse {
+//   type: "ForceOneRound" | "ForceGame" | "ForceSlam"
+// }
 
-interface ConstraintRelayResponse {
-  type: "Relay"
-  bid: ContractBid
-}
+// interface ConstraintRelayResponse {
+//   type: "Relay"
+//   bid: ContractBid
+// }
 
-export type ConstraintForce =
-    ConstraintResponse
-  | ConstraintRelayResponse
+// export type ConstraintForce =
+//     ConstraintResponse
+//   | ConstraintRelayResponse
 
 export type Constraint =
   | ConstraintConstant
@@ -114,7 +114,7 @@ export type Constraint =
   | ConstraintSuitTop
   | ConstraintAnyShape
   | ConstraintSpecificShape
-  | ConstraintForce
+  // | ConstraintForce
 
   /* eslint-disable @typescript-eslint/no-unused-vars */
 const predFalse : P.Predicate<Hand> = constFalse
@@ -178,7 +178,7 @@ const suitSecondary = (secondarySuit: Suit) => (primarySuit: Suit) =>
     RA.filter(({ suit, otherSuit }) => !eqSuit.equals(suit, otherSuit)),
     RA.map(({ suit, otherSuit }) => suitCompare(">")(suit, otherSuit)),
     RA.concat([
-      isSuitRange({ min: 5, max: 13 })(secondarySuit),
+      isSuitRange({ min: 4, max: 13 })(secondarySuit),
       suitCompare(">=")(primarySuit, secondarySuit)
     ]),
     forall)
@@ -212,10 +212,10 @@ const contextualConstraintTypes = [
   "Conjunction",
   "Disjunction",
   "Negation",
-  "ForceOneRound",
-  "ForceGame",
-  "ForceSlam",
-  "Relay",
+  // "ForceOneRound",
+  // "ForceGame",
+  // "ForceSlam",
+  // "Relay",
   "SuitPrimary",
   "SuitSecondary",
   "SetTrump"
@@ -266,7 +266,7 @@ const ordBid: ord.Ord<Bid> =
     0)
 export const ordConstrainedBid = ord.contramap<Bid, ConstrainedBid>(b => b.bid)(ordBid)
 
-export const relativePlayers = ["Me", "Partner"] as const
+export const relativePlayers = ["Me", "LHO", "Partner", "RHO"] as const
 export type RelativePlayer = typeof relativePlayers[number]
 
 export const relativePartnerships = ["We"] as const
@@ -298,17 +298,29 @@ export const rotateRecord = <K extends string>(keys: ReadonlyArray<K>) => <V>(r:
     RA.map(readonlyTuple.mapSnd(p => r[p])),
     RR.fromFoldable(semigroup.first<V>(), RA.Foldable))
 
+
+export const rotateContexts = <PL, PT, X extends { players: RR.ReadonlyRecord<RelativePlayer, PL>, partnerships: RR.ReadonlyRecord<RelativePartnership, PT> }>(context: X): X => {
+  const pl = Lens.fromProp<X>()('players')
+  const pt = Lens.fromProp<X>()('partnerships')
+  return pipe(
+    [ pl.modify(flow(rotateRecord(relativePlayers), rotateRecord(relativePlayers))),
+      pt.modify(rotateRecord(relativePartnerships))
+    ],
+    RNEA.foldMap(endomorphism.getSemigroup<X>())(identity),
+    apply(context))
+  }
+
 export interface BidContext {
   bid: Bid,
   path: ReadonlyArray<Bid>
-  force: O.Option<ConstraintForce>
+  // force: O.Option<ConstraintForce>
   players: RR.ReadonlyRecord<RelativePlayer, PlayerContext>
   partnerships: RR.ReadonlyRecord<RelativePartnership, PartnershipContext>
 }
 export const zeroContext : BidContext = {
   bid: {} as Bid,
   path: [],
-  force: O.none,
+  // force: O.none,
   players: pipe(relativePlayers, RA.map(p => [p, zeroPlayerContext] as const), RR.fromFoldable(semigroup.first<PlayerContext>(), RA.Foldable)),
   partnerships: pipe(relativePartnerships, RA.map(p => [p, zeroPartnershipContext] as const), RR.fromFoldable(semigroup.first<PartnershipContext>(), RA.Foldable)),
 }
@@ -317,11 +329,11 @@ export const zeroContext : BidContext = {
 export const contextL = Lens.fromProp<BidContext>()
 export const bidL = contextL('bid')
 export const pathL = contextL('path')
-export const forceL = contextL('force')
+// export const forceL = contextL('force')
 export const playersL = contextL('players')
 export const partnershipsL = contextL('partnerships')
 export const contextO = Optional.fromOptionProp<BidContext>()
-export const forceO = contextO('force')
+// export const forceO = contextO('force')
 export const playerContextA = new At<BidContext, RelativePlayer, PlayerContext>(player =>
   new Lens(
     flow(playersL.get, p => p[player]),
@@ -352,13 +364,13 @@ const satisfiesContextual = (recur: SatisfiesS<BidContext, Constraint, Hand>) : 
       case "Negation": 
         return pipe(c.constraint, ofS, recur, S.map(P.not))
         
-      case "ForceOneRound":
-      case "ForceGame":
-      case "ForceSlam":
-      case "Relay":
-        return pipe(
-          S.modify<BidContext>(forceL.set(O.some(c))),
-          S.map(() => constTrue))
+      // case "ForceOneRound":
+      // case "ForceGame":
+      // case "ForceSlam":
+      // case "Relay":
+      //   return pipe(
+      //     S.modify<BidContext>(forceL.set(O.some(c))),
+      //     S.map(() => constTrue))
 
       case "SuitPrimary":
         return pipe(
