@@ -62,8 +62,8 @@
   },
   "scripts": {
     "tspeg": "tspeg src/parse/bid.peg src/parse/bid.peg.g.ts && tspeg src/parse/hand.peg src/parse/hand.peg.g.ts",
-    "start": "yarn tspeg && react-scripts start",
-    "build": "react-scripts build",
+    "start": "yarn tspeg && react-scripts --openssl-legacy-provider start",
+    "build": "react-scripts --openssl-legacy-provider build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
