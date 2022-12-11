@@ -629,26 +629,25 @@ export const constraintPropositionTests: RR.ReadonlyRecord<string, ConstraintPro
   {
     value:
     {
-      "type": "Negation",
-      "constraint":
-      {
-        "type": "Conjunction",
-        "constraints": [
-          {
+      "type": "Conjunction",
+      "constraints": [
+        {
+          "type": "Negation",
+          "constraint": {
             "type": "PointRange",
             "min": 0,
             "max": 14
-          },
-          {
-            "type": "Negation",
-            "constraint": {
-              "type": "PointRange",
-              "min": 18,
-              "max": 37
-            }
           }
-        ]
-      }
+        },
+        {
+          "type": "Negation",
+          "constraint": {
+            "type": "PointRange",
+            "min": 18,
+            "max": 37
+          }
+        }
+      ]
     },
     expected:
     {
