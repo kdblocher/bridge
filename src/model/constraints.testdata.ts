@@ -36,6 +36,17 @@ export const decodeTests: RR.ReadonlyRecord<string, DecodeTest> = {
       "max": 7
     }
   },
+  // Make sure range operator works even when the values are identical
+  hcpIdenticalPointCountSyntax:
+  {
+    value: "10-10",
+    expected:
+    {
+      "type": "PointRange",
+      "min": 10,
+      "max": 10
+    }
+  },
 
   ////////////////  Suit length tests  //////////////////////
   // Suit length equality operator
@@ -611,6 +622,100 @@ export const constraintPropositionTests: RR.ReadonlyRecord<string, ConstraintPro
       value: false
     }
   },
+
+  // Negation tests
+  //  Selecting two "nots" is equivalent to a simple point range
+  hcpDoubleRangeNegation:
+  {
+    value:
+    {
+      "type": "Conjunction",
+      "constraints": [
+        {
+          "type": "Negation",
+          "constraint": {
+            "type": "PointRange",
+            "min": 0,
+            "max": 14
+          }
+        },
+        {
+          "type": "Negation",
+          "constraint": {
+            "type": "PointRange",
+            "min": 18,
+            "max": 37
+          }
+        }
+      ]
+    },
+    expected:
+    {
+      "type": "PointRange",
+      "min": 15,
+      "max": 17
+
+    }
+  },
+
+  //  Selecting "NOT" a suit range means either less then the min or more then the max
+  suitRangeNegation:
+  {
+    value:
+    {
+      "type": "Negation",
+      "constraint": {
+        "type": "SuitRange",
+        "min": 2,
+        "max": 5,
+        "suit": "H"
+      }
+    },
+    expected:
+    {
+      "type": "Disjunction",
+      "constraints": [
+        {
+          "type": "SuitRange",
+          "min": 0,
+          "max": 1,
+          "suit": "H"
+        },
+        {
+          "type": "SuitRange",
+          "min": 6,
+          "max": 13,
+          "suit": "H"
+        }
+      ]
+    }
+  },
+//  A and not(A) is always false.  Negate a primary suit
+primarySuitLogicalNegation:
+  {
+    value:
+    {
+        "type": "Conjunction",
+        "constraints": [
+          {
+            "type": "SuitPrimary",
+            "suit": "H"
+          },
+          {
+            "type": "Negation",
+            "constraint": {
+              "type": "SuitPrimary",
+              "suit": "H"
+            }
+          }
+        ]
+      },
+    expected:
+    {
+      "type": "Constant",
+      value: false
+    }
+  }
 }
 
 interface ExpansionTest {
