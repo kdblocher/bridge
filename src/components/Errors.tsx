@@ -93,8 +93,8 @@ const Errors = () => {
   const errors = useAppSelector(state => selectErrorTree({ state: state.system, options: state.settings }))
   return (
     <section>
-      <h3>Errors</h3>
-      {isPristine ? "None" : <>
+      {isPristine ? <></> : <>
+        <h3>Errors</h3>
         {these.isLeft(errors) && <div>
           <h4>Parse Errors</h4>
           <ul>{errors.left.map((e, i) => <li key={i}><pre>{draw(e)}</pre></li>)}</ul>
