@@ -11,6 +11,8 @@ export type DecodeTest = {
   expected: Constraint
 }
 
+
+// This section tests the expansion of the syntax only  
 export const decodeTests: RR.ReadonlyRecord<string, DecodeTest> = {
   ////////////  HCP tests  //////////////////////
   // Make sure plus operator works as expected
@@ -100,8 +102,8 @@ export const decodeTests: RR.ReadonlyRecord<string, DecodeTest> = {
       "suit": "H"
     }
   },
-  // Suit honor syntax
-  suitHonorSyntax:
+  // Suit honor syntax Ace
+  suitHonorSyntaxAce:
   {
     value: "SA",
     expected:
@@ -113,7 +115,59 @@ export const decodeTests: RR.ReadonlyRecord<string, DecodeTest> = {
       ]
     }
   },
-
+  // Suit honor syntax King
+  suitHonorSyntaxKing:
+  {
+    value: "HK",
+    expected:
+    {
+      "type": "SuitHonors",
+      "suit": "H",
+      "honors": [
+        13 as Rank
+      ]
+    }
+  },
+    // Suit honor syntax Queen
+    suitHonorSyntaxQueen:
+    {
+      value: "DQ",
+      expected:
+      {
+        "type": "SuitHonors",
+        "suit": "D",
+        "honors": [
+          12 as Rank
+        ]
+      }
+    },
+        // Suit honor syntax Jack
+        suitHonorSyntaxJack:
+        {
+          value: "CJ",
+          expected:
+          {
+            "type": "SuitHonors",
+            "suit": "C",
+            "honors": [
+              11 as Rank
+            ]
+          }
+        },
+          // Suit honor syntax Queen
+    suitHonorSyntaxTen:
+    {
+      value: "ST",
+      expected:
+      {
+        "type": "SuitHonors",
+        "suit": "S",
+        "honors": [
+          10 as Rank
+        ]
+      }
+    },
+  
   // Suit honor syntax for multiple cards
   suiMultipletHonorSyntax:
   {
@@ -140,14 +194,14 @@ export const decodeTests: RR.ReadonlyRecord<string, DecodeTest> = {
       "count": 2,
       "minRank": 12 as Rank
     }
-  },
+  }
 }
-
 interface ConstraintPropositionTest {
   value: Constraint
   expected: Constraint
 }
 
+// This section tests whether constraints can conflict with each other  
 export const constraintPropositionTests: RR.ReadonlyRecord<string, ConstraintPropositionTest> = {
 
   // Min should never be more than max
@@ -723,6 +777,7 @@ interface ExpansionTest {
   expected: Constraint
 }
 
+// This section tests for syntax expansion 
 export const syntaxPropositionTests: RR.ReadonlyRecord<string, ExpansionTest> = {
   // ////////////////  Distribution tests   /////////////////
   // // Verify balanced shapes
@@ -881,6 +936,7 @@ interface ExpansionPathValidTest {
   expected: boolean
 }
 
+// This section tests that bidding paths make sense  
 export const expansionPathValidTests: RR.ReadonlyRecord<string, ExpansionPathValidTest> = {
   openerResponderDifferentPrimarySuits: {
     value: [
