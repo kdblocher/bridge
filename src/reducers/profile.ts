@@ -11,12 +11,12 @@ import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../app/store';
 import { assertUnreachable } from '../lib';
 import { get } from '../lib/object';
-import { Analysis, AnalysisId, GenerationId, Job, zeroAnalysis, zeroGeneration } from '../model/job';
+import { Analysis, AnalysisId, GenerationId, Job, JobTypeGenerateDeals, newGenerationId, zeroAnalysis, zeroGeneration } from '../model/job';
 import { getStats } from '../model/stats';
 import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
 import { deleteByGenerationId } from '../services/idb';
-import { completeJob, removeJob } from './generator';
+import { completeJob, removeJob, scheduleJob, startJob } from './generator';
 
 interface State {
   analyses: RR.ReadonlyRecord<AnalysisId, Analysis>
@@ -33,8 +33,8 @@ const slice = createSlice({
   name,
   initialState,
   reducers: {
-    addAnalysis: (state, action: PayloadAction<Paths<ConstrainedBid>>) => {
-      const analysis = pipe(action.payload, zeroAnalysis, castDraft)
+    addAnalysis: (state, action: PayloadAction<{id: AnalysisId, name: string, count: number, paths: Paths<ConstrainedBid>}>) => {
+      const analysis = pipe(action.payload, ({id, name, count, paths}) => zeroAnalysis(id, name, paths), castDraft)
       state.analyses[analysis.id] = analysis
     },
     deleteAnalysis: (state, action: PayloadAction<AnalysisId>) => { },
@@ -69,16 +69,16 @@ const slice = createSlice({
                 O.apS('progress', jobType.progress),
                 O.apS('generation', pipe(analysis.generations, RA.findFirst(g => g.id === jobType.context.generationId))),
                 O.map(o => pipe(
-                  o.progress.value,
-                  RR.toReadonlyArray,
-                  RNEA.fromReadonlyArray,
+                    o.progress.value,
+                    RR.toReadonlyArray,
+                    RNEA.fromReadonlyArray,
                   O.map(flow(
                     RNEA.map(flow(RT.snd, get('results'))),
-                    getStats,
+                        getStats,
                     stats => {
                       if (RR.has(jobType.context.bidPath, o.generation.solutionStats)) {
                         throw new Error("Combining stat result sets is not implemented")
-                      }
+                          }
                       o.generation.solutionStats[jobType.context.bidPath] = stats
                     })))))
             default:
@@ -86,13 +86,53 @@ const slice = createSlice({
           }
         }))
     }
-  }
-})
+          }
+        })
 
 export const { addAnalysis, deleteAnalysis, selectAnalysis, setAnalysisName, addJobToAnalysis } = slice.actions
 export default slice.reducer
 
-export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
+export const epics: ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
+  (action$, state$) =>
+    action$.pipe(
+      Ob.filter(addAnalysis.match),
+      Ob.chain(flow(a => a.payload, ({ id, count }) =>
+        pipe(state$.value.profile.analyses,
+          RR.keys,
+          RA.filter((id2) => id2 !== id),
+          RA.map(deleteAnalysis),
+          analyses => from([
+            ...analyses,
+            selectAnalysis(id),
+            scheduleJob({
+              analysisId: id,
+              type: "GenerateDeals",
+              context: { generationId: newGenerationId() },
+              parameter: count,
+              estimatedUnitsInitial: count,
+            })]))))),
+  (action$, state$) =>
+    action$.pipe(
+      Ob.filter(addJobToAnalysis.match),
+      Ob.filterMap(a =>
+        pipe(O.Do,
+          O.bind("job", () =>
+            a.payload.type.type === "GenerateDeals"
+            ? O.some(a.payload as Job & { type: JobTypeGenerateDeals })
+            : O.none),
+          O.bind("analysis", ({ job }) =>
+            selectAnalysisById({
+              state: state$.value.profile,
+              analysisId: job.analysisId,
+            })))),
+      Ob.chain(({ job, analysis }) =>
+        of(scheduleJob({
+          analysisId: job.analysisId,
+          type: "Satisfies",
+          parameter: analysis.paths,
+          context: job.type.context,
+          estimatedUnitsInitial: analysis.paths.length * job.type.parameter,
+        })))),
   (action$, state$) =>
     action$.pipe(
       Ob.filter(completeJob.match),
@@ -100,9 +140,16 @@ export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
       Ob.chain(flow(a => a.meta, jobId =>
         pipe(state$.value.generator.completed,
           RA.findFirst(j => j.id === jobId),
-          O.fold(
-            () => EMPTY,
+              O.fold(
+                () => EMPTY,
             j => from([addJobToAnalysis(j), removeJob(jobId)])))))),
+  (action$, state$) =>
+    state$.pipe(
+      Ob.map(s => pipe(s.generator.jobs, RA.filter((j) => O.isNone(j.startDate)))),
+      Ob.filterMap(RNEA.fromReadonlyArray),
+      Ob.chain(flow(
+        RA.map(j => startJob({ jobId: j.id, type: j.type.type })),
+        from))),
   (action$, state$) =>
     action$.pipe(
       Ob.filter(deleteAnalysis.match),
@@ -115,12 +162,12 @@ export const epics : ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
           concatWith(of(slice.actions.removeAnalysis(analysisId))))))
 ]
 
-export const selectAllAnalyses = memoize((state: State) => 
+export const selectAllAnalyses = memoize((state: State) =>
   pipe(state.analyses,
     RR.toReadonlyArray,
     RA.map(RT.snd)))
 
-export const selectSelectedAnalysis = memoize((state: State) => 
+export const selectSelectedAnalysis = memoize((state: State) =>
   pipe(state.selectedAnalysis,
     O.chain(id => RR.lookup(id, state.analyses))))
 
@@ -128,14 +175,14 @@ interface AnalysisIndex {
   state: State
   analysisId: AnalysisId
 }
-export const selectAnalysisById = memoize((idx: AnalysisIndex) => 
+export const selectAnalysisById = memoize((idx: AnalysisIndex) =>
   pipe(idx.state.analyses,
     RR.lookup(idx.analysisId)))
 
 interface GenerationIndex extends AnalysisIndex {
   generationId: GenerationId
 }
-export const selectGenerationByAnalysis = memoize((idx: GenerationIndex) => 
+export const selectGenerationByAnalysis = memoize((idx: GenerationIndex) =>
   pipe(selectAnalysisById(idx),
     O.chain(flow(
       get("generations"),
