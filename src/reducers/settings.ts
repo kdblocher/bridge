@@ -10,7 +10,7 @@ interface State {
 
 const initialState: State = {
   implicitPass: false,
-  generateCount: 10000
+  generateCount: 30000
 }
 
 const name = 'settings'

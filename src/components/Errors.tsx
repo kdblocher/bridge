@@ -14,7 +14,7 @@ import { SystemValidationError } from '../model/system/validation';
 import { ErrorNode, selectErrorTree, selectPristineSystem, SystemErrorWithPath } from '../reducers/system';
 import BidPath, { BidView } from './core/BidPath';
 
-const GridContainer = styled.div `
+const GridContainer = styled.div`
   clear: both;
   display: inline-grid;
   grid-template-columns: auto auto;
@@ -70,7 +70,7 @@ interface ErrorGridProps {
 }
 export const ErrorGrid = ({ errors }: ErrorGridProps) =>
   <GridContainer>
-    {errors.filter(e => e.errors.length > 0).map(({ bid, path, errors }) => 
+    {errors.filter(e => e.errors.length > 0).map(({ bid, path, errors }) =>
       <Fragment key={serializedBidPathL.get(path)}>
         <BidPath path={path} />
         <BidErrorsView bid={bid} errors={errors} />
@@ -87,14 +87,15 @@ const ErrorForest = ({ forest }: ErrorForestProps) => {
 }
 
 const Errors = () => {
+  const systemExists = useAppSelector(state => pipe(state.system.system, RA.isNonEmpty))
   const isPristine = useAppSelector(state => pipe(
     selectPristineSystem({ state: state.system, options: state.settings }),
     option.isSome))
   const errors = useAppSelector(state => selectErrorTree({ state: state.system, options: state.settings }))
   return (
     <section>
-      <h3>Errors</h3>
-      {isPristine ? "None" : <>
+      {!systemExists || isPristine ? <></> : <>
+        <h3>Errors</h3>
         {these.isLeft(errors) && <div>
           <h4>Parse Errors</h4>
           <ul>{errors.left.map((e, i) => <li key={i}><pre>{draw(e)}</pre></li>)}</ul>

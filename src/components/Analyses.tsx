@@ -8,23 +8,26 @@ import { get } from '../lib/object';
 import { eqBid } from '../model/bridge';
 import { AnalysisId, ConstrainedBidPathHash, GenerationId, getBidPathHash, newGenerationId } from '../model/job';
 import { SerializedBidPath, serializedBidPathL } from '../model/serialization';
-import { Paths } from '../model/system';
+import { Path, Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
+import { newAnalysisId } from '../model/job';
 import { scheduleJob } from '../reducers/generator';
 import { addAnalysis, deleteAnalysis, selectAllAnalyses, selectAnalysis, selectAnalysisById, selectGenerationByAnalysis, selectSelectedAnalysis, setAnalysisName } from '../reducers/profile';
 import { selectValidConstrainedBidPaths } from '../reducers/system';
 import { getDealsWithSolutionsByPath } from '../services/idb';
 import SolutionStats from './stats/SolutionStats';
 import StatsPath from './stats/StatsPath';
+import Modal from 'react-modal';
+import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
 
-const FlexList = styled.ul `
+const FlexList = styled.ul`
   display: flex;
   flex-flow: row wrap;
   list-style-type: none;
   padding: 0px;
   margin: 0px;
 `
-const FlexListItem = styled.li `
+const FlexListItem = styled.li`
   padding: 0px;
   margin: 5px;
 `
@@ -112,7 +115,7 @@ const StatsPathItem = ({ path, count, generationId, analysisId, pathHash }: Stat
   </>}</>)
 }
 
-const StatsPathContainer = styled.div `
+const StatsPathContainer = styled.div`
   clear: both;
   display: inline-grid;
   grid-column-gap: 5px;
@@ -139,7 +142,7 @@ const GenerationView = ({ analysisId, generationId }: GenerationViewProps) => {
     selectAnalysisById({ state: state.profile, analysisId }),
     O.map(get("paths")),
     O.toNullable))
-    
+
   const dispatch = useAppDispatch()
   const onSatisfiesClick = useCallback(() => generation && paths && dispatch(scheduleJob({
     analysisId: analysisId,
@@ -161,7 +164,7 @@ const GenerationView = ({ analysisId, generationId }: GenerationViewProps) => {
 
   return (<>{generation &&
     <FlexListItem>
-      Deal Count: {generation.dealCount} <br/>
+      Deal Count: {generation.dealCount} <br />
       {satisfies === null && <button onClick={onSatisfiesClick}>Satisfies</button>}
       {satisfies !== null && <StatsPathContainer>
         {satisfies.map(([path, count]) => {
@@ -203,21 +206,55 @@ const SelectedAnalysis = () => {
   }</>)
 }
 
+interface NewAnalysisProps {
+  paths: ReadonlyNonEmptyArray<Path<ConstrainedBid>>
+  onSubmitOrClose: () => void
+}
+const NewAnalysis = ({ paths, onSubmitOrClose }: NewAnalysisProps) => {
+  const dispatch = useAppDispatch()
+  const onGoClick = useCallback((name: string, count: number, paths: Paths<ConstrainedBid>) => {
+    onSubmitOrClose()
+    dispatch(addAnalysis({ id: newAnalysisId(), name, count, paths }))
+  }, [dispatch, onSubmitOrClose])
+  const defaultCount = useAppSelector(state => state.settings["generateCount"])
+  const [name, setName] = useState<string>(`New analysis (${paths.length} paths)`)
+  const [count, setCount] = useState<number>(defaultCount);
+  return (
+    <>
+      Name <input type="text" value={name} onChange={e => setName(e.target.value)} />
+      <br />
+      Hands to Generate <input type="number" value={count} onChange={e => pipe(e.target.value, parseInt, setCount)} style={{ width: "100px" }} />
+      <br />
+      {paths && <button onClick={() => onGoClick(name, count, paths)}>Go</button>}
+    </>
+  )
+}
+
+const style: ReactModal.Styles = {
+  "overlay": {
+    zIndex: 2
+  }
+}
+
 const Analyses = () => {
   const analyses = useAppSelector(state => selectAllAnalyses(state.profile))
-  const dispatch = useAppDispatch()
-  const onCreateClick = useCallback((paths: Paths<ConstrainedBid>) => dispatch(addAnalysis(paths)), [dispatch])
+  const [newAnalysis, setNewAnalysis] = useState<boolean>(false);
   const paths = useAppSelector(state => pipe(
     selectValidConstrainedBidPaths({ state: state.system, options: state.settings }),
     O.toNullable))
   return (
     <section>
       <h3>Analyses</h3>
-      <FlexList>
+      {/* <FlexList>
         {analyses.map(a => <AnalysisView key={a.id} analysisId={a.id} />)}
-      </FlexList>
-      {paths && <button onClick={() => onCreateClick(paths)}>Create</button>}
+      </FlexList> */}
       <SelectedAnalysis />
+      {paths && (<>
+        <Modal isOpen={newAnalysis} style={style} ariaHideApp={false}>
+          <NewAnalysis paths={paths} onSubmitOrClose={() => setNewAnalysis(false)} />
+        </Modal>
+        <button onClick={() => setNewAnalysis(true)}>Start...</button>
+      </>)}
     </section>
   )
 }

@@ -86,7 +86,7 @@ const Jobs = () => {
   const jobs = useAppSelector(state => state.generator.jobs)
   return (
     <section>
-      <h3>Jobs</h3>
+      {/* <h3>Jobs</h3> */}
       <JobList>
         {jobs.map(j => <JobView key={j.id} job={j} />)}
       </JobList>

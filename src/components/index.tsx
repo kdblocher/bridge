@@ -16,13 +16,13 @@ const App = () => {
         <div style={{float: "left"}}>
           <Editor />
         </div>
-        <div style={{float: "right", width: "300px"}}>
+        {/* <div style={{float: "right", width: "300px"}}>
           <Settings />
-        </div>
+        </div> */}
         <div style={{clear: "both"}}>
           <Errors />
-          <Jobs />
           <Analyses />
+          <Jobs />
           {/* <Stats /> */}
         </div>
       </div>
