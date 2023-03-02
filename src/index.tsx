@@ -2,16 +2,30 @@ import './index.css';
 
 import * as serviceWorker from './serviceWorker';
 
-import App from './components';
-import { Provider } from 'react-redux';
 import React from 'react';
 import ReactDOM from 'react-dom';
+import { Provider } from 'react-redux';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { store } from './app/store';
+import App from './components';
+import Design from './components/Design';
+import Analyze from './components/Analyze';
+
+const router = createBrowserRouter([
+  {
+    path: "/", element: <App />, children: [
+      { path: "/design", element: <Design /> },
+      { path: "/analyze", element: <Analyze /> },
+    ]
+  },
+], {
+  basename: "/bridge"
+})
 
 ReactDOM.render(
   <React.StrictMode>
     <Provider store={store}>
-      <App />
+      <RouterProvider router={router} />
     </Provider>
   </React.StrictMode>,
   document.getElementById('root')

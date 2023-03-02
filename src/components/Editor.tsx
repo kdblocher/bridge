@@ -83,23 +83,26 @@ const Editor = () => {
   }, [])
   
   return (
-    <EditorDiv>
-      <DraftJsEditor
-        editorState={editorState}
-        onChange={onChange}
-        // https://github.com/facebook/draft-js/blob/master/examples/draft-0-10-0/rich/rich.html#L61
-        keyBindingFn={e => {
-          if (e.keyCode === 9 /* TAB */) {
-            const newEditorState = RichUtils.onTab(e, editorState, 10, /* maxDepth */);
-            if (newEditorState !== editorState) {
-              onChange(newEditorState)
+    <div>
+      <h3>Editor</h3>
+      <EditorDiv>
+        <DraftJsEditor
+          editorState={editorState}
+          onChange={onChange}
+          // https://github.com/facebook/draft-js/blob/master/examples/draft-0-10-0/rich/rich.html#L61
+          keyBindingFn={e => {
+            if (e.keyCode === 9 /* TAB */) {
+              const newEditorState = RichUtils.onTab(e, editorState, 10, /* maxDepth */);
+              if (newEditorState !== editorState) {
+                onChange(newEditorState)
+              }
+              return null;
             }
-            return null;
-          }
-          return getDefaultKeyBinding(e);
-        }}
-      />
-    </EditorDiv>
+            return getDefaultKeyBinding(e);
+          }}
+        />
+      </EditorDiv>
+    </div>
   )
 }
 

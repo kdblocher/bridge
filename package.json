@@ -34,6 +34,7 @@
     "react-json-pretty": "^2.2.0",
     "react-modal": "^3.16.1",
     "react-redux": "^7.2.0",
+    "react-router-dom": "^6.8.1",
     "react-scripts": "4.0.3",
     "react-timeago": "^6.2.1",
     "redux-observable": "^2.0.0",
