@@ -8,9 +8,16 @@ import { Provider } from 'react-redux';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { store } from './app/store';
 import App from './components';
+import Design from './components/Design';
+import Analyze from './components/Analyze';
 
 const router = createBrowserRouter([
-  { path: "/", element: <App /> }
+  {
+    path: "/", element: <App />, children: [
+      { path: "/design", element: <Design /> },
+      { path: "/analyze", element: <Analyze /> },
+    ]
+  },
 ], {
   basename: "/bridge"
 })
