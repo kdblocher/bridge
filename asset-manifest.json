@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/bridge/static/css/main.e8e5c3ac.chunk.css",
-    "main.js": "/bridge/static/js/main.19cd45b4.chunk.js",
-    "main.js.map": "/bridge/static/js/main.19cd45b4.chunk.js.map",
+    "main.js": "/bridge/static/js/main.e1568835.chunk.js",
+    "main.js.map": "/bridge/static/js/main.e1568835.chunk.js.map",
     "runtime-main.js": "/bridge/static/js/runtime-main.da676aa4.js",
     "runtime-main.js.map": "/bridge/static/js/runtime-main.da676aa4.js.map",
     "static/css/2.e426f036.chunk.css": "/bridge/static/css/2.e426f036.chunk.css",
-    "static/js/2.747f18b2.chunk.js": "/bridge/static/js/2.747f18b2.chunk.js",
-    "static/js/2.747f18b2.chunk.js.map": "/bridge/static/js/2.747f18b2.chunk.js.map",
+    "static/js/2.b67b6406.chunk.js": "/bridge/static/js/2.b67b6406.chunk.js",
+    "static/js/2.b67b6406.chunk.js.map": "/bridge/static/js/2.b67b6406.chunk.js.map",
     "18e3c81c2323c8eb46b8.worker.js": "/bridge/18e3c81c2323c8eb46b8.worker.js",
     "18e3c81c2323c8eb46b8.worker.js.LICENSE.txt": "/bridge/18e3c81c2323c8eb46b8.worker.js.LICENSE.txt",
     "18e3c81c2323c8eb46b8.worker.js.map": "/bridge/18e3c81c2323c8eb46b8.worker.js.map",
@@ -23,13 +23,13 @@
     "index.html": "/bridge/index.html",
     "static/css/2.e426f036.chunk.css.map": "/bridge/static/css/2.e426f036.chunk.css.map",
     "static/css/main.e8e5c3ac.chunk.css.map": "/bridge/static/css/main.e8e5c3ac.chunk.css.map",
-    "static/js/2.747f18b2.chunk.js.LICENSE.txt": "/bridge/static/js/2.747f18b2.chunk.js.LICENSE.txt"
+    "static/js/2.b67b6406.chunk.js.LICENSE.txt": "/bridge/static/js/2.b67b6406.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
     "static/js/runtime-main.da676aa4.js",
     "static/css/2.e426f036.chunk.css",
-    "static/js/2.747f18b2.chunk.js",
+    "static/js/2.b67b6406.chunk.js",
     "static/css/main.e8e5c3ac.chunk.css",
-    "static/js/main.19cd45b4.chunk.js"
+    "static/js/main.e1568835.chunk.js"
   ]
 }
