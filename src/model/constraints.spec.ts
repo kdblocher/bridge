@@ -10,8 +10,9 @@ import { serializedBidL } from './serialization';
 import { getForestFromLeafPaths, Path } from './system';
 import { Constraint, satisfies } from './system/core';
 import { expandForest, SyntacticBid } from './system/expander';
+import { satisfiesPath } from './system/satisfaction';
 import { validateForest } from './system/validation';
-import { handA } from './test-utils';
+import { dealA, handA } from './test-utils';
 
 fc.configureGlobal({ numRuns: 1000 })
 
@@ -125,4 +126,27 @@ describe('expansion path validation', () => {
         })
       })
     }))
+})
+
+describe('partnership overlaps', () => {
+  pipe(tests.partnershipOverlappingTests,
+    RR.mapWithIndex((name, [north, south]) =>
+      test(name, () => {
+        const x = pipe(O.Do,
+          O.bind("north", () => expandSingleBid("1C: " + north)),
+          O.bind("south", () => expandSingleBid("1D: " + south)))
+        if (O.isNone(x)) {
+          fail("failed to parse")
+        } else {
+          fc.assert(
+            fc.property(fc.context(), dealA, (ctx, deal) => {
+              ctx.log(encodeHand(deal.N))
+              ctx.log(encodeHand(deal.S))
+              return !satisfiesPath(deal.N, deal.S)([
+                {bid: {level: 1, strain: "C"}, constraint: x.value.north},
+                {bid: {level: 1, strain: "D"}, constraint: x.value.south},
+              ]);
+            }))
+        }
+    })))
 })

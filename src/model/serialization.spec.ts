@@ -5,9 +5,9 @@ import { iso } from 'monocle-ts';
 import { Iso } from 'monocle-ts/Iso';
 import { O } from 'ts-toolbelt';
 
-import { Bid, Board, ContractBid, deal, Deal, eqBid, eqBoard, eqContractBid, eqDeal, eqHand, makeBoard, NonContractBid, nonContractBids, ordContractBid, Strain, strains } from './bridge';
+import { Bid, Board, ContractBid, eqBid, eqBoard, eqContractBid, eqDeal, eqHand, makeBoard, NonContractBid, nonContractBids, ordContractBid, Strain, strains } from './bridge';
 import * as serializers from './serialization';
-import { deckA, handA } from './test-utils';
+import { dealA, handA } from './test-utils';
 
 /**
 * Every serializer is modeled as an Iso<D, S(D)>, and as such, should fulfill the Iso laws:
@@ -23,8 +23,6 @@ type SerializerTypes = O.Omit<GetArbitraries<Getters>, "decodedSerializedHandL" 
 interface Metadata<T> { arb: fc.Arbitrary<T>, eq: eq.Eq<T> }
 type SerializerMetadata = { [P in keyof SerializerTypes]: Metadata<SerializerTypes[P]> }
 
-const dealA: fc.Arbitrary<Deal> =
-  deckA.map(deal)
 const boardA: fc.Arbitrary<Board> =
   fc.tuple(fc.integer({ min: 1 }), dealA)
     .map(([num, deal]) => makeBoard(num)(deal))

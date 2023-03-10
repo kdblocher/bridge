@@ -1,5 +1,6 @@
 import * as fc from 'fast-check';
 import { readonlyArray, readonlySet } from 'fp-ts';
+import { deal, Deal } from './bridge';
 
 import { Card, cards, Deck, eqCard, Hand, Rank, ranks, Suit, suits } from './deck';
 
@@ -25,3 +26,5 @@ export const cardsWithSAandC2_A =
 
 export const deckA: fc.Arbitrary<Deck> =
   fc.constant(cards).chain(cards => fc.shuffledSubarray([...cards], { minLength: cards.length, maxLength: cards.length })) as unknown as fc.Arbitrary<Deck>
+export const dealA: fc.Arbitrary<Deal> =
+  deckA.map(deal)
