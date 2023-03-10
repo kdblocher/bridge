@@ -147,9 +147,13 @@ interface ConstraintPropositionTest {
   expected: Constraint
 }
 
-// The first constraint implies the second
+// The first constraint implies the second. Both constraints are syntax.  Two rules; A implies B.  
 export const constraintPropCompactTests: RR.ReadonlyRecord<string, [string, string]> = {
-  'Min should never be more than max': ["7-0", "false"],
+  // Point count tests
+  // You cannot reverse point count syntax
+  suitMixLessThanMax: ["7-0", "false"],
+
+  // Suit length comparison tests
   // Reversed suit range should not generate anything
   suitReversal: ["6-5H", "false"],
   // If you have two diamonds, and fewer clubs, it had better be one or zero
@@ -166,216 +170,36 @@ export const constraintPropCompactTests: RR.ReadonlyRecord<string, [string, stri
   multpleSuitCompareEqualOperator: ["4-4S S=H H=D", "4441"],
   // You cannot have two secondary suits 
   twoSecondarySuits: ["H2 S2", "false"],
-  // You cannot have the same suit be both primary and secondary
+  // You cannot have the same suit be both primary and secondary   TODO: Currently logged as Gitlab issue #191
   //sameSuitPrimaryAndSecondary: ["S1 S2", "false"],
   // Make sure a secondary five card suit does not prevent a higher five card suit from being primary
   setPrimaryAsHigherSuit: ["S1 5-5D", "5-8S"],
   // Correllary to previous test.  Make sure a five card higher ranking suit results in a six plus card primary
   setPrimaryAsLowerSuit: ["D1 5-5S", "6-7D"],
+
+  // Top x of y tests
   //  Does Top two or three actually give you two of the top three honors
   suitTopTwoOfThreeHonors: ["H2/3", "HAK or HAQ or HKQ"],
-}
-
-export const constraintPropositionTests: RR.ReadonlyRecord<string, ConstraintPropositionTest> = {
-  ////////////////  Suit comparison tests  //////////////////////
-  // Add tests later to test the parsing. For now, verify the hands generate as expected
-
   //  If you have two of top four, but not two of top three, you must have the Jack
-  multipleSuitTopHonorCombinations:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "SuitTop",
-          "suit": "D",
-          "count": 2,
-          "minRank": 11 as Rank
-        },
-        {
-          "type": "Negation",
-          "constraint": {
-            "type": "SuitTop",
-            "suit": "D",
-            "count": 2,
-            "minRank": 12 as Rank
-          }
-        }
-      ]
-    },
-    expected:
-    {
-      "type": "SuitHonors",
-      "suit": "D",
-      "honors": [
-        11 as Rank
-      ]
-    }
-  },
+  multipleSuitTopHonorCombinations: ["S2/4 !S2/3", "SJ"],
   //  You cannot have more cards in your top than in the suit
-  suitTopMoreThanSuitTotal:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "SuitTop",
-          "suit": "C",
-          "count": 3,
-          "minRank": 10 as Rank
-        },
-        {
-          "type": "SuitRange",
-          "min": 2,
-          "max": 2,
-          "suit": "C"
-        }
-      ]
-    },
-    expected: {
-      "type": "Constant",
-      value: false
-    }
-  },
+  suitTopMoreThanSuitTotal: ["C3/4 0-2C", "false"],
   //  You cannot have two of top three honors, and 0-4 HCP
-  suitTopMoreThanHCP:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "PointRange",
-          "min": 0,
-          "max": 4
-        },
-        {
-          "type": "SuitTop",
-          "suit": "C",
-          "count": 2,
-          "minRank": 12 as Rank
-        }
-      ]
-    },
-    expected: {
-      "type": "Constant",
-      value: false
-    }
-  },
+  suitTopMoreThanHCP: ["D2/3 0-4", "false"],
   //  You cannot have three of the top two honors
-  suitTopMReversed:
-  {
-    value:
-    {
-      "type": "SuitTop",
-      "suit": "C",
-      "count": 3,
-      "minRank": 13 as Rank
-    },
-    expected: 
-    {
-      "type": "Constant",
-      value: false
-    }
-  },
+  suitTopMReversed: ["H3/2", "false"],
 
   // Negation tests
   //  Selecting two "nots" is equivalent to a simple point range
-  hcpDoubleRangeNegation:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "Negation",
-          "constraint": {
-            "type": "PointRange",
-            "min": 0,
-            "max": 14
-          }
-        },
-        {
-          "type": "Negation",
-          "constraint": {
-            "type": "PointRange",
-            "min": 18,
-            "max": 37
-          }
-        }
-      ]
-    },
-    expected:
-    {
-      "type": "PointRange",
-      "min": 15,
-      "max": 17
-
-    }
-  },
-
+  hcpDoubleRangeNegation: ["!0-14 !18-37","15-17"],
   //  Selecting "NOT" a suit range means either less then the min or more then the max
-  suitRangeNegation:
-  {
-    value:
-    {
-      "type": "Negation",
-      "constraint": {
-        "type": "SuitRange",
-        "min": 2,
-        "max": 5,
-        "suit": "H"
-      }
-    },
-    expected:
-    {
-      "type": "Disjunction",
-      "constraints": [
-        {
-          "type": "SuitRange",
-          "min": 0,
-          "max": 1,
-          "suit": "H"
-        },
-        {
-          "type": "SuitRange",
-          "min": 6,
-          "max": 13,
-          "suit": "H"
-        }
-      ]
-    }
-  },
-//  A and not(A) is always false.  Negate a primary suit
-primarySuitLogicalNegation:
-  {
-    value:
-    {
-        "type": "Conjunction",
-        "constraints": [
-          {
-            "type": "SuitPrimary",
-            "suit": "H"
-          },
-          {
-            "type": "Negation",
-            "constraint": {
-              "type": "SuitPrimary",
-              "suit": "H"
-            }
-          }
-        ]
-      },
-    expected:
-    {
-      "type": "Constant",
-      value: false
-    }
-  }
+  suitRangeNegation: ["!2-5S","0-1S or 6+S"],
+  //  A and not(A) is always false.  Negate a primary suit
+  primarySuitLogicalNegation:["H1 !H1", "false"],
 }
 
+
+// This section of tests is based on equality.  The first syntax is equivalent to the second.  
 export const syntaxPropCompactTests: RR.ReadonlyRecord<string, [string, string]> = {
   // // Verify balanced shapes
   distBalanced: ["BAL", "4333* or 4432* or 5332*"],
@@ -390,54 +214,16 @@ interface ExpansionPathValidTest {
   expected: boolean
 }
 
-export const expansionPathValidTests: RR.ReadonlyRecord<string, ExpansionPathValidTest> = {
-  openerResponderDifferentPrimarySuits: {
-    value: [
-      { bid: { level: 1, strain: "S" },
-        syntax: {
-          type: "Conjunction",
-          syntax: [
-            {
-              type: "Wrapper",
-              constraint: {
-                type: "PointRange",
-                min: 13,
-                max: 21
-              }
-            },
-            {
-              type: "SuitPrimary",
-              suit: "S"
-            }
-          ]
-        }
-      },
-      { bid: { level: 2, strain: "C" },
-        syntax: {
-          type: "Conjunction",
-          syntax: [
-            {
-              type: "Wrapper",
-              constraint: {
-                type: "PointRange",
-                min: 10,
-                max: 37
-              }
-            },
-            {
-              type: "SuitPrimary",
-              suit: "C"
-            }
-          ]
-        }
-      }
-    ],
-    expected: true
-  }
-}
 
-export const partnershipOverlappingTests: RR.ReadonlyRecord<string, [string, string]> = {
+// This group of tests is first entity is north hand, while the second is the south hand.  The implication is that all these must be FALSE 
+export const partnershipOverlappingTestsFalse: RR.ReadonlyRecord<string, [string, string]> = {
   'Both hands cannot hold SK': ["SK", "SK"],
   'Both hands cannot have 7 hearts': ["7+H", "7+H"],
   'Both hands cannot hold the top 3 of 4 honors in the same suit': ["S3/4", "S3/4"],
+}
+
+// This group of tests is first entity is north hand, while the second is the south hand.  The implication is that all these must be TRUE 
+export const partnershipOverlappingTestsTrue: RR.ReadonlyRecord<string, readonly string[]> = {
+//  This test is invalid, bbut left here for purposes of seeing the template
+//  openerResponderDifferentPrimarySuits: ["1S: S1", "2C: C1"]
 }

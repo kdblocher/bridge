@@ -129,7 +129,7 @@ describe('expansion path validation', () => {
 })
 
 describe('partnership overlaps', () => {
-  pipe(tests.partnershipOverlappingTests,
+  pipe(tests.partnershipOverlappingTestsFalse,
     RR.mapWithIndex((name, [north, south]) =>
       test(name, () => {
         const x = pipe(O.Do,
