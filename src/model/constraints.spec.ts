@@ -6,12 +6,12 @@ import { decodeBid } from '../parse';
 import { parseBid } from '../parse/bid';
 import * as tests from './constraints.testdata';
 import { getOrdGroupedHand, groupHandBySuits, rankStrings } from './deck';
-import { handA } from './deck.spec';
 import { serializedBidL } from './serialization';
 import { getForestFromLeafPaths, Path } from './system';
 import { Constraint, satisfies } from './system/core';
 import { expandForest, SyntacticBid } from './system/expander';
 import { validateForest } from './system/validation';
+import { handA } from './test-utils';
 
 const expandSingleSyntacticBid = (bid: SyntacticBid) =>
   pipe(bid,

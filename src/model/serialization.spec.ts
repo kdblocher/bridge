@@ -6,8 +6,8 @@ import { Iso } from 'monocle-ts/Iso';
 import { O } from 'ts-toolbelt';
 
 import { Bid, Board, ContractBid, deal, Deal, eqBid, eqBoard, eqContractBid, eqDeal, eqHand, makeBoard, NonContractBid, nonContractBids, ordContractBid, Strain, strains } from './bridge';
-import { deckA, handA } from './deck.spec';
 import * as serializers from './serialization';
+import { deckA, handA } from './test-utils';
 
 /**
 * Every serializer is modeled as an Iso<D, S(D)>, and as such, should fulfill the Iso laws:

@@ -1,7 +1,7 @@
 import * as fc from 'fast-check';
-import { console, io, number, readonlyArray, readonlyTuple, writer, void as void_, applicative } from 'fp-ts';
+import { applicative, io, number, readonlyArray, readonlyTuple, void as void_, writer } from 'fp-ts';
 import { constTrue, flow, pipe } from 'fp-ts/lib/function';
-import { Contract, contractBids, ContractModifier, contractModifiers, fromBid, Strain, strains } from './bridge';
+import { Contract, ContractModifier, contractModifiers, Strain, strains } from './bridge';
 import { score, ScoreInfo, scoreW } from './score';
 import { allPossibleScores } from './score.testdata';
 
