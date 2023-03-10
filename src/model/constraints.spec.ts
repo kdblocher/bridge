@@ -13,6 +13,8 @@ import { expandForest, SyntacticBid } from './system/expander';
 import { validateForest } from './system/validation';
 import { handA } from './test-utils';
 
+fc.configureGlobal({ numRuns: 1000 })
+
 const expandSingleSyntacticBid = (bid: SyntacticBid) =>
   pipe(bid,
     T.of,
@@ -56,6 +58,27 @@ describe('decode', () => {
         })
       })
     }))
+})
+
+describe('constraint propositions compact', () => {
+  pipe(tests.constraintPropCompactTests,
+    RR.mapWithIndex((name, [value, expected]) =>
+      test(name, () => {
+        const x = pipe(O.Do,
+          O.bind("value", () => expandSingleBid("1C: " + value)),
+          O.bind("expected", () => expandSingleBid("1C: " + expected)))
+        if (O.isNone(x)) {
+          fail("failed to parse")
+        } else {
+          fc.assert(
+            fc.property(fc.context(), handA, (ctx, hand) => {
+              ctx.log(encodeHand(hand))
+              return boolean.BooleanAlgebra.implies(
+                satisfies(x.value.value)(hand),
+                satisfies(x.value.expected)(hand))
+            }))
+        }
+    })))
 })
 
 describe('constraint propositions', () => {

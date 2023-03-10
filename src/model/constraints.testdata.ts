@@ -148,380 +148,42 @@ interface ConstraintPropositionTest {
   expected: Constraint
 }
 
-export const constraintPropositionTests: RR.ReadonlyRecord<string, ConstraintPropositionTest> = {
+type ConstraintPropositionCompactTest = [string, string]
 
+// The first constraint implies the second
+export const constraintPropCompactTests: RR.ReadonlyRecord<string, ConstraintPropositionCompactTest> = {
   // Min should never be more than max
-  hcpReversal:
-  {
-    value:
-    {
-      "type": "PointRange",
-      "min": 7,
-      "max": 0
-    },
-    expected: {
-      "type": "Constant",
-      value: false
-    }
-  },
+  hcpReversal: ["7-0", "false"],
   // Reversed suit range should not generate anything
-  suitReversal:
-  {
-    value:
-    {
-      "type": "SuitRange",
-      "min": 6,
-      "max": 5,
-      "suit": "H"
-    },
-    expected: {
-      "type": "Constant",
-      value: false
-    }
-  },
+  suitReversal: ["6-5H", "false"],
+  // If you have two diamonds, and fewer clubs, it had better be one or zero
+  suitCompareLessThanOperator: ["2-2D C<D", "0-1C"],
+  // If you have two diamonds, and same or fewer clubs, it zero to two.
+  suitCompareLessThanOrEqualOperator: ["2-2D C<=D", "0-2C"],
+  // If you have two hearts, and same diamonds, it had better be two.
+  suitCompareEqualOperator: ["2-2H H=D", "2-2D"],
+  // If you have two spades, and same or greater than hearts, you have zero or one hearts.
+  suitCompareGreaterThanOrEqualOperator: ["2-2S S>=H", "0-2H"],
+  // If you have two spades, and more spades than hearts, it had better be zero or one.
+  suitCompareGreaterThanOperator: ["2-2S S>H", "0-1H"],
+  // If you have four spades, equal hearts to spades, and equal diamonds to hearts, you should have four diamonds.
+  multpleSuitCompareEqualOperator: ["4-4S S=H H=D", "4441"],
+  // You cannot have two secondary suits 
+  twoSecondarySuits: ["H2 S2", "false"],
+  // You cannot have the same suit be both primary and secondary
+  //sameSuitPrimaryAndSecondary: ["S1 S2", "false"],
+  // Make sure a secondary five card suit does not prevent a higher five card suit from being primary
+  setPrimaryAsHigherSuit: ["S1 5-5D", "5-8S"],
+  // Correllary to previous test.  Make sure a five card higher ranking suit results in a six plus card primary
+  setPrimaryAsLowerSuit: ["D1 5-5S", "6-7D"],
+  //  Does Top two or three actually give you two of the top three honors
+  suitTopTwoOfThreeHonors: ["H2/3", "HAK or HAQ or HKQ"],
+}
 
+export const constraintPropositionTests: RR.ReadonlyRecord<string, ConstraintPropositionTest> = {
   ////////////////  Suit comparison tests  //////////////////////
   // Add tests later to test the parsing. For now, verify the hands generate as expected
 
-  // Suit comparison less than operator.  
-  // If you have two diamonds, and fewer clubs, it had better be one or zero
-  suitCompareLessThanOperator:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "SuitRange",
-          "min": 2,
-          "max": 2,
-          "suit": "D"
-        },
-        {
-          "type": "SuitComparison",
-          "op": "<",
-          "left": "C",
-          "right": "D"
-        }
-      ]
-    },
-    expected:
-    {
-      "type": "SuitRange",
-      "min": 0,
-      "max": 1,
-      "suit": "C"
-    }
-  },
-
-  // Suit comparison less than or equal operator.  
-  // If you have two diamonds, and same or fewer clubs, it zero to two.
-  suitCompareLessThanOrEqualOperator:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "SuitRange",
-          "min": 2,
-          "max": 2,
-          "suit": "D"
-        },
-        {
-          "type": "SuitComparison",
-          "op": "<=",
-          "left": "C",
-          "right": "D"
-        }
-      ]
-    },
-    expected:
-    {
-      "type": "SuitRange",
-      "min": 0,
-      "max": 2,
-      "suit": "C"
-
-    }
-  },
-
-  // Suit comparison equal operator.  
-  // If you have two hearts, and same spades, it had better be two.
-  suitCompareEqualOperator:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "SuitRange",
-          "min": 2,
-          "max": 2,
-          "suit": "H"
-        },
-        {
-          "type": "SuitComparison",
-          "op": "=",
-          "left": "H",
-          "right": "D"
-        }
-      ]
-    },
-    expected:
-    {
-      "type": "SuitRange",
-      "min": 2,
-      "max": 2,
-      "suit": "D"
-    }
-  },
-
-  // Suit comparison greater than or equal operator.  
-  // If you have two spades, and same or greater than hearts, you have zero or one hearts.
-  suitCompareGreaterThanOrEqualOperator:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "SuitRange",
-          "min": 2,
-          "max": 2,
-          "suit": "S"
-        },
-        {
-          "type": "SuitComparison",
-          "op": ">=",
-          "left": "S",
-          "right": "H"
-        }
-      ]
-    },
-    expected:
-    {
-      "type": "SuitRange",
-      "min": 0,
-      "max": 2,
-      "suit": "H"
-    }
-  },
-
-  // Suit comparison greater than.  
-  // If you have two spades, and more spades than hearts, it had better be zero or one.
-  suitCompareGreaterThanOperator:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "SuitRange",
-          "min": 2,
-          "max": 2,
-          "suit": "S"
-        },
-        {
-          "type": "SuitComparison",
-          "op": ">",
-          "left": "S",
-          "right": "H"
-        }
-      ]
-    },
-    expected:
-    {
-      "type": "SuitRange",
-      "min": 0,
-      "max": 1,
-      "suit": "H"
-    }
-  },
-
-  // Multiple suit comparison operators.  
-  // If you have four spades, equal hearts to spades, and equal diamonds to hearts, you should have four diamonds.
-  multpleSuitCompareEqualOperator:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "SuitRange",
-          "min": 4,
-          "max": 4,
-          "suit": "S"
-        },
-        {
-          "type": "SuitComparison",
-          "op": "=",
-          "left": "S",
-          "right": "H"
-        },
-        {
-          "type": "SuitComparison",
-          "op": "=",
-          "left": "H",
-          "right": "D"
-        }
-      ]
-    },
-    expected:
-    {
-      "type": "SpecificShape",
-      "suits":
-      {
-        "S": 4,
-        "H": 4,
-        "D": 4,
-        "C": 1
-      }
-    }
-  },
-
-  // You cannot have two secondary suits 
-  twoSecondarySuits:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "SuitSecondary",
-          "suit": "H"
-        },
-        {
-          "type": "SuitSecondary",
-          "suit": "S"
-        }
-      ]
-    },
-    expected: {
-      "type": "Constant",
-      value: false
-    }
-  },
-
-  // You cannot have the same suit be both primary and secondary
-  sameSuitPrimaryAndSecondary:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "SuitPrimary",
-          "suit": "S"
-        },
-        {
-          "type": "SuitSecondary",
-          "suit": "S"
-        }
-      ]
-    },
-    expected: {
-      "type": "Constant",
-      value: false
-    }
-  },
-
-  // Make sure a secondary five card suit does not prevent a higher five card suit from being primary
-  setPrimaryAsHigherSuit:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "SuitPrimary",
-          "suit": "S"
-        },
-        {
-          "type": "SuitRange",
-          "min": 5,
-          "max": 5,
-          "suit": "D"
-        }
-      ]
-    },
-    expected:
-    {
-      "type": "SuitRange",
-      "min": 5,
-      "max": 8,
-      "suit": "S"
-    }
-  },
-
-  // Correllary to previous test.  Make sure a five card higher ranking suit results in a six plus card primary
-  setPrimaryAsLowerSuit:
-  {
-    value:
-    {
-      "type": "Conjunction",
-      "constraints": [
-        {
-          "type": "SuitPrimary",
-          "suit": "D"
-        },
-        {
-          "type": "SuitRange",
-          "min": 5,
-          "max": 5,
-          "suit": "S"
-        }
-      ]
-    },
-    expected:
-    {
-      "type": "SuitRange",
-      "min": 6,
-      "max": 7,
-      "suit": "D"
-    }
-  },
-  //  Does Top two or three actually give you two of the top three honors
-  suitTopTwoOfThreeHonors:
-  {
-    value:
-    {
-      "type": "SuitTop",
-      "suit": "H",
-      "count": 2,
-      "minRank": 12 as Rank
-    },
-    expected:
-    {
-      "type": "Disjunction",
-      "constraints": [
-        {
-          "type": "SuitHonors",
-          "suit": "H",
-          "honors": [
-            14 as Rank,
-            13 as Rank
-          ]
-        },
-        {
-          "type": "SuitHonors",
-          "suit": "H",
-          "honors": [
-            14 as Rank,
-            12 as Rank
-          ]
-        },
-        {
-          "type": "SuitHonors",
-          "suit": "H",
-          "honors": [
-            13 as Rank,
-            12 as Rank
-          ]
-        }
-      ]
-    }
-  },
   //  If you have two of top four, but not two of top three, you must have the Jack
   multipleSuitTopHonorCombinations:
   {
