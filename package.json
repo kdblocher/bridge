@@ -4,6 +4,7 @@
   "private": true,
   "homepage": "/bridge",
   "dependencies": {
+    "@fluentui/react-components": "^9.17.1",
     "@nll/datum": "^3.5.0",
     "@reduxjs/toolkit": "^1.5.1",
     "@types/draft-js": "^0.11.10",
@@ -65,8 +66,8 @@
   },
   "scripts": {
     "tspeg": "tspeg src/parse/bid.peg src/parse/bid.peg.g.ts && tspeg src/parse/hand.peg src/parse/hand.peg.g.ts",
-    "start": "yarn tspeg && react-scripts --openssl-legacy-provider start",
-    "build": "react-scripts --openssl-legacy-provider build",
+    "start": "yarn tspeg && react-scripts start",
+    "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

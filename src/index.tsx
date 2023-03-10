@@ -10,6 +10,7 @@ import { store } from './app/store';
 import App from './components';
 import Design from './components/Design';
 import Analyze from './components/Analyze';
+import { FluentProvider, teamsLightTheme, } from '@fluentui/react-components';
 
 const router = createBrowserRouter([
   {
@@ -24,9 +25,11 @@ const router = createBrowserRouter([
 
 ReactDOM.render(
   <React.StrictMode>
-    <Provider store={store}>
-      <RouterProvider router={router} />
-    </Provider>
+    <FluentProvider theme={teamsLightTheme}>
+      <Provider store={store}>
+        <RouterProvider router={router} />
+      </Provider>
+    </FluentProvider>
   </React.StrictMode>,
   document.getElementById('root')
 );
