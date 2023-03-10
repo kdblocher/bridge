@@ -149,8 +149,7 @@ interface ConstraintPropositionTest {
 
 // The first constraint implies the second
 export const constraintPropCompactTests: RR.ReadonlyRecord<string, [string, string]> = {
-  // Min should never be more than max
-  hcpReversal: ["7-0", "false"],
+  'Min should never be more than max': ["7-0", "false"],
   // Reversed suit range should not generate anything
   suitReversal: ["6-5H", "false"],
   // If you have two diamonds, and fewer clubs, it had better be one or zero
