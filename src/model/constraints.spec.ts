@@ -1,6 +1,6 @@
 import * as fc from 'fast-check';
 import { boolean, option as O, readonlyArray as RA, readonlyRecord as RR, semigroup, these as TH, tree as T } from 'fp-ts';
-import { constFalse, flow, pipe } from 'fp-ts/lib/function';
+import { flow, pipe } from 'fp-ts/lib/function';
 
 import { decodeBid } from '../parse';
 import { parseBid } from '../parse/bid';
@@ -60,7 +60,7 @@ describe('decode', () => {
     }))
 })
 
-describe('constraint propositions compact', () => {
+describe('constraint implications (compact)', () => {
   pipe(tests.constraintPropCompactTests,
     RR.mapWithIndex((name, [value, expected]) =>
       test(name, () => {
@@ -81,7 +81,7 @@ describe('constraint propositions compact', () => {
     })))
 })
 
-describe('constraint propositions', () => {
+describe('constraint implications', () => {
   pipe(tests.constraintPropositionTests,
     RR.mapWithIndex((name, { value, expected }) => {
       test(name, () => fc.assert(
@@ -94,27 +94,23 @@ describe('constraint propositions', () => {
     }))
 })
 
-describe('syntax propositions', () => {
-  pipe(tests.syntaxPropositionTests,
-    RR.mapWithIndex((name, { value, expected }) => {
-      const sb: SyntacticBid = { bid: { level: 1, strain: "C" }, syntax: value }
-      describe(name, () => {
-        test("expands", () => {
-          expect(expandSingleSyntacticBid(sb)._tag).toEqual("Some")
-        })
-        test("implies", () => fc.assert(
+describe('constraint equivalencies', () => {
+  pipe(tests.syntaxPropCompactTests,
+    RR.mapWithIndex((name, [value, expected]) =>
+    test(name, () => {
+      const x = pipe(O.Do,
+        O.bind("value", () => expandSingleBid("1C: " + value)),
+        O.bind("expected", () => expandSingleBid("1C: " + expected)))
+      if (O.isNone(x)) {
+        fail("failed to parse")
+      } else {
+        fc.assert(
           fc.property(fc.context(), handA, (ctx, hand) => {
             ctx.log(encodeHand(hand))
-            return pipe(sb,
-              expandSingleSyntacticBid,
-              O.fold(
-                constFalse,
-                c => boolean.BooleanAlgebra.implies(
-                  satisfies(c)(hand),
-                  satisfies(expected)(hand))))
-        })))
-      })
-    }))
+            return satisfies(x.value.value)(hand) === satisfies(x.value.expected)(hand)
+          }))
+      }
+  })))
 })
 
 describe('expansion path validation', () => {

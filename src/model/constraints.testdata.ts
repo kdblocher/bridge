@@ -1,10 +1,9 @@
 import { readonlyRecord as RR } from 'fp-ts';
-import { Either } from 'fp-ts/lib/Either';
 
-import { Rank, rankFromString } from './deck';
+import { Rank } from './deck';
 import { Path } from './system';
-import { ConstrainedBid, Constraint } from './system/core';
-import { SyntacticBid, Syntax } from './system/expander';
+import { Constraint } from './system/core';
+import { SyntacticBid } from './system/expander';
 
 export type DecodeTest = {
   value: string
@@ -148,10 +147,8 @@ interface ConstraintPropositionTest {
   expected: Constraint
 }
 
-type ConstraintPropositionCompactTest = [string, string]
-
 // The first constraint implies the second
-export const constraintPropCompactTests: RR.ReadonlyRecord<string, ConstraintPropositionCompactTest> = {
+export const constraintPropCompactTests: RR.ReadonlyRecord<string, [string, string]> = {
   // Min should never be more than max
   hcpReversal: ["7-0", "false"],
   // Reversed suit range should not generate anything
@@ -380,162 +377,13 @@ primarySuitLogicalNegation:
   }
 }
 
-interface ExpansionTest {
-  value: Syntax
-  expected: Constraint
-}
-
-export const syntaxPropositionTests: RR.ReadonlyRecord<string, ExpansionTest> = {
-  // ////////////////  Distribution tests   /////////////////
+export const syntaxPropCompactTests: RR.ReadonlyRecord<string, [string, string]> = {
   // // Verify balanced shapes
-  distBalanced:
-  {
-    value:
-    {
-      "type": "Balanced"
-    },
-    expected:
-    {
-      "type": "Disjunction",
-      "constraints": [
-        {
-          "type": "AnyShape",
-          "counts": [
-            4,
-            3,
-            3,
-            3
-          ]
-        },
-        {
-          "type": "AnyShape",
-          "counts": [
-            4,
-            4,
-            3,
-            2
-          ]
-        },
-        {
-          "type": "AnyShape",
-          "counts": [
-            5,
-            3,
-            3,
-            2
-          ]
-        }
-      ]
-    }
-  },
-
+  distBalanced: ["BAL", "4333* or 4432* or 5332*"],
   // Verify semibalanced shapes  (includes all balanced hands as well)
-  distSemiBalanced:
-  {
-    value:
-    {
-      "type": "SemiBalanced"
-    },
-    expected:
-    {
-      "type": "Disjunction",
-      "constraints": [
-        {
-          "type": "AnyShape",
-          "counts": [
-            5,
-            4,
-            2,
-            2
-          ]
-        },
-        {
-          "type": "AnyShape",
-          "counts": [
-            6,
-            3,
-            2,
-            2
-          ]
-        },
-        {
-          "type": "AnyShape",
-          "counts": [
-            4,
-            3,
-            3,
-            3
-          ]
-        },
-        {
-          "type": "AnyShape",
-          "counts": [
-            4,
-            4,
-            3,
-            2
-          ]
-        },
-        {
-          "type": "AnyShape",
-          "counts": [
-            5,
-            3,
-            3,
-            2
-          ]
-        }
-      ]
-    }
-  },
-
+  distSemiBalanced: ["semiBAL", "5422* or 6322* or 4333* or 4432* or 5332*"],
   // Verify unbalanced shapes  (anyting with singleton or void, or 7222)
-  distUnBalanced:
-  {
-    value:
-    {
-      "type": "Unbalanced"
-    },
-    expected:
-    {
-      "type": "Disjunction",
-      "constraints": [
-        {
-          "type": "SuitRange",
-          "min": 0,
-          "max": 1,
-          "suit": "C"
-        },
-        {
-          "type": "SuitRange",
-          "min": 0,
-          "max": 1,
-          "suit": "D"
-        },
-        {
-          "type": "SuitRange",
-          "min": 0,
-          "max": 1,
-          "suit": "H"
-        },
-        {
-          "type": "SuitRange",
-          "min": 0,
-          "max": 1,
-          "suit": "S"
-        },
-        {
-          "type": "AnyShape",
-          "counts": [
-            7,
-            2,
-            2,
-            2
-          ]
-        }
-      ]
-    }
-  },
+  distUnBalanced: ["unBAL", "1-C or 1-D or 1-H or 1-S or 7222*"],
 }
 
 interface ExpansionPathValidTest {
