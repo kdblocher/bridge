@@ -214,51 +214,6 @@ interface ExpansionPathValidTest {
   expected: boolean
 }
 
-export const expansionPathValidTests: RR.ReadonlyRecord<string, ExpansionPathValidTest> = {
-  openerResponderDifferentPrimarySuits: {
-    value: [
-      { bid: { level: 1, strain: "S" },
-        syntax: {
-          type: "Conjunction",
-          syntax: [
-            {
-              type: "Wrapper",
-              constraint: {
-                type: "PointRange",
-                min: 13,
-                max: 21
-              }
-            },
-            {
-              type: "SuitPrimary",
-              suit: "S"
-            }
-          ]
-        }
-      },
-      { bid: { level: 2, strain: "C" },
-        syntax: {
-          type: "Conjunction",
-          syntax: [
-            {
-              type: "Wrapper",
-              constraint: {
-                type: "PointRange",
-                min: 10,
-                max: 37
-              }
-            },
-            {
-              type: "SuitPrimary",
-              suit: "C"
-            }
-          ]
-        }
-      }
-    ],
-    expected: true
-  }
-}
 
 // This group of tests is first entity is north hand, while the second is the south hand.  The implication is that all these must be FALSE 
 export const partnershipOverlappingTestsFalse: RR.ReadonlyRecord<string, [string, string]> = {
@@ -268,5 +223,7 @@ export const partnershipOverlappingTestsFalse: RR.ReadonlyRecord<string, [string
 }
 
 // This group of tests is first entity is north hand, while the second is the south hand.  The implication is that all these must be TRUE 
-export const partnershipOverlappingTestsTrue: RR.ReadonlyRecord<string, [string, string]> = {
+export const partnershipOverlappingTestsTrue: RR.ReadonlyRecord<string, readonly string[]> = {
+//  This test is invalid, bbut left here for purposes of seeing the template
+//  openerResponderDifferentPrimarySuits: ["1S: S1", "2C: C1"]
 }
