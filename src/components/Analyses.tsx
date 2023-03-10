@@ -3,13 +3,12 @@ import { flow, pipe } from 'fp-ts/lib/function';
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
-import { Button } from '@fluentui/react-components';
+import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, DialogTrigger } from '@fluentui/react-components';
 import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
-import Modal from 'react-modal';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { get } from '../lib/object';
 import { eqBid } from '../model/bridge';
-import { AnalysisId, ConstrainedBidPathHash, GenerationId, getBidPathHash, newAnalysisId, newGenerationId } from '../model/job';
+import { AnalysisId, ConstrainedBidPathHash, Generation, GenerationId, getBidPathHash, newAnalysisId, newGenerationId } from '../model/job';
 import { SerializedBidPath, serializedBidPathL } from '../model/serialization';
 import { Path, Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
@@ -19,6 +18,8 @@ import { selectValidConstrainedBidPaths } from '../reducers/system';
 import { getDealsWithSolutionsByPath } from '../services/idb';
 import SolutionStats from './stats/SolutionStats';
 import StatsPath from './stats/StatsPath';
+import StatsDetails from './stats/StatsDetails';
+import BidPath from './core/BidPath';
 
 const FlexList = styled.ul`
   display: flex;
@@ -57,7 +58,6 @@ const AnalysisView = ({ analysisId }: AnalysisProps) => {
   }</>)
 }
 
-
 interface StatsPathItemProps {
   generationId: GenerationId
   analysisId: AnalysisId
@@ -69,24 +69,8 @@ const StatsPathItem = ({ path, count, generationId, analysisId, pathHash }: Stat
   const generation = useAppSelector(state => pipe(
     selectGenerationByAnalysis({ state: state.profile, analysisId, generationId }),
     O.toNullable))
-  const stats = pipe(
-    generation,
-    O.fromNullable,
-    O.chain(flow(
-      get('solutionStats'),
-      RR.lookup(path))),
-    O.toNullable)
-  const solveCount = pipe(
-    stats,
-    O.fromNullable,
-    O.map(get('count')),
-    O.chain(O.fromPredicate(len => len > 0)),
-    O.toNullable)
-
-  const [showTables, setShowTables] = useState(false)
-
   const dispatch = useAppDispatch()
-  const onSolveClick = useCallback(() => pipe(
+  const solve = useCallback(() => pipe(
     getDealsWithSolutionsByPath(generationId, pathHash),
     TE.map(flow(
       RR.filter(d => O.isNone(d.solution)),
@@ -104,24 +88,50 @@ const StatsPathItem = ({ path, count, generationId, analysisId, pathHash }: Stat
   return (<>{generation && <>
     {/* Contained in CSS grid, so make sure the node count is consistent with StatsPathContainer CSS */}
     <StatsPath path={path} satisfiesCount={count} dealCount={generation.dealCount} />
-    <span>
-      <Button onClick={onSolveClick}>Solve</Button>
-      {stats && solveCount && <span>
-        ({solveCount} so far)
-        <Button onClick={() => setShowTables(!showTables)}>{!showTables ? "Show" : "Hide"} Stats</Button>
-        {showTables && <SolutionStats stats={stats} />}
-      </span>}
-    </span>
+    <StatsModal path={path} generation={generation} solve={solve} />
   </>}</>)
 }
 
+interface StatsModelProps {
+  path: SerializedBidPath
+  generation: Generation,
+  solve: () => void
+}
+const StatsModal = ({ path, generation, solve }: StatsModelProps) => {
+  const [showDetails, setShowDetails] = useState<boolean>(false);
+  const onShowClick = useCallback((open: boolean) => {
+    if (open) {
+      solve();
+    }
+    setShowDetails(open);
+  }, [solve]);
+  return <>
+    <Dialog modalType='modal' open={showDetails} onOpenChange={(__, data) => onShowClick(data.open)}>
+      <DialogTrigger>
+        <Button>Details...</Button>
+      </DialogTrigger>
+      <DialogSurface>
+        <DialogBody>
+          <DialogTitle>Solution Details - <BidPath path={serializedBidPathL.reverseGet(path)} /></DialogTitle>
+          <StatsDetails path={path} generation={generation} onClose={() => setShowDetails(false)} />
+          <DialogActions>
+            <DialogTrigger disableButtonEnhancement>
+              <Button appearance="secondary">Close</Button>
+            </DialogTrigger>
+          </DialogActions>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
+  </>
+}
+
 const StatsPathContainer = styled.div`
-  clear: both;
-  display: inline-grid;
-  grid-column-gap: 5px;
-  grid-template-columns: auto auto auto;
-  width: auto;
-`
+    clear: both;
+    display: inline-grid;
+    grid-column-gap: 5px;
+    grid-template-columns: auto auto auto;
+    width: auto;
+    `
 
 interface GenerationViewProps {
   analysisId: AnalysisId
@@ -165,8 +175,7 @@ const GenerationView = ({ analysisId, generationId }: GenerationViewProps) => {
   return (<>{generation &&
     <FlexListItem>
       Deal Count: {generation.dealCount} <br />
-      {satisfies === null && <Button onClick={onSatisfiesClick}>Satisfies</Button>}
-      {satisfies !== null && <StatsPathContainer>
+      {satisfies && <StatsPathContainer>
         {satisfies.map(([path, count]) => {
           const pathHash = getHash(path)
           return (<Fragment key={path}>
@@ -220,24 +229,23 @@ const NewAnalysis = ({ paths, onSubmitOrClose }: NewAnalysisProps) => {
   const [name, setName] = useState<string>(`New analysis (${paths.length} paths)`)
   const [count, setCount] = useState<number>(defaultCount);
   return (
-    <>
-      Name <input type="text" value={name} onChange={e => setName(e.target.value)} />
-      <br />
-      Hands to Generate <input type="number" value={count} onChange={e => pipe(e.target.value, parseInt, setCount)} style={{ width: "100px" }} />
-      <br />
-      {paths && <Button onClick={() => onGoClick(name, count, paths)}>Go</Button>}
-    </>
+    <DialogContent>
+      <p>
+        Name <input type="text" value={name} onChange={e => setName(e.target.value)} />
+        <br />
+        Hands to Generate <input type="number" value={count} onChange={e => pipe(e.target.value, parseInt, setCount)} style={{ width: "100px" }} />
+      </p>
+      <DialogActions>
+        <DialogTrigger disableButtonEnhancement>
+          <Button appearance="secondary">Close</Button>
+        </DialogTrigger>
+        <Button appearance='primary' disabled={!paths} onClick={() => onGoClick(name, count, paths)}>Go</Button>
+      </DialogActions>
+    </DialogContent>
   )
 }
 
-const style: ReactModal.Styles = {
-  "overlay": {
-    zIndex: 2
-  }
-}
-
 const Analyses = () => {
-  const analyses = useAppSelector(state => selectAllAnalyses(state.profile))
   const [newAnalysis, setNewAnalysis] = useState<boolean>(false);
   const paths = useAppSelector(state => pipe(
     selectValidConstrainedBidPaths({ state: state.system, options: state.settings }),
@@ -245,15 +253,19 @@ const Analyses = () => {
   return (
     <section>
       <h3>Analyses</h3>
-      {/* <FlexList>
-        {analyses.map(a => <AnalysisView key={a.id} analysisId={a.id} />)}
-      </FlexList> */}
       <SelectedAnalysis />
       {paths && (<>
-        <Modal isOpen={newAnalysis} style={style} ariaHideApp={false}>
-          <NewAnalysis paths={paths} onSubmitOrClose={() => setNewAnalysis(false)} />
-        </Modal>
-        <Button onClick={() => setNewAnalysis(true)}>Start...</Button>
+        <Dialog modalType='modal' open={newAnalysis} onOpenChange={(__, data) => setNewAnalysis(data.open)}>
+          <DialogTrigger>
+            <Button>Start...</Button>
+          </DialogTrigger>
+          <DialogSurface>
+            <DialogBody>
+              <DialogTitle>New Analysis</DialogTitle>
+              <NewAnalysis paths={paths} onSubmitOrClose={() => setNewAnalysis(false)} />
+            </DialogBody>
+          </DialogSurface>
+        </Dialog>
       </>)}
     </section>
   )
