@@ -3,22 +3,22 @@ import { flow, pipe } from 'fp-ts/lib/function';
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
+import { Button } from '@fluentui/react-components';
+import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
+import Modal from 'react-modal';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { get } from '../lib/object';
 import { eqBid } from '../model/bridge';
-import { AnalysisId, ConstrainedBidPathHash, GenerationId, getBidPathHash, newGenerationId } from '../model/job';
+import { AnalysisId, ConstrainedBidPathHash, GenerationId, getBidPathHash, newAnalysisId, newGenerationId } from '../model/job';
 import { SerializedBidPath, serializedBidPathL } from '../model/serialization';
 import { Path, Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
-import { newAnalysisId } from '../model/job';
 import { scheduleJob } from '../reducers/generator';
 import { addAnalysis, deleteAnalysis, selectAllAnalyses, selectAnalysis, selectAnalysisById, selectGenerationByAnalysis, selectSelectedAnalysis, setAnalysisName } from '../reducers/profile';
 import { selectValidConstrainedBidPaths } from '../reducers/system';
 import { getDealsWithSolutionsByPath } from '../services/idb';
 import SolutionStats from './stats/SolutionStats';
 import StatsPath from './stats/StatsPath';
-import Modal from 'react-modal';
-import { ReadonlyNonEmptyArray } from 'fp-ts/lib/ReadonlyNonEmptyArray';
 
 const FlexList = styled.ul`
   display: flex;
@@ -51,8 +51,8 @@ const AnalysisView = ({ analysisId }: AnalysisProps) => {
         Paths: {analysis.paths.length} <br />
         Deals: {dealCount} <small>({analysis.generations.length} generations)</small><br />
       </p>
-      <button onClick={onSelectClick}>Select</button>
-      <button onClick={onRemoveClick}>Remove</button>
+      <Button onClick={onSelectClick}>Select</Button>
+      <Button onClick={onRemoveClick}>Remove</Button>
     </FlexListItem>
   }</>)
 }
@@ -105,10 +105,10 @@ const StatsPathItem = ({ path, count, generationId, analysisId, pathHash }: Stat
     {/* Contained in CSS grid, so make sure the node count is consistent with StatsPathContainer CSS */}
     <StatsPath path={path} satisfiesCount={count} dealCount={generation.dealCount} />
     <span>
-      <button onClick={onSolveClick}>Solve</button>
+      <Button onClick={onSolveClick}>Solve</Button>
       {stats && solveCount && <span>
         ({solveCount} so far)
-        <button onClick={() => setShowTables(!showTables)}>{!showTables ? "Show" : "Hide"} Stats</button>
+        <Button onClick={() => setShowTables(!showTables)}>{!showTables ? "Show" : "Hide"} Stats</Button>
         {showTables && <SolutionStats stats={stats} />}
       </span>}
     </span>
@@ -165,7 +165,7 @@ const GenerationView = ({ analysisId, generationId }: GenerationViewProps) => {
   return (<>{generation &&
     <FlexListItem>
       Deal Count: {generation.dealCount} <br />
-      {satisfies === null && <button onClick={onSatisfiesClick}>Satisfies</button>}
+      {satisfies === null && <Button onClick={onSatisfiesClick}>Satisfies</Button>}
       {satisfies !== null && <StatsPathContainer>
         {satisfies.map(([path, count]) => {
           const pathHash = getHash(path)
@@ -201,7 +201,7 @@ const SelectedAnalysis = () => {
       <FlexList>
         {analysis.generations.map(g => <GenerationView key={g.id} analysisId={analysis.id} generationId={g.id} />)}
       </FlexList>
-      <button onClick={() => onGenerateDealsClick(generateCount)}>Generate Deals</button>
+      <Button onClick={() => onGenerateDealsClick(generateCount)}>Generate Deals</Button>
     </div>
   }</>)
 }
@@ -225,7 +225,7 @@ const NewAnalysis = ({ paths, onSubmitOrClose }: NewAnalysisProps) => {
       <br />
       Hands to Generate <input type="number" value={count} onChange={e => pipe(e.target.value, parseInt, setCount)} style={{ width: "100px" }} />
       <br />
-      {paths && <button onClick={() => onGoClick(name, count, paths)}>Go</button>}
+      {paths && <Button onClick={() => onGoClick(name, count, paths)}>Go</Button>}
     </>
   )
 }
@@ -253,7 +253,7 @@ const Analyses = () => {
         <Modal isOpen={newAnalysis} style={style} ariaHideApp={false}>
           <NewAnalysis paths={paths} onSubmitOrClose={() => setNewAnalysis(false)} />
         </Modal>
-        <button onClick={() => setNewAnalysis(true)}>Start...</button>
+        <Button onClick={() => setNewAnalysis(true)}>Start...</Button>
       </>)}
     </section>
   )

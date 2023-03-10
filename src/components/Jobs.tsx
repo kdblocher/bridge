@@ -1,3 +1,4 @@
+import { Button } from '@fluentui/react-components';
 import { option as O } from 'fp-ts';
 import { flow, pipe } from 'fp-ts/lib/function';
 import { useCallback, useMemo } from 'react';
@@ -15,20 +16,20 @@ interface DateViewProps {
 const DateView = ({ date }: DateViewProps) => {
   const value =
     !date ? null :
-    typeof date === "number" ? date :
-    date._tag === "Some" ? date.value :
-    null
+      typeof date === "number" ? date :
+        date._tag === "Some" ? date.value :
+          null
   return <>{value && <TimeAgo date={(new Date(value))} />}</>
 }
 
-const JobList = styled.ul `
+const JobList = styled.ul`
   display: flex;
   flex-flow: row wrap;
   list-style-type: none;
   padding: 0px;
   margin: 0px;
 `
-const JobListItem = styled.li `
+const JobListItem = styled.li`
   padding: 0px;
   margin: 5px;
 `
@@ -74,8 +75,8 @@ const JobView = ({ job }: JobViewProps) => {
       <h5>{job.type.type}</h5>
       {!progress && <p>
         Estimated Units: {job.unitsInitial} <br />
-        <button onClick={onStartClick}>Start</button>
-        <button onClick={onRemoveClick}>Remove</button>
+        <Button onClick={onStartClick}>Start</Button>
+        <Button onClick={onRemoveClick}>Remove</Button>
       </p>}
       {progress && startDate && <ProgressView progress={progress} unitsInitial={job.unitsInitial} start={startDate} />}
     </JobListItem>

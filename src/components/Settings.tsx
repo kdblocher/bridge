@@ -1,3 +1,4 @@
+import { Button } from '@fluentui/react-components';
 import { taskEither } from 'fp-ts';
 import { constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { useCallback, useEffect } from 'react';
@@ -25,7 +26,7 @@ const SettingsItem = <K extends keyof SettingsState>({ label, prop, parse, onCha
       <span>{label ?? prop}</span>
       <span>{children
         ? children({ value, onChange: flow(parse, onChange, constVoid) })
-        : <input type="text" value={value.toString()} onChange={e => pipe(e.target.value, parse, onChange)} style={{width: "100px"}} />
+        : <input type="text" value={value.toString()} onChange={e => pipe(e.target.value, parse, onChange)} style={{ width: "100px" }} />
       }</span>
     </p>
   )
@@ -43,25 +44,25 @@ const Settings = () => {
     }
   }, [dispatch])
   const onChanged = useCallback((prop: keyof SettingsState, value: SettingsState[typeof prop]) => {
-    const newSettings: SettingsState = {...settings, [prop]: value }
+    const newSettings: SettingsState = { ...settings, [prop]: value }
     localStorage.setItem(key, JSON.stringify(newSettings))
   }, [settings])
   const onDeleteDatabaseClick = useCallback(() => pipe(
     deleteDb,
     taskEither.map(() => window.location.reload()))()
-  , [])
+    , [])
   return (<>
     <section>
-      <button onClick={onDeleteDatabaseClick}>Reset Analysis DB</button>
+      <Button onClick={onDeleteDatabaseClick}>Reset Analysis DB</Button>
     </section>
     <section>
       <SettingsItem label="Implicit Pass" prop="implicitPass" parse={s => s === "true"} onChanged={v => onChanged("implicitPass", v)}>
-        {({ value, onChange}) =>
+        {({ value, onChange }) =>
           <input type="checkbox" checked={value} onChange={e => onChange(e.target.checked.toString())} />
-      }</SettingsItem>
+        }</SettingsItem>
       <SettingsItem label="Generate Count" prop="generateCount" parse={parseInt} onChanged={v => onChanged("generateCount", v)} />
     </section>
-    </>)
+  </>)
 }
 
 export default Settings

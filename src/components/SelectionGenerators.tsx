@@ -1,3 +1,4 @@
+import { Button } from '@fluentui/react-components';
 import { option } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 import { useState } from 'react';
@@ -11,7 +12,7 @@ import { selectCompleteBidPathUpToKey, selectValidConstrainedBidPaths } from '..
 const GenerateOnce = () => {
   const dispatch = useAppDispatch()
   return (
-    <button type="button" onClick={() => dispatch(genOnce())}>Random</button>
+    <Button onClick={() => dispatch(genOnce())}>Random</Button>
   )
 }
 
@@ -24,9 +25,9 @@ const GenerateMatchZero = ({ bidPaths }: GenerateSystemProps) => {
   const [minHcp, setMinHcp] = useState<number>(11)
   return <>
     {bidPaths && <span>
-      <button type="button" onClick={() => dispatch(genHandsNotMatchingAnyOf(bidPaths, minHcp))}>Zero</button>
+      <Button onClick={() => dispatch(genHandsNotMatchingAnyOf(bidPaths, minHcp))}>Zero</Button>
       Min HCP
-      <input type="number" style={{width: 50}} value={minHcp} onChange={e => setMinHcp(parseInt(e.target.value))} />
+      <input type="number" style={{ width: 50 }} value={minHcp} onChange={e => setMinHcp(parseInt(e.target.value))} />
     </span>}
   </>
 }
@@ -35,7 +36,7 @@ const GenerateMatchOne = ({ bidPaths }: GenerateSystemProps) => {
   const dispatch = useAppDispatch()
   return <>
     {bidPaths && <span>
-      <button type="button" onClick={() => dispatch(genHandsMatchingExactlyOneOf(bidPaths))}>One</button>
+      <Button onClick={() => dispatch(genHandsMatchingExactlyOneOf(bidPaths))}>One</Button>
     </span>}
   </>
 }
@@ -44,7 +45,7 @@ const GenerateMatchMany = ({ bidPaths }: GenerateSystemProps) => {
   const dispatch = useAppDispatch()
   return <>
     {bidPaths && <span>
-      <button type="button" onClick={() => dispatch(genHandsMatchingMoreThanOneOf(bidPaths))}>Many</button>
+      <Button onClick={() => dispatch(genHandsMatchingMoreThanOneOf(bidPaths))}>Many</Button>
     </span>}
   </>
 }
@@ -56,7 +57,7 @@ const GenerateMatchSelected = () => {
     option.toNullable))
   const dispatch = useAppDispatch()
   return <>
-    {bidPath && <button type="button" onClick={() => dispatch(getHandsMatchingPath(bidPath))}>Selected</button>}
+    {bidPath && <Button onClick={() => dispatch(getHandsMatchingPath(bidPath))}>Selected</Button>}
   </>
 }
 

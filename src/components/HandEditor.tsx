@@ -1,3 +1,4 @@
+import { Button } from '@fluentui/react-components';
 import { option, readonlyRecord } from 'fp-ts';
 import { constVoid, flow, pipe } from 'fp-ts/lib/function';
 import { useCallback, useEffect, useState } from 'react';
@@ -40,7 +41,7 @@ const HandInput = ({ type }: HandInputProps) => {
   return <input type="text" placeholder="AKQJ.T987.654.32" value={encodedHand ?? value} onChange={e => onSetHand(e.target.value)} onBlur={() => localStorage.setItem(storageKey, value)} />
 }
 
-const HandCol = styled.th `
+const HandCol = styled.th`
   width: 15em;
 `
 
@@ -61,7 +62,7 @@ const HandEditor = () => {
     constVoid), [dispatch, o, r])
 
   const result = useAppSelector(state => state.selection.result)
-  
+
   return (
     <>
       <table>
@@ -84,8 +85,8 @@ const HandEditor = () => {
       </table>
       <SelectionGenerators />
       <p>
-        <button type="button" onClick={getResultCallback}>Solution</button> 
-        {result && <DoubleDummyResultView result={result} /> }
+        <Button onClick={getResultCallback}>Solution</Button>
+        {result && <DoubleDummyResultView result={result} />}
       </p>
     </>
   )
