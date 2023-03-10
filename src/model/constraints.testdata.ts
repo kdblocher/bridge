@@ -435,3 +435,9 @@ export const expansionPathValidTests: RR.ReadonlyRecord<string, ExpansionPathVal
     expected: true
   }
 }
+
+export const partnershipOverlappingTests: RR.ReadonlyRecord<string, [string, string]> = {
+  'Both hands cannot hold SK': ["SK", "SK"],
+  'Both hands cannot have 7 hearts': ["7+H", "7+H"],
+  'Both hands cannot hold the top 3 of 4 honors in the same suit': ["S3/4", "S3/4"],
+}
