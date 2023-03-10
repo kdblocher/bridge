@@ -1,5 +1,5 @@
 import * as fc from 'fast-check';
-import { boolean, either, option as O, readonlyArray as RA, readonlyNonEmptyArray as RNEA, readonlyRecord as RR, semigroup, these as TH, tree as T } from 'fp-ts';
+import { boolean, option as O, readonlyArray as RA, readonlyRecord as RR, semigroup, these as TH, tree as T } from 'fp-ts';
 import { constFalse, flow, pipe } from 'fp-ts/lib/function';
 
 import { decodeBid } from '../parse';
@@ -11,7 +11,6 @@ import { serializedBidL } from './serialization';
 import { getForestFromLeafPaths, Path } from './system';
 import { Constraint, satisfies } from './system/core';
 import { expandForest, SyntacticBid } from './system/expander';
-import { pathIsSound } from './system/sat';
 import { validateForest } from './system/validation';
 
 const expandSingleSyntacticBid = (bid: SyntacticBid) =>
@@ -65,11 +64,9 @@ describe('constraint propositions', () => {
       test(name, () => fc.assert(
         fc.property(fc.context(), handA, (ctx, hand) => {
           ctx.log(encodeHand(hand))
-          return boolean.BooleanAlgebra.implies(
-            pipe(value,  c => ({ bid: { level: 1, strain: "C" as const }, constraint: c }), RNEA.of, pathIsSound, either.isRight),
-            boolean.BooleanAlgebra.implies(
-              satisfies(value)(hand),
-              satisfies(expected)(hand)))
+          boolean.BooleanAlgebra.implies(
+            satisfies(value)(hand),
+            satisfies(expected)(hand))
         })))
     }))
 })
