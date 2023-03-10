@@ -1,33 +1,10 @@
 import * as fc from 'fast-check';
-import { applicative, apply, eq, number, ord, readonlyArray, readonlyRecord, readonlySet } from 'fp-ts';
+import { number, ord, readonlyArray, readonlyRecord, readonlySet } from 'fp-ts';
 import { constVoid, flow, pipe } from 'fp-ts/lib/function';
-import { MersenneTwister19937, nativeMath } from 'random-js';
+import { MersenneTwister19937 } from 'random-js';
 
-import { eqDeal } from './bridge';
-import { Card, cards, Deck, engine, eqCard, eqRank, groupHandBySuits, Hand, newDeck, ordCardDescending, Rank, ranks, Suit, suits } from './deck';
-
-export const suitA: fc.Arbitrary<Suit> =
-  fc.constantFrom(...suits)
-export const rankA: fc.Arbitrary<Rank> = 
-  fc.constantFrom(...ranks)
-export const cardA: fc.Arbitrary<Card> =
-  fc.tuple(suitA, rankA)
-    .map(([suit,  rank ]) =>
-         ({suit,  rank }))
-export const cardsA: fc.Arbitrary<ReadonlyArray<Card>> =
-  fc.set(cardA, { compare: eqCard.equals })
-
-export const handA : fc.Arbitrary<Hand> =
-  fc.set(cardA, { minLength: 13, maxLength: 13, compare: eqCard.equals })
-    .map(readonlySet.fromReadonlyArray(eqCard))
-
-const spadeAce: Card = { suit: "S", rank: ranks[ranks.length - 1] }
-const clubTwo: Card = { suit: "C", rank: ranks[0] }
-const cardsWithSAandC2_A =
-  cardsA.map(readonlyArray.union(eqCard)([spadeAce, clubTwo]))
-
-export const deckA: fc.Arbitrary<Deck> =
-  fc.constant(cards).chain(cards => fc.shuffledSubarray([...cards], { minLength: cards.length, maxLength: cards.length })) as unknown as fc.Arbitrary<Deck>
+import { engine, eqCard, groupHandBySuits, newDeck, ordCardDescending } from './deck';
+import { cardsWithSAandC2_A, clubTwo, handA, spadeAce } from './test-utils';
 
 test('orders cards descending', () => fc.assert(
   fc.property(

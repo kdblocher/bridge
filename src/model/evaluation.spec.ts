@@ -3,8 +3,8 @@ import { option, readonlyRecord, readonlyTuple } from 'fp-ts';
 import { constant, flow } from 'fp-ts/lib/function';
 
 import { ranks, rankStrings } from './deck';
-import { rankA } from './deck.spec';
 import { getRankHcp } from './evaluation';
+import { rankA } from './test-utils';
 
 const hcpValues = {
   'A': 4,
