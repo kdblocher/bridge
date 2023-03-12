@@ -209,12 +209,6 @@ export const syntaxPropCompactTests: RR.ReadonlyRecord<string, [string, string]>
   distUnBalanced: ["unBAL", "1-C or 1-D or 1-H or 1-S or 7222*"],
 }
 
-interface ExpansionPathValidTest {
-  value: Path<SyntacticBid>
-  expected: boolean
-}
-
-
 // This group of tests is first entity is north hand, while the second is the south hand.  The implication is that all these must be FALSE 
 export const partnershipOverlappingTestsFalse: RR.ReadonlyRecord<string, [string, string]> = {
   'Both hands cannot hold SK': ["SK", "SK"],

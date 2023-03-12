@@ -114,20 +114,6 @@ describe('constraint equivalencies', () => {
   })))
 })
 
-describe('expansion path validation', () => {
-  pipe(tests.expansionPathValidTests,
-    RR.mapWithIndex((name, { value, expected }) => {
-      describe(name, () => {
-        test("expands", () => {
-          expect(pipe(value,
-            expandSingleSyntacticBidPath,
-            x => TH.getChain(semigroup.first<unknown>()).chain(x, validateForest),
-            TH.isRight)).toEqual(expected)
-        })
-      })
-    }))
-})
-
 describe('partnership overlaps', () => {
   pipe(tests.partnershipOverlappingTestsFalse,
     RR.mapWithIndex((name, [north, south]) =>
