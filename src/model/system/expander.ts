@@ -305,7 +305,7 @@ const expand = (syntax: Syntax) : S.State<ExpandContext, E.Either<ExpandErrorRea
     expandOnce,
     S.chain(flow(
       E.mapLeft(E.left),
-      E.chain(flow(E.mapLeft(c => E.right(c)))),
+      E.chain(E.mapLeft(c => E.right(c))),
       E.fold(ofS, expand))))
 
 export type SyntacticBid = {
