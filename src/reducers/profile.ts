@@ -5,13 +5,14 @@ import { castDraft } from 'immer';
 import memoize from 'proxy-memoize';
 import { Epic } from 'redux-observable';
 import { concatWith, EMPTY, from, of } from 'rxjs';
+import { WritableDraft } from 'immer/dist/internal';
 
 import { AnyAction, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { RootState } from '../app/store';
 import { assertUnreachable } from '../lib';
 import { get } from '../lib/object';
-import { Analysis, AnalysisId, GenerationId, Job, JobTypeGenerateDeals, newGenerationId, zeroAnalysis, zeroGeneration } from '../model/job';
+import { Analysis, AnalysisId, GenerationId, Job, JobDetailsMap, JobTypeGenerateDeals, newGenerationId, zeroAnalysis, zeroGeneration } from '../model/job';
 import { getStats } from '../model/stats';
 import { Paths } from '../model/system';
 import { ConstrainedBid } from '../model/system/core';
@@ -50,24 +51,26 @@ const slice = createSlice({
       },
       prepare: (id: AnalysisId, name: string) => ({ payload: name, meta: id })
     },
-    addJobToAnalysis: (state, action: PayloadAction<Job>) => {
-      const jobType = action.payload.type
+    addJobToAnalysis: <K extends keyof JobDetailsMap>(state: WritableDraft<State>, action: PayloadAction<Job<K>>) => {
       pipe(state.analyses,
         RR.lookup(action.payload.analysisId),
         O.map(analysis => {
-          switch (jobType.type) {
+          switch (action.payload.type) {
             case "GenerateDeals":
-              return pipe(jobType.progress,
-                O.map(p => analysis.generations.push(pipe(zeroGeneration(jobType.context.generationId, p.value), castDraft))))
+              const genJob = action.payload as Job<"GenerateDeals">
+              return pipe(genJob.details.progress,
+                O.map(p => analysis.generations.push(pipe(zeroGeneration(genJob.details.context.generationId, p.value), castDraft))))
             case "Satisfies":
+              const satJob = action.payload as Job<"Satisfies">
               return pipe(O.Do,
-                O.apS('progress', jobType.progress),
-                O.apS('generation', pipe(analysis.generations, RA.findFirst(g => g.id === jobType.context.generationId))),
+                O.apS('progress', satJob.details.progress),
+                O.apS('generation', pipe(analysis.generations, RA.findFirst(g => g.id === satJob.details.context.generationId))),
                 O.map(o => o.generation.satisfies = O.some(o.progress.value)))
             case "Solve":
+              const solveJob = action.payload as Job<"Solve">
               return pipe(O.Do,
-                O.apS('progress', jobType.progress),
-                O.apS('generation', pipe(analysis.generations, RA.findFirst(g => g.id === jobType.context.generationId))),
+                O.apS('progress', solveJob.details.progress),
+                O.apS('generation', pipe(analysis.generations, RA.findFirst(g => g.id === solveJob.details.context.generationId))),
                 O.map(o => pipe(
                     o.progress.value,
                     RR.toReadonlyArray,
@@ -76,18 +79,17 @@ const slice = createSlice({
                     RNEA.map(flow(RT.snd, get('results'))),
                         getStats,
                     stats => {
-                      if (RR.has(jobType.context.bidPath, o.generation.solutionStats)) {
+                      if (RR.has(solveJob.details.context.bidPath, o.generation.solutionStats)) {
                         throw new Error("Combining stat result sets is not implemented")
                           }
-                      o.generation.solutionStats[jobType.context.bidPath] = stats
+                      o.generation.solutionStats[solveJob.details.context.bidPath] = stats
                     })))))
             default:
-              return assertUnreachable(jobType)
+              return assertUnreachable(action.payload.type)
           }
-        }))
-    }
-          }
-        })
+        }))}
+  },
+})
 
 export const { addAnalysis, deleteAnalysis, selectAnalysis, setAnalysisName, addJobToAnalysis } = slice.actions
 export default slice.reducer
@@ -117,8 +119,8 @@ export const epics: ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
       Ob.filterMap(a =>
         pipe(O.Do,
           O.bind("job", () =>
-            a.payload.type.type === "GenerateDeals"
-            ? O.some(a.payload as Job & { type: JobTypeGenerateDeals })
+            a.payload.type === "GenerateDeals"
+            ? O.some(a.payload as Job & { details: JobTypeGenerateDeals })
             : O.none),
           O.bind("analysis", ({ job }) =>
             selectAnalysisById({
@@ -130,8 +132,8 @@ export const epics: ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
           analysisId: job.analysisId,
           type: "Satisfies",
           parameter: analysis.paths,
-          context: job.type.context,
-          estimatedUnitsInitial: analysis.paths.length * job.type.parameter,
+          context: job.details.context,
+          estimatedUnitsInitial: analysis.paths.length * job.details.parameter,
         })))),
   (action$, state$) =>
     action$.pipe(
@@ -148,7 +150,7 @@ export const epics: ReadonlyArray<Epic<AnyAction, AnyAction, RootState>> = [
       Ob.map(s => pipe(s.generator.jobs, RA.filter((j) => O.isNone(j.startDate)))),
       Ob.filterMap(RNEA.fromReadonlyArray),
       Ob.chain(flow(
-        RA.map(j => startJob({ jobId: j.id, type: j.type.type })),
+        RA.map(j => startJob({ jobId: j.id, type: j.type })),
         from))),
   (action$, state$) =>
     action$.pipe(

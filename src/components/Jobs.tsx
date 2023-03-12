@@ -69,10 +69,10 @@ const JobView = ({ job }: JobViewProps) => {
     O.toNullable)
   const dispatch = useAppDispatch()
   const onRemoveClick = useCallback(() => job && dispatch(removeJob(job.id)), [dispatch, job])
-  const onStartClick = useCallback(() => job && dispatch(startJob({ jobId: job.id, type: job.type.type })), [dispatch, job])
+  const onStartClick = useCallback(() => job && dispatch(startJob({ jobId: job.id, type: job.type })), [dispatch, job])
   return (<>{job &&
     <JobListItem>
-      <h5>{job.type.type}</h5>
+      <h5>{job.type}</h5>
       {!progress && <p>
         Estimated Units: {job.unitsInitial} <br />
         <Button onClick={onStartClick}>Start</Button>

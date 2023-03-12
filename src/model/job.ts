@@ -48,7 +48,7 @@ interface ProgressDataWithValue<T> extends ProgressData {
 type Progress<T> = O.Option<ProgressDataWithValue<T>>;
 
 export const getGenericProgress = (job: Job) =>
-  job.type.progress as O.Option<ProgressData>;
+  job.details.progress as O.Option<ProgressData>;
 
 export const initProgress = <T>(value: T): Progress<T> =>
   O.some({
@@ -147,11 +147,38 @@ export const zeroAnalysis = (
 });
 
 export interface JobTypeGenerateDeals {
-  type: "GenerateDeals";
-  parameter: number;
-  context: { generationId: GenerationId };
-  progress: Progress<number>;
+  parameter: number
+  context: { generationId: GenerationId }
+  progress: Progress<number>
 }
+export interface JobTypeSatisfies {
+  parameter: Paths<ConstrainedBid>
+  context: { generationId: GenerationId }
+  progress: Progress<Satisfies>
+}
+export interface JobTypeSolve {
+  parameter: ReadonlyArray<SerializedDeal>
+  context: { generationId: GenerationId; bidPath: SerializedBidPath }
+  progress: Progress<Solution>
+}
+export type JobDetailsMap = {
+  "GenerateDeals": JobTypeGenerateDeals
+  "Satisfies": JobTypeSatisfies
+  "Solve": JobTypeSolve
+}
+export type Job<K extends keyof JobDetailsMap = keyof JobDetailsMap> = { [P in K]: {
+  id: JobId
+  analysisId: AnalysisId
+  dependsOn: ReadonlyArray<JobId>
+  unitsInitial: number
+  startDate: O.Option<DateNumber>
+  completedDate: O.Option<DateNumber>
+  running: boolean
+  error: O.Option<string>
+  type: P
+  details: JobDetailsMap[P]
+}}[K];
+
 const zeroGenerateDealsProgress = () => initProgress(0);
 export const updateGenerateDealsProgress = (deals: ReadonlyArray<any>) =>
   updateProgress(number.MonoidSum)(deals.length)(deals.length);
@@ -169,12 +196,7 @@ export const getBidPathHash = (cb: Path<ConstrainedBid>) =>
       objectHash(cb)
     ) as Right<ConstrainedBidPathHash>
   ).right;
-export interface JobTypeSatisfies {
-  type: "Satisfies";
-  parameter: Paths<ConstrainedBid>;
-  context: JobTypeGenerateDeals["context"];
-  progress: Progress<Satisfies>;
-}
+
 const zeroSatisfiesProgress = () => initProgress<Satisfies>({});
 export const updateSatisfiesProgress = (result: SatisfiesResult) =>
   updateProgress(RR.getUnionSemigroup(number.MonoidSum))(result.testedCount)({
@@ -184,22 +206,15 @@ export const updateSatisfiesProgress = (result: SatisfiesResult) =>
 export type Solution = RR.ReadonlyRecord<
   SerializedDeal["id"],
   DoubleDummyResult
->;
-export interface JobTypeSolve {
-  type: "Solve";
-  parameter: ReadonlyArray<SerializedDeal>;
-  context: { generationId: GenerationId; bidPath: SerializedBidPath };
-  progress: Progress<Solution>;
-}
+>
+
 const zeroSolveProgress = () => initProgress<Solution>({});
 export const updateSolveProgress = (solutions: Solution) =>
   updateProgress(RR.getUnionSemigroup(semigroup.first<DoubleDummyResult>()))(
     pipe(solutions, RR.keys, (keys) => keys.length)
   )(solutions);
 
-export type JobType = JobTypeGenerateDeals | JobTypeSatisfies | JobTypeSolve;
-
-export const initJobProgress = (type: JobType["type"]) => {
+export const initJobProgress = <K extends keyof JobDetailsMap>(type: K): Job<K>["details"]["progress"] => {
   switch (type) {
     case "GenerateDeals":
       return zeroGenerateDealsProgress();
@@ -221,31 +236,23 @@ export const JobIdB = t.brand(
 export type JobId = t.TypeOf<typeof JobIdB>;
 const newJobId = () =>
   (JobIdB.decode(UuidTool.newUuid()) as Right<JobId>).right;
-export interface Job {
-  id: JobId;
-  analysisId: AnalysisId;
-  dependsOn: ReadonlyArray<JobId>;
-  type: JobType;
-  unitsInitial: number;
-  startDate: O.Option<DateNumber>;
-  completedDate: O.Option<DateNumber>;
-  running: boolean;
-  error: O.Option<string>;
-}
-export const zeroJob = (
+
+export const zeroJob = <K extends keyof JobDetailsMap>(
   analysisId: AnalysisId,
   estimatedUnitsInitial: number,
-  type: JobType
-): Job => ({
+  type: K,
+  details: JobDetailsMap[K]
+): Job<K> => ({
   id: newJobId(),
   analysisId,
   dependsOn: [],
-  type,
   unitsInitial: estimatedUnitsInitial,
   startDate: O.none,
   completedDate: O.none,
   running: false,
   error: O.none,
+  type,
+  details,
 });
 
 export const unitsRemaining = (job: Job) =>
