@@ -142,11 +142,6 @@ export const decodeTests: RR.ReadonlyRecord<string, DecodeTest> = {
   },
 }
 
-interface ConstraintPropositionTest {
-  value: Constraint
-  expected: Constraint
-}
-
 // The first constraint implies the second. Both constraints are syntax.  Two rules; A implies B.  
 export const constraintPropCompactTests: RR.ReadonlyRecord<string, [string, string]> = {
   // Point count tests
