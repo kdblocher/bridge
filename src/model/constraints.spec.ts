@@ -82,19 +82,6 @@ describe('constraint implications (compact)', () => {
     })))
 })
 
-describe('constraint implications', () => {
-  pipe(tests.constraintPropositionTests,
-    RR.mapWithIndex((name, { value, expected }) => {
-      test(name, () => fc.assert(
-        fc.property(fc.context(), handA, (ctx, hand) => {
-          ctx.log(encodeHand(hand))
-          boolean.BooleanAlgebra.implies(
-            satisfies(value)(hand),
-            satisfies(expected)(hand))
-        })))
-    }))
-})
-
 describe('constraint equivalencies', () => {
   pipe(tests.syntaxPropCompactTests,
     RR.mapWithIndex((name, [value, expected]) =>
@@ -112,20 +99,6 @@ describe('constraint equivalencies', () => {
           }))
       }
   })))
-})
-
-describe('expansion path validation', () => {
-  pipe(tests.expansionPathValidTests,
-    RR.mapWithIndex((name, { value, expected }) => {
-      describe(name, () => {
-        test("expands", () => {
-          expect(pipe(value,
-            expandSingleSyntacticBidPath,
-            x => TH.getChain(semigroup.first<unknown>()).chain(x, validateForest),
-            TH.isRight)).toEqual(expected)
-        })
-      })
-    }))
 })
 
 describe('partnership overlaps', () => {

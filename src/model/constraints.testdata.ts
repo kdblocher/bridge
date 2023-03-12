@@ -142,11 +142,6 @@ export const decodeTests: RR.ReadonlyRecord<string, DecodeTest> = {
   },
 }
 
-interface ConstraintPropositionTest {
-  value: Constraint
-  expected: Constraint
-}
-
 // The first constraint implies the second. Both constraints are syntax.  Two rules; A implies B.  
 export const constraintPropCompactTests: RR.ReadonlyRecord<string, [string, string]> = {
   // Point count tests
@@ -208,12 +203,6 @@ export const syntaxPropCompactTests: RR.ReadonlyRecord<string, [string, string]>
   // Verify unbalanced shapes  (anyting with singleton or void, or 7222)
   distUnBalanced: ["unBAL", "1-C or 1-D or 1-H or 1-S or 7222*"],
 }
-
-interface ExpansionPathValidTest {
-  value: Path<SyntacticBid>
-  expected: boolean
-}
-
 
 // This group of tests is first entity is north hand, while the second is the south hand.  The implication is that all these must be FALSE 
 export const partnershipOverlappingTestsFalse: RR.ReadonlyRecord<string, [string, string]> = {
