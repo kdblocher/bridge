@@ -1,87 +1,162 @@
-import 'draft-js/dist/Draft.css';
+import "draft-js/dist/Draft.css";
 
-import { ContentBlock, convertFromRaw, convertToRaw, Editor as DraftJsEditor, EditorState, getDefaultKeyBinding, RichUtils } from 'draft-js';
-import { eq, monoid, option, ord, readonlyArray, readonlyNonEmptyArray, readonlySet, string } from 'fp-ts';
-import { flow, pipe } from 'fp-ts/lib/function';
-import { useCallback, useEffect, useState } from 'react';
-import styled from 'styled-components';
+import {
+  ContentBlock,
+  convertFromRaw,
+  convertToRaw,
+  Editor as DraftJsEditor,
+  EditorState,
+  getDefaultKeyBinding,
+  RichUtils,
+} from "draft-js";
+import {
+  eq,
+  monoid,
+  number,
+  option,
+  ord,
+  readonlyArray,
+  readonlyNonEmptyArray,
+  readonlySet,
+  string,
+} from "fp-ts";
+import { flow, pipe } from "fp-ts/lib/function";
+import { useCallback, useEffect, useState } from "react";
+import styled from "styled-components";
 
-import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { selectBlockKey, setSelectedBlockKey } from '../reducers/selection';
-import { BlockItem, BlockKeyDescriptor, cacheSystemConstraints, removeConstraintsByBlockKey, setSystem } from '../reducers/system';
+import { useAppDispatch, useAppSelector } from "../app/hooks";
+import { selectBlockKey, setSelectedBlockKey } from "../reducers/selection";
+import {
+  BlockItem,
+  BlockKeyDescriptor,
+  cacheSystemConstraints,
+  removeConstraintsByBlockKey,
+  setSystem,
+} from "../reducers/system";
 
-const EditorDiv = styled.div `
+const EditorDiv = styled.div`
   font-family: Cascadia Code, Consolas, monospace;
   font-size: 1em;
-`
+`;
 
-const getDescriptorFromContentBlock = (x: ContentBlock): BlockKeyDescriptor & BlockItem => ({
+const getDescriptorFromContentBlock = (
+  x: ContentBlock
+): BlockKeyDescriptor & BlockItem => ({
   key: x.getKey(),
   text: x.getText(),
-  depth: x.getDepth()
-})
+  depth: x.getDepth(),
+});
 
 const eqContentBlock = monoid.concatAll(eq.getMonoid<ContentBlock>())([
-  pipe(string.Eq, eq.contramap(b => b.getKey())),
-  pipe(string.Eq, eq.contramap(b => b.getText()))
-])
-const getBlocks = (editorState: EditorState) => pipe(
-  editorState.getCurrentContent().getBlocksAsArray(),
-  readonlySet.fromReadonlyArray(eqContentBlock))
+  pipe(
+    string.Eq,
+    eq.contramap((b) => b.getKey())
+  ),
+  pipe(
+    string.Eq,
+    eq.contramap((b) => b.getText())
+  ),
+  pipe(
+    number.Eq,
+    eq.contramap((b) => b.getDepth())
+  ),
+]);
+const getBlocks = (editorState: EditorState) =>
+  pipe(
+    editorState.getCurrentContent().getBlocksAsArray(),
+    readonlySet.fromReadonlyArray(eqContentBlock)
+  );
 
 const Editor = () => {
-  const [editorState, setEditorState] = useState(() => EditorState.createEmpty())
-  const [blocks, setBlocks] = useState(() => getBlocks(editorState))
-  const dispatch = useAppDispatch()
-  const selectedBlockKey = useAppSelector(state => selectBlockKey(state.selection))
+  const [editorState, setEditorState] = useState(() =>
+    EditorState.createEmpty()
+  );
+  const [blocks, setBlocks] = useState(() => getBlocks(editorState));
+  const dispatch = useAppDispatch();
+  const selectedBlockKey = useAppSelector((state) =>
+    selectBlockKey(state.selection)
+  );
 
-  const onChange = useCallback((editorState: EditorState) => {
-    setEditorState(editorState)
-    setTimeout(() => localStorage.setItem("editor", JSON.stringify(convertToRaw(editorState.getCurrentContent()))), 0)
-    const newBlocks = getBlocks(editorState)
-    const same = readonlySet.intersection(eqContentBlock)(blocks, newBlocks)
-    const removed = readonlySet.difference(eqContentBlock)(blocks, same)
-    const added = readonlySet.difference(eqContentBlock)(newBlocks, same)
-    setBlocks(newBlocks)
+  const onChange = useCallback(
+    (editorState: EditorState) => {
+      setEditorState(editorState);
+      setTimeout(
+        () =>
+          localStorage.setItem(
+            "editor",
+            JSON.stringify(convertToRaw(editorState.getCurrentContent()))
+          ),
+        0
+      );
+      const newBlocks = getBlocks(editorState);
+      const same = readonlySet.intersection(eqContentBlock)(blocks, newBlocks);
+      const removed = readonlySet.difference(eqContentBlock)(blocks, same);
+      const added = readonlySet.difference(eqContentBlock)(newBlocks, same);
+      setBlocks(newBlocks);
 
-    if (!readonlySet.isEmpty(monoid.concatAll(readonlySet.getUnionMonoid<ContentBlock>(eqContentBlock))([removed, added]))) {
-      dispatch(pipe(
-        newBlocks,
-        readonlySet.toReadonlyArray<ContentBlock>(ord.trivial),
-        readonlyArray.map(getDescriptorFromContentBlock),
-        setSystem))
-      pipe(
-        removed,
-        readonlySet.toReadonlyArray<ContentBlock>(ord.trivial),
-        readonlyNonEmptyArray.fromReadonlyArray,
-        option.map(flow(
-          readonlyNonEmptyArray.map(b => b.getKey()),
-          x => dispatch(removeConstraintsByBlockKey(x)))))
-      pipe(
-        added,
-        readonlySet.toReadonlyArray<ContentBlock>(ord.trivial),
-        readonlyNonEmptyArray.fromReadonlyArray,
-        option.map(flow(
-          readonlyNonEmptyArray.map(getDescriptorFromContentBlock),
-          x => dispatch(cacheSystemConstraints(x)))))
-    }
-    
-    const newSelectedBlockKey = editorState.getSelection().getFocusKey()
-    if (newSelectedBlockKey !== selectedBlockKey) {
-      dispatch(setSelectedBlockKey(option.some(newSelectedBlockKey)))
-    }
-  }, [blocks, dispatch, selectedBlockKey])
+      if (
+        !readonlySet.isEmpty(
+          monoid.concatAll(
+            readonlySet.getUnionMonoid<ContentBlock>(eqContentBlock)
+          )([removed, added])
+        )
+      ) {
+        dispatch(
+          pipe(
+            newBlocks,
+            readonlySet.toReadonlyArray<ContentBlock>(ord.trivial),
+            readonlyArray.map(getDescriptorFromContentBlock),
+            setSystem
+          )
+        );
+        pipe(
+          removed,
+          readonlySet.toReadonlyArray<ContentBlock>(ord.trivial),
+          readonlyNonEmptyArray.fromReadonlyArray,
+          option.map(
+            flow(
+              readonlyNonEmptyArray.map((b) => b.getKey()),
+              (x) => dispatch(removeConstraintsByBlockKey(x))
+            )
+          )
+        );
+        pipe(
+          added,
+          readonlySet.toReadonlyArray<ContentBlock>(ord.trivial),
+          readonlyNonEmptyArray.fromReadonlyArray,
+          option.map(
+            flow(
+              readonlyNonEmptyArray.map(getDescriptorFromContentBlock),
+              (x) => dispatch(cacheSystemConstraints(x))
+            )
+          )
+        );
+      }
+
+      const newSelectedBlockKey = editorState.getSelection().getFocusKey();
+      if (newSelectedBlockKey !== selectedBlockKey) {
+        dispatch(setSelectedBlockKey(option.some(newSelectedBlockKey)));
+      }
+    },
+    [blocks, dispatch, selectedBlockKey]
+  );
 
   useEffect(() => {
-    const savedEditorState = localStorage.getItem("editor")
+    const savedEditorState = localStorage.getItem("editor");
     if (savedEditorState) {
-      setEditorState(() => EditorState.createWithContent(convertFromRaw(JSON.parse(savedEditorState))))
+      setEditorState(() =>
+        EditorState.createWithContent(
+          convertFromRaw(JSON.parse(savedEditorState))
+        )
+      );
     } else {
-      setEditorState(() => RichUtils.toggleBlockType(editorState, 'unordered-list-item'))
+      setEditorState(() =>
+        RichUtils.toggleBlockType(editorState, "unordered-list-item")
+      );
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div>
       <h3>Editor</h3>
@@ -90,11 +165,15 @@ const Editor = () => {
           editorState={editorState}
           onChange={onChange}
           // https://github.com/facebook/draft-js/blob/master/examples/draft-0-10-0/rich/rich.html#L61
-          keyBindingFn={e => {
+          keyBindingFn={(e) => {
             if (e.keyCode === 9 /* TAB */) {
-              const newEditorState = RichUtils.onTab(e, editorState, 10, /* maxDepth */);
+              const newEditorState = RichUtils.onTab(
+                e,
+                editorState,
+                10 /* maxDepth */
+              );
               if (newEditorState !== editorState) {
-                onChange(newEditorState)
+                onChange(newEditorState);
               }
               return null;
             }
@@ -103,7 +182,7 @@ const Editor = () => {
         />
       </EditorDiv>
     </div>
-  )
-}
+  );
+};
 
-export default Editor
+export default Editor;
