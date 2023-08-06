@@ -12,6 +12,7 @@ import {
 import {
   eq,
   monoid,
+  number,
   option,
   ord,
   readonlyArray,
@@ -54,6 +55,10 @@ const eqContentBlock = monoid.concatAll(eq.getMonoid<ContentBlock>())([
   pipe(
     string.Eq,
     eq.contramap((b) => b.getText())
+  ),
+  pipe(
+    number.Eq,
+    eq.contramap((b) => b.getDepth())
   ),
 ]);
 const getBlocks = (editorState: EditorState) =>
