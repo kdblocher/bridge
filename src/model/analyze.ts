@@ -9,6 +9,7 @@ import {
   readonlyTuple,
   refinement,
   semigroup,
+  eq,
 } from "fp-ts";
 import { constant, flow, pipe } from "fp-ts/lib/function";
 import { ordAscending, ordDescending } from "../lib";
@@ -17,6 +18,7 @@ import {
   contractBids,
   ContractModifier,
   Direction,
+  eqContractBid,
   getIsVulnerable,
   ordContractBid,
   Strain,
@@ -74,7 +76,11 @@ export const transpose = <K1 extends string, K2 extends string, T>(
     )
   );
 
-type OptimalBid = ContractBid | "Pass";
+export type OptimalBid = ContractBid | "Pass";
+export const eqOptimalBid: eq.Eq<OptimalBid> = {
+  equals: (a, b) =>
+    (!(a === "Pass" || b === "Pass") && eqContractBid.equals(a, b)) || a === b,
+};
 const initialContractBid: refinement.Refinement<OptimalBid, ContractBid> = (
   b
 ): b is ContractBid => b !== "Pass";
@@ -83,10 +89,9 @@ const initialBids = pipe(
   readonlyArray.sort(ordContractBid),
   readonlyArray.prepend<OptimalBid>("Pass")
 );
-const ordInitialBidsAscending = ordAscending(initialBids);
 const ordInitialBidsDescending = ordDescending(initialBids);
 
-type ContractScorePair = readonly [OptimalBid, Score];
+export type ContractScorePair = readonly [OptimalBid, Score];
 const getDirectionScores =
   (counts: TrickCountsByStrain) => (isVulnerable: boolean) =>
     pipe(
@@ -110,8 +115,8 @@ const getDirectionScores =
       )
     );
 
-const getAllScores =
-  (table: TrickCountsByDirectionThenStrain) => (vulnerability: Vulnerability) =>
+export const getAllScores =
+  (vulnerability: Vulnerability) => (table: TrickCountsByDirectionThenStrain) =>
     pipe(
       table,
       RR.mapWithIndex((direction, counts) =>

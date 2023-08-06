@@ -161,7 +161,7 @@ const slice = createSlice({
                           }
                           o.generation.solutionStats[
                             solveJob.details.context.bidPath
-                          ] = stats;
+                          ] = castDraft(stats);
                         }
                       )
                     )

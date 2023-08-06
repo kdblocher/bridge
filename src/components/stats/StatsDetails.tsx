@@ -1,9 +1,28 @@
-import { option as O, readonlyRecord as RR } from "fp-ts";
+import {
+  option as O,
+  readonlyRecord as RR,
+  readonlyNonEmptyArray as RNEA,
+} from "fp-ts";
 import { flow, pipe } from "fp-ts/lib/function";
 import { get } from "../../lib/object";
 import { Generation } from "../../model/job";
-import { SerializedBidPath } from "../../model/serialization";
+import {
+  SerializedBidPath,
+  serializedBidPathL,
+} from "../../model/serialization";
 import SolutionStats from "./SolutionStats";
+import ScoreComparison from "./ScoreComparison";
+import { ContractBid } from "../../model/bridge";
+import styled from "styled-components";
+
+export const Columns = styled.div`
+  display: flex;
+  flex-direction: row;
+`;
+
+export const Column = styled.div`
+  width: 35%;
+`;
 
 interface StatsDetailsProps {
   path: SerializedBidPath;
@@ -24,10 +43,22 @@ const StatsDetails = ({ path, generation, onClose }: StatsDetailsProps) => {
     O.chain(O.fromPredicate((len) => len > 0)),
     O.toNullable
   );
+  const contractBid = pipe(
+    path,
+    serializedBidPathL.reverseGet,
+    RNEA.last
+  ) as ContractBid;
   return (
     <div>
       {solveCount && <h3>{solveCount} solutions found</h3>}
-      {stats && <SolutionStats stats={stats} />}
+      <Columns>
+        <Column>{stats && <SolutionStats stats={stats} />}</Column>
+        <div>
+          {stats?.scores && (
+            <ScoreComparison contractBid={contractBid} scores={stats.scores} />
+          )}
+        </div>
+      </Columns>
     </div>
   );
 };

@@ -144,9 +144,10 @@ export const ordContractBid: ord.Ord<ContractBid> = ord
       ord.contramap((c) => c.strain)
     )
   );
+export const levels = RNEA.makeBy((level) => level + 1)(7);
 export const contractBids: ReadonlyArray<ContractBid> = pipe(
   apply.sequenceS(RA.Apply)({
-    level: RA.makeBy(7, (level) => level + 1),
+    level: levels,
     strain: strains,
   }),
   RA.sort(ordContractBid)
